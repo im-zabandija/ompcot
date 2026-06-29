@@ -31,38 +31,35 @@ struct EmbeddedExtensionResolution {
     source: &'static str,
 }
 
-/// `scripts/omp-version.json` baked into the binary at compile time so we can
-/// forward the locked omp version to the embedded server (which displays it
-/// in the UI footer) without re-running fetch logic at startup.
-const OMP_VERSION_JSON: &str = include_str!("../../scripts/omp-version.json");
-
-/// Locked omp version string (e.g. "0.77.0"). Resolved lazily on first call.
+/// Resolve the system omp version by running `omp --version`.
+/// Result is cached lazily on first call.
 pub fn locked_omp_version() -> &'static str {
     static CACHED: OnceLock<String> = OnceLock::new();
     CACHED.get_or_init(|| {
-        // We deliberately do a hand-rolled extraction rather than a full
-        // serde_json parse: this string is baked in at compile time, the
-        // schema is trivial ({"version": "..."}), and avoiding the
-        // dependency makes this fn callable from `const` contexts in the
-        // future if needed. If the JSON shape grows, switch to serde_json.
-        let needle = "\"version\"";
-        let bytes = OMP_VERSION_JSON;
-        let start = bytes
-            .find(needle)
-            .expect("omp-version.json: missing \"version\" key");
-        let after_key = &bytes[start + needle.len()..];
-        let colon = after_key
-            .find(':')
-            .expect("omp-version.json: malformed \"version\" entry");
-        let after_colon = &after_key[colon + 1..];
-        let first_quote = after_colon
-            .find('"')
-            .expect("omp-version.json: \"version\" value not quoted");
-        let rest = &after_colon[first_quote + 1..];
-        let end_quote = rest
-            .find('"')
-            .expect("omp-version.json: unterminated \"version\" value");
-        rest[..end_quote].to_string()
+        let bin_name = if cfg!(target_os = "windows") {
+            "omp.exe"
+        } else {
+            "omp"
+        };
+        let bin = std::env::var("OMP_BIN")
+            .ok()
+            .map(PathBuf::from)
+            .or_else(|| which::which(bin_name).ok());
+        match bin {
+            Some(bin) => {
+                match Command::new(&bin).arg("--version").output() {
+                    Ok(output) => {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        stdout.trim().to_string()
+                    }
+                    Err(e) => {
+                        log::warn!("[ompcot] failed to run omp --version: {}", e);
+                        "unknown".to_string()
+                    }
+                }
+            }
+            None => "unknown (omp not found on PATH)".to_string(),
+        }
     })
 }
 
@@ -330,12 +327,9 @@ impl OmpManager {
     /// 1. `OMP_BIN` env var (escape hatch for testing a different binary).
     /// 2. `omp` on PATH — the user's system-installed omp (Homebrew, etc.).
     ///    This means `brew upgrade omp` automatically picks up the latest.
-    /// 3. Bundled `<static_dir>/../omp/<bin>` — fallback for when no
-    ///    system omp is installed (e.g. first-time users).
-    /// 4. *Debug builds only:* `<repo>/src-tauri/resources/omp/<bin>`.
     ///
     /// Returns `Err` if no binary is found at all.
-    fn resolve_bundled_omp(&self) -> Result<PathBuf, String> {
+    fn resolve_omp(&self) -> Result<PathBuf, String> {
         let bin_name = if cfg!(target_os = "windows") {
             "omp.exe"
         } else {
@@ -356,46 +350,10 @@ impl OmpManager {
             return Ok(path);
         }
 
-        // 3. Bundled fallback (for users without system omp).
-        let mut tried: Vec<PathBuf> = Vec::new();
-        let bundled = self
-            .static_dir
-            .parent()
-            .map(|parent| parent.join("omp").join(bin_name));
-        if let Some(p) = bundled.clone() {
-            if p.is_file() {
-                return Ok(p);
-            }
-            tried.push(p);
-        }
-
-        // 4. Dev fallback.
-        if cfg!(debug_assertions) {
-            let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("resources")
-                .join("omp")
-                .join(bin_name);
-            if dev_path.is_file() {
-                return Ok(dev_path);
-            }
-            tried.push(dev_path);
-        }
-
-        let tried_str = tried
-            .iter()
-            .map(|p| format!("  - {}", p.display()))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let tried_msg = if tried_str.is_empty() {
-            String::from(" (none)")
-        } else {
-            format!("\n{}", tried_str)
-        };
         Err(format!(
-            "Could not find omp binary. Install it via:\n  brew install omp\n\n\
-             Tried:{}\n\n\
-             For dev: run `bun run fetch:omp` from the repo root.",
-            tried_msg
+            "Could not find omp binary on PATH.\n\n\
+             Install omp via:\n  brew install omp\n\n\
+             Or set OMP_BIN to the path of your omp binary."
         ))
     }
     /// Locate the embedded-server extension shipped with this build.
@@ -484,7 +442,7 @@ impl OmpManager {
     }
 
     pub fn spawn(&self, cwd: &str, port: u16, session_path: Option<&str>) -> Result<(), String> {
-        let pi_bin = self.resolve_bundled_omp()?;
+        let pi_bin = self.resolve_omp()?;
         // Tauri resolves resource paths as `\\?\`-prefixed extended-length
         // paths. Bun (the embedded omp runtime) segfaults on Windows arm64 when
         // launched from such a path, so normalize the binary path and every
@@ -566,9 +524,8 @@ impl OmpManager {
         let spawn_started_at = Instant::now();
         let mut child = child.spawn().map_err(|e| {
             format!(
-                "Failed to spawn embedded omp ({}): {}. \
-                 The bundled binary may be corrupted or unsupported on this OS/arch. \
-                 Reinstall Ompcot, or for dev rerun `bun run fetch:omp`.",
+                "Failed to spawn omp ({}): {}. \
+                 Make sure omp is installed (brew install omp) and on your PATH.",
                 pi_bin.display(),
                 e,
             )
@@ -684,7 +641,7 @@ impl OmpManager {
     /// Run `pi <args...>` with the embedded binary and return stdout.
     /// Used by Settings UI package management operations (install/remove/list).
     pub fn run_pi_command(&self, args: &[String]) -> Result<String, String> {
-        let pi_bin = self.resolve_bundled_omp()?;
+        let pi_bin = self.resolve_omp()?;
         let pi_bin_str = strip_verbatim_prefix(&pi_bin.to_string_lossy());
         let augmented_path = build_augmented_path();
         log_child_path_diagnostics("run_pi_command", &augmented_path);
@@ -698,7 +655,7 @@ impl OmpManager {
             .stderr(Stdio::piped());
         let output = command.output().map_err(|e| {
             format!(
-                "Failed to run embedded omp command ({} {:?}): {}",
+                "Failed to run omp command ({} {:?}): {}",
                 pi_bin_str, args, e
             )
         })?;
@@ -715,7 +672,7 @@ impl OmpManager {
             format!("exit status {}", output.status)
         };
         Err(format!(
-            "Embedded omp command failed: {} {:?}: {}",
+            "Omp command failed: {} {:?}: {}",
             pi_bin_str, args, details
         ))
     }

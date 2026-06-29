@@ -1006,7 +1006,7 @@ fn main() {
                     );
                     app.dialog()
                         .message(format!(
-                            "Ompcot could not start the embedded omp runtime.\n\n{}\n\nThe Ompcot installation may be incomplete or corrupted. Please reinstall Ompcot and try again.",
+                            "Ompcot could not start the omp runtime.\n\n{}\n\nMake sure omp is installed (brew install omp) and on your PATH.",
                             err
                         ))
                         .title("Ompcot startup failed")

@@ -1,4 +1,0 @@
-{
-  "version": "16.2.4",
-  "_comment": "Locked OMP version that Ompcot bundles. OMP is distributed via Homebrew, not GitHub releases. The fetch-omp-binary.js script copies from the local Homebrew installation."
-}

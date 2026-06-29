@@ -105,15 +105,15 @@ export class WsTransport {
     return this._control("is_dev", {});
   }
 
-  listOMP Packages() {
+  listOMPPackages() {
     return this._control("list_pi_packages", {});
   }
 
-  installOMP Package(source) {
+  installOMPPackage(source) {
     return this._control("install_pi_package", { source }, { timeoutMs: PACKAGE_TIMEOUT_MS });
   }
 
-  removeOMP Package(source) {
+  removeOMPPackage(source) {
     return this._control("remove_pi_package", { source }, { timeoutMs: PACKAGE_TIMEOUT_MS });
   }
 

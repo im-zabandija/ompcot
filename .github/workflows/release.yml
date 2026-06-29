@@ -20,18 +20,13 @@ jobs:
           # macOS Intel (x64) build. The macos-13 Intel runner was retired by
           # GitHub, so we cross-compile x86_64 from an Apple Silicon runner.
           - os: macos-14
-            pi_target_platform: darwin-x64
             rust_target: x86_64-apple-darwin
           # Linux deb/rpm bundling is currently more stable on 22.04 than
           # 24.04 for GTK/WebKit bundles in CI.
           - os: ubuntu-22.04
-            pi_target_platform: linux-x64
           - os: ubuntu-24.04-arm
-            pi_target_platform: linux-arm64
           - os: windows-2022
-            pi_target_platform: windows-x64
           - os: windows-11-arm
-            pi_target_platform: windows-arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -97,35 +92,6 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
-
-      # Cache the downloaded pi tarballs across runs to avoid pulling ~30 MB
-      # from GitHub releases on every build. The key includes the locked
-      # version file so a version bump invalidates the cache automatically.
-      - name: Cache pi binary downloads
-        uses: actions/cache@v5
-        with:
-          path: .cache/pi-binaries
-          key: pi-binaries-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/pi-version.json') }}
-
-      - name: Fetch embedded pi binary
-        env:
-          PI_TARGET_PLATFORM: ${{ matrix.pi_target_platform }}
-        run: bun run fetch:pi
-
-      # Sanity-check that the embedded binary actually runs. We can only do
-      # this when the embedded binary's architecture matches the runner's:
-      # the macos-14 job cross-compiles an x86_64 (darwin-x64) binary on an
-      # Apple Silicon runner, which would SIGILL ("Illegal instruction",
-      # exit 132) if executed here. That cross-built binary is exercised on
-      # its own native runner instead. `matrix.rust_target` is only set for
-      # the cross-compile job, so its absence means host arch == target arch.
-      - name: Verify embedded pi runs (Unix)
-        if: runner.os != 'Windows' && matrix.rust_target == ''
-        run: ./src-tauri/resources/pi/pi --version
-
-      - name: Verify embedded pi runs (Windows)
-        if: runner.os == 'Windows' && matrix.rust_target == ''
-        run: .\src-tauri\resources\pi\pi.exe --version
 
       - name: Build pi extensions bundle
         run: bun run build:extensions

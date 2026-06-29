@@ -3063,7 +3063,7 @@ async function fetchBrowsePackages() {
 async function fetchInstalledSources() {
   if (!nativeAvailable()) return new Set();
   try {
-    const configured = await transport.listOMP Packages();
+    const configured = await transport.listOMPPackages();
     return new Set(Array.isArray(configured) ? configured : []);
   } catch {
     return new Set();
@@ -3334,10 +3334,10 @@ function createBrowseRow(pkg) {
       status.title = status.textContent;
       try {
         if (installed) {
-          await transport.removeOMP Package(source);
+          await transport.removeOMPPackage(source);
           browseInstalledSet.delete(source);
         } else {
-          await transport.installOMP Package(source);
+          await transport.installOMPPackage(source);
           browseInstalledSet.add(source);
         }
         renderBrowsePackages();
