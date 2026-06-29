@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f6ef6"/>
+      <stop offset="50%" stop-color="#7c5cfc"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="chevron" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded rect -->
+  <rect x="64" y="64" width="896" height="896" rx="200" ry="200" fill="url(#bg)"/>
+
+  <!-- Subtle inner border -->
+  <rect x="64" y="64" width="896" height="896" rx="200" ry="200" fill="none" stroke="url(#accent)" stroke-width="6" opacity="0.4"/>
+
+  <!-- Stylized agent prompt: » _  -->
+  <g filter="url(#glow)">
+    <!-- Double chevron -->
+    <path d="M 340 380 L 460 512 L 340 644"
+          fill="none" stroke="url(#chevron)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 460 380 L 580 512 L 460 644"
+          fill="none" stroke="url(#chevron)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+  </g>
+
+  <!-- Blinking cursor block -->
+  <rect x="620" y="380" width="48" height="264" rx="8" fill="url(#chevron)" filter="url(#glow)" opacity="0.9">
+    <animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.5s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Subtle dot grid pattern in background -->
+  <g opacity="0.06">
+    <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="2" fill="white"/>
+    </pattern>
+    <rect x="64" y="64" width="896" height="896" rx="200" ry="200" fill="url(#dots)"/>
+  </g>
+</svg>
