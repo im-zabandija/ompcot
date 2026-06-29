@@ -1,32 +1,32 @@
 /**
- * Embedded Server Extension for Picot desktop
+ * Embedded Server Extension for Ompcot desktop
  *
- * Starts the HTTP + WebSocket server that the Picot Tauri WebView talks to.
- * This is not a user-facing "pi extension" — it ships inside the Picot
- * .app bundle and is loaded by the bundled `pi` binary that Picot spawns
+ * Starts the HTTP + WebSocket server that the Ompcot Tauri WebView talks to.
+ * This is not a user-facing "omp extension" — it ships inside the Ompcot
+ * .app bundle and is loaded by the bundled `omp` binary that Ompcot spawns
  * via `--extension <bundle>/embedded-server.mjs`.
  *
  * Responsibilities:
  * - Serve the static frontend assets (`public/`)
  * - Bridge browser RPC over `/api/rpc` (HTTP) and `/ws` (WebSocket) to the
- *   pi extension API (sendUserMessage, abort, set_model, etc.)
+ *   omp extension API (sendUserMessage, abort, set_model, etc.)
  * - Expose REST endpoints the frontend queries directly:
  *   `/api/sessions`, `/api/cost-dashboard`, `/api/files`, `/api/search`,
  *   `/api/open`, `/api/agent-config`, `/api/models-config`, `/api/instances`
- * - Forward all pi lifecycle events to connected browsers
+ * - Forward all omp lifecycle events to connected browsers
  * - Generate session titles from user messages
  *
  * What's intentionally NOT here anymore (vs the old mirror-server.ts):
  * - QR / pairing flow — LAN mobile access is advertised as a plain URL
  * - Basic auth — the mobile entry point is an explicit local-network dev mode
  * - `/studiostart` / `/studiostop` / `/qr` commands — server lifecycle is
- *   tied 1:1 to the pi process Picot spawns
- * - Cross-process instance discovery via `~/.pi/pistudio-instances/` —
- *   Picot's Rust side already knows which ports it spawned. We keep a
+ *   tied 1:1 to the omp process Ompcot spawns
+ * - Cross-process instance discovery via `~/.omp/ompcot-instances/` —
+ *   Ompcot's Rust side already knows which ports it spawned. We keep a
  *   trivial single-entry registry so the frontend's `active` state stays
  *   correct without needing a Tauri invoke for `/api/instances` queries.
- * - `pi --version` exec probing — version is forwarded by Picot via
- *   `PI_STUDIO_PI_VERSION` env var.
+ * - `omp --version` exec probing — version is forwarded by Ompcot via
+ *   `OMCOT_OMP_VERSION` env var.
  */
 
 import { execFile } from "node:child_process";
@@ -38,7 +38,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
   ModelRegistry,
-} from "@earendil-works/pi-coding-agent";
+} from "@oh-my-pi/omp-coding-agent";
 import QRCode from "qrcode";
 import { type WebSocket, WebSocketServer } from "ws";
 import {
@@ -48,11 +48,11 @@ import {
 } from "./cost-dashboard-data.ts";
 import { buildProjectSearchMatch } from "./session-search";
 
-// `pi` is compiled with `bun build --compile`. Inside that runtime,
+// `omp` is compiled with `bun build --compile`. Inside that runtime,
 // `http.createServer(...).on("upgrade", ...)` accepts the upgrade event
 // but `socket.write()` (which `ws.handleUpgrade` uses to send the
 // `HTTP/1.1 101 Switching Protocols` reply) is silently dropped, so the
-// client never completes the handshake. The result in Picot is
+// client never completes the handshake. The result in Ompcot is
 // "Disconnected" forever and chat sessions never render.
 //
 // `Bun.serve()` ships its own native WebSocket upgrade path and *does*
@@ -73,9 +73,9 @@ const HAS_BUN_SERVE =
   typeof (globalThis as { Bun?: BunRuntime }).Bun !== "undefined" &&
   typeof (globalThis as { Bun?: BunRuntime }).Bun?.serve === "function";
 
-// Picot settings live under `pistudio` key in ~/.pi/agent/settings.json.
+// Ompcot settings live under `ompcot` key in ~/.omp/agent/settings.json.
 // We only honor the fields that still make sense in desktop-only mode.
-// TODO(rename->picot): key is `pistudio` for historical reasons. Changing it to `picot`
+// TODO(rename->picot): key is `ompcot` for historical reasons. Changing it to `picot`
 // would break existing users' settings — add a migration path before renaming.
 function buildHomeDirCandidates(): string[] {
   const candidates: string[] = [];
@@ -100,8 +100,8 @@ function buildHomeDirCandidates(): string[] {
   return candidates;
 }
 
-function resolvePiAgentRoot(): string {
-  // Prefer whichever home candidate already has .pi/agent on disk.
+function resolveOmpAgentRoot(): string {
+  // Prefer whichever home candidate already has .omp/agent on disk.
   for (const home of buildHomeDirCandidates()) {
     const candidate = path.join(home, ".pi", "agent");
     if (fs.existsSync(candidate)) return candidate;
@@ -110,7 +110,7 @@ function resolvePiAgentRoot(): string {
   // Fallback for some Windows setups where app data is relocated.
   const appData = process.env.APPDATA;
   if (typeof appData === "string" && appData.trim()) {
-    const roamingCandidate = path.join(path.resolve(appData), "pi", "agent");
+    const roamingCandidate = path.join(path.resolve(appData), "omp", "agent");
     if (fs.existsSync(roamingCandidate)) return roamingCandidate;
   }
 
@@ -118,7 +118,7 @@ function resolvePiAgentRoot(): string {
   return path.join(home, ".pi", "agent");
 }
 
-const PI_AGENT_ROOT = resolvePiAgentRoot();
+const OMP_AGENT_ROOT = resolveOmpAgentRoot();
 
 export const LAN_BIND_HOST = "0.0.0.0";
 
@@ -143,7 +143,7 @@ function findLanHosts(): string[] {
 }
 
 export function buildLanAccessUrls(port: number, hosts: string[]): string[] {
-  const brokerPort = Number.parseInt(process.env.PI_STUDIO_BROKER_PORT || "", 10);
+  const brokerPort = Number.parseInt(process.env.OMCOT_BROKER_PORT || "", 10);
   return hosts.map((host) => {
     const url = new URL(`http://${host}:${port}/`);
     url.searchParams.set("mobile", "1");
@@ -163,24 +163,24 @@ function buildLanUrls(port: number): string[] {
 function loadSettings(): { port: number } {
   let settings: { port?: number | string } = {};
   try {
-    const settingsPath = path.join(PI_AGENT_ROOT, "settings.json");
-    // TODO(rename->picot): key `pistudio` kept for backward compat — migrate to `picot` once a settings-migration path exists.
-    settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")).pistudio || {};
+    const settingsPath = path.join(OMP_AGENT_ROOT, "settings.json");
+    // TODO(rename->picot): key `ompcot` kept for backward compat — migrate to `picot` once a settings-migration path exists.
+    settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")).ompcot || {};
   } catch {}
   return {
-    port: parseInt(String(process.env.PI_STUDIO_PORT || settings.port || "47821"), 10),
+    port: parseInt(String(process.env.OMCOT_PORT || settings.port || "47821"), 10),
   };
 }
 
 const SETTINGS = loadSettings();
 const PORT = SETTINGS.port;
 const BIND_HOST = LAN_BIND_HOST;
-// Forwarded by Picot (Rust side) from `scripts/pi-version.json`. We deliberately
-// do not call `pi --version` here: this extension always runs *inside* the pi
-// binary Picot spawned, so the version is known.
-const EMBEDDED_PI_VERSION = process.env.PI_STUDIO_PI_VERSION || "";
+// Forwarded by Ompcot (Rust side) from `scripts/omp-version.json`. We deliberately
+// do not call `omp --version` here: this extension always runs *inside* the pi
+// binary Ompcot spawned, so the version is known.
+const EMBEDDED_OMP_VERSION = process.env.OMCOT_OMP_VERSION || "";
 
-const STATIC_DIR = process.env.PI_STUDIO_STATIC_DIR || findPublicDir();
+const STATIC_DIR = process.env.OMCOT_STATIC_DIR || findPublicDir();
 
 function findPublicDir(): string {
   const candidates: string[] = [];
@@ -192,9 +192,9 @@ function findPublicDir(): string {
     candidates.push(normalized);
   };
 
-  // Common extension-relative paths. Picot's Rust side always sets
-  // PI_STUDIO_STATIC_DIR, so this fallback chain is only exercised in
-  // weird dev scenarios (e.g. loading the extension directly via pi -e).
+  // Common extension-relative paths. Ompcot's Rust side always sets
+  // OMCOT_STATIC_DIR, so this fallback chain is only exercised in
+  // weird dev scenarios (e.g. loading the extension directly via omp -e).
   addCandidate(path.resolve(__dirname, "public"));
   addCandidate(path.resolve(__dirname, "../public"));
   addCandidate(path.resolve(process.cwd(), "public"));
@@ -205,16 +205,16 @@ function findPublicDir(): string {
 
   return path.resolve(process.cwd(), "public");
 }
-const SESSIONS_DIR = path.join(PI_AGENT_ROOT, "sessions");
-// TODO(rename->picot): directory `pistudio-instances` kept for backward compat — migrate to `picot-instances` once existing users are handled.
-const INSTANCES_DIR = path.join(path.dirname(PI_AGENT_ROOT), "pistudio-instances");
+const SESSIONS_DIR = path.join(OMP_AGENT_ROOT, "sessions");
+// TODO(rename->picot): directory `ompcot-instances` kept for backward compat — migrate to `picot-instances` once existing users are handled.
+const INSTANCES_DIR = path.join(path.dirname(OMP_AGENT_ROOT), "ompcot-instances");
 
 // Minimal single-process instance registry. We keep this so the frontend's
 // `/api/instances` response reflects the running workspace without needing
 // a Tauri invoke. Unlike the old mirror-server
 // which scanned the whole INSTANCES_DIR (for tmux / standalone pi
-// processes), we only ever write our own entry: Picot's Rust side
-// manages all pi processes it spawns.
+// processes), we only ever write our own entry: Ompcot's Rust side
+// manages all omp processes it spawns.
 function registerInstance(port: number, sessionFile: string, cwd: string) {
   fs.mkdirSync(INSTANCES_DIR, { recursive: true });
   const info = { port, pid: process.pid, sessionFile, cwd, startedAt: new Date().toISOString() };
@@ -313,7 +313,7 @@ const MIME_TYPES: Record<string, string> = {
 
 // ─── Process-global server state ──────────────────────────────────────────────
 //
-// pi reloads the extension on every `new_session` / `switch_session` / `fork`:
+// omp reloads the extension on every `new_session` / `switch_session` / `fork`:
 // the old extension instance receives `session_shutdown`, the module is
 // rebound, and the new instance receives `session_start`. If we closed the
 // HTTP+WS server in `session_shutdown` and re-listened on `session_start`,
@@ -324,12 +324,12 @@ const MIME_TYPES: Record<string, string> = {
 //
 // Fix: own the HTTP server, WS server, client set, and heartbeat at the
 // process scope. We start them once (lazily on the first `session_start`)
-// and keep them alive for the lifetime of the pi process. Each new extension
+// and keep them alive for the lifetime of the omp process. Each new extension
 // instance just (re)publishes its `handleCommand` / `latestCtx` / event
 // broadcaster into the global so the long-lived `wss.on("connection", …)`
 // handler always dispatches through the *current* session's bindings.
 // Cache key for parsed session file headers / metrics. We key on absolute
-// path and invalidate on (mtimeMs, size). pi *appends* to JSONL files for the
+// path and invalidate on (mtimeMs, size). omp *appends* to JSONL files for the
 // active session, so size grows monotonically until the session ends — this
 // is sufficient to detect "needs reparse" without diffing content.
 type SessionFileCacheEntry<T> = {
@@ -346,7 +346,7 @@ type SessionFileCacheEntry<T> = {
 type ServerHandle = {
   port: number;
   // Force-close everything, used in tests / hot reload — production never
-  // calls this, the server lives for the pi process lifetime.
+  // calls this, the server lives for the omp process lifetime.
   close: () => void;
   // The native handle, for callers that genuinely need it (currently
   // only the `server.address()` peek in the re-register path).
@@ -403,38 +403,38 @@ type EmbeddedServerGlobal = {
   getLatestCtx: (() => ExtensionContext | null) | null;
   // Cached process-scoped references that don't change across sessions.
   //
-  // `ModelRegistry` (and its `AuthStorage`) are owned by the pi process,
-  // not by any one session: `~/.pi/agent/auth.json` is shared across every
+  // `ModelRegistry` (and its `AuthStorage`) are owned by the omp process,
+  // not by any one session: `~/.omp/agent/auth.json` is shared across every
   // `new_session` / `switch_session` / `fork` and every extension reload
-  // pi-mono does. The auth Settings panel (`list_auth_status` /
+  // oh-my-omp does. The auth Settings panel (`list_auth_status` /
   // `set_api_key` / `remove_api_key`) only needs the registry — gating it
   // behind the per-session `latestCtx` caused "Failed to load providers"
   // whenever the user opened Settings → Authentication during the brief
-  // window before pi fires its first `session_start`, or in the gap
+  // window before omp fires its first `session_start`, or in the gap
   // between sessions during a reload. We cache the first registry we see
   // here and prefer it (when present) over `latestCtx?.modelRegistry`.
   modelRegistry: ModelRegistry | null;
-  // The freshest `ExtensionAPI` (i.e. `pi`) reference, re-published on
+  // The freshest `ExtensionAPI` (i.e. `omp`) reference, re-published on
   // every `session_start`. Command handlers MUST go through this getter
-  // instead of capturing the `pi` parameter from `export default function`
-  // in their closure: pi-mono invalidates the old `pi` after `new_session`,
+  // instead of capturing the `omp` parameter from `export default function`
+  // in their closure: oh-my-omp invalidates the old `omp` after `new_session`,
   // `switch_session`, `fork`, and `reload`, and any session-bound call on
-  // a stale `pi` (e.g. `pi.setThinkingLevel`, `pi.sendUserMessage`,
-  // `pi.setSessionName`) throws an error that pi-mono surfaces as an
+  // a stale `omp` (e.g. `omp.setThinkingLevel`, `omp.sendUserMessage`,
+  // `omp.setSessionName`) throws an error that oh-my-omp surfaces as an
   // `extension_error` event — which the frontend renders as a red error
   // bubble in chat. Routing through `getApi()` guarantees we always hit
-  // the current session's `pi`.
-  getApi: (() => ExtensionAPI | null) | null;
+  // the current session's `omp`.
+  getAomp: (() => ExtensionAPI | null) | null;
   // Process-scoped parse caches. Live across extension reloads (which would
   // otherwise wipe per-extension `Map`s on every new_session). Without these,
   // `/api/sessions` re-reads + re-parses the JSONL header of every session
-  // file in `~/.pi/agent/sessions/**` on every request, which dominates
+  // file in `~/.omp/agent/sessions/**` on every request, which dominates
   // launcher / sidebar warmup latency for users with many sessions.
   sessionHeaderCache: Map<string, SessionFileCacheEntry<unknown>>;
   sessionMetricsCache: Map<string, SessionFileCacheEntry<unknown>>;
 };
 
-const EMBEDDED_GLOBAL_KEY = "__piStudioEmbeddedServer__";
+const EMBEDDED_GLOBAL_KEY = "__ompcotEmbeddedServer__";
 
 interface SessionMetrics {
   id: string;
@@ -477,7 +477,7 @@ function getOrCreateGlobalState(): EmbeddedServerGlobal {
       handleCommand: null,
       buildStateSnapshot: null,
       getLatestCtx: null,
-      getApi: null,
+      getAomp: null,
       modelRegistry: null,
       sessionHeaderCache: new Map<string, SessionFileCacheEntry<unknown>>(),
       sessionMetricsCache: new Map<string, SessionFileCacheEntry<unknown>>(),
@@ -486,33 +486,33 @@ function getOrCreateGlobalState(): EmbeddedServerGlobal {
   return g[EMBEDDED_GLOBAL_KEY] as EmbeddedServerGlobal;
 }
 
-export default function (pi: ExtensionAPI) {
+export default function (omp: ExtensionAPI) {
   const globalState = getOrCreateGlobalState();
 
   // Store latest context reference for use in command handlers
   let latestCtx: ExtensionContext | null = null;
 
   // ═══════════════════════════════════════
-  // Always resolve the freshest `pi` from globalState before calling any
+  // Always resolve the freshest `omp` from globalState before calling any
   // session-bound API.
   //
-  // pi-mono invalidates the captured `pi` after `new_session`,
+  // oh-my-omp invalidates the captured `omp` after `new_session`,
   // `switch_session`, `fork`, and `reload`. If a WS command (e.g.
   // `cycle_thinking_level`) is dispatched through a closure that captured
-  // the *old* `pi` — for example because `globalState.handleCommand` was
+  // the *old* `omp` — for example because `globalState.handleCommand` was
   // re-published a tick later than expected — calling
-  // `oldPi.setThinkingLevel()` etc. throws "This extension ctx is stale
-  // after session replacement or reload". pi-mono surfaces that throw as
+  // `oldOMP.setThinkingLevel()` etc. throws "This extension ctx is stale
+  // after session replacement or reload". oh-my-omp surfaces that throw as
   // an `extension_error` event, which the frontend renders as a red error
   // bubble in chat (`public/app.js` `extension_error` case).
   //
-  // Routing through `currentPi()` guarantees the call is dispatched to
+  // Routing through `currentOMP()` guarantees the call is dispatched to
   // whichever extension instance most recently received `session_start`
-  // (and thus owns the live, non-stale `pi` for the active session).
+  // (and thus owns the live, non-stale `omp` for the active session).
   // Returns `null` only during the brief window between an old instance's
   // `session_shutdown` and the new instance's `session_start`; callers
   // must treat that as "no active session".
-  function currentPi(): ExtensionAPI | null {
+  function currentOMP(): ExtensionAPI | null {
     return globalState.getApi?.() ?? null;
   }
 
@@ -582,12 +582,12 @@ export default function (pi: ExtensionAPI) {
 
   // NOTE: we intentionally do NOT close the HTTP/WS server on
   // `session_shutdown`. The server is owned by `globalState` and lives for
-  // the whole pi process lifetime — see the comment on `EmbeddedServerGlobal`
+  // the whole omp process lifetime — see the comment on `EmbeddedServerGlobal`
   // above for why. Per-session cleanup (clearing context, unregistering the
   // instance entry) happens in the `session_shutdown` handler instead.
 
   // ═══════════════════════════════════════
-  // Event forwarding — subscribe to all Pi events
+  // Event forwarding — subscribe to all OMP events
   // ═══════════════════════════════════════
   const eventTypes = [
     "agent_start",
@@ -618,8 +618,8 @@ export default function (pi: ExtensionAPI) {
   }
 
   for (const eventType of eventTypes) {
-    pi.on(
-      eventType as Parameters<typeof pi.on>[0],
+    omp.on(
+      eventType as Parameters<typeof omp.on>[0],
       async (event: unknown, ctx: ExtensionContext) => {
         rememberCtx(ctx);
 
@@ -639,7 +639,7 @@ export default function (pi: ExtensionAPI) {
   let titleSet = false;
   let userMessages: string[] = [];
 
-  pi.on("session_start", async (_event, ctx) => {
+  omp.on("session_start", async (_event, ctx) => {
     rememberCtx(ctx);
     turnCount = 0;
     titleSet = false;
@@ -648,12 +648,12 @@ export default function (pi: ExtensionAPI) {
     updateInstanceSession(ctx.sessionManager.getSessionFile() || "");
   });
 
-  pi.on("turn_start", async (_event, _ctx) => {
+  omp.on("turn_start", async (_event, _ctx) => {
     turnCount++;
   });
 
   // Capture user messages for title generation via message_start
-  pi.on("message_start", async (event, _ctx) => {
+  omp.on("message_start", async (event, _ctx) => {
     if (titleSet) return;
     const msg = event.message;
     if (msg?.role !== "user") return;
@@ -667,15 +667,15 @@ export default function (pi: ExtensionAPI) {
     if (text) userMessages.push(text.substring(0, 300));
   });
 
-  pi.on("turn_end", async (_event, _ctx) => {
+  omp.on("turn_end", async (_event, _ctx) => {
     if (titleSet || turnCount < 2) return;
 
     // Defensive: if the turn that just ended also kicked off a session
-    // replacement (e.g. `/new`, `/fork`, `/switch`), the captured `pi` of
+    // replacement (e.g. `/new`, `/fork`, `/switch`), the captured `omp` of
     // this OLD extension instance is now stale. Route through the freshest
-    // `pi` published on `globalState` so we never call a stale
+    // `omp` published on `globalState` so we never call a stale
     // `getSessionName` / `setSessionName`.
-    const a = currentPi();
+    const a = currentOMP();
     if (!a) return;
 
     const sessionName = a.getSessionName();
@@ -754,7 +754,7 @@ export default function (pi: ExtensionAPI) {
 
     // Get model info
     const model = ctx.model;
-    const api = currentPi();
+    const aomp = currentOMP();
     const thinkingLevel = api?.getThinkingLevel() ?? "off";
     const sessionName = api?.getSessionName() ?? "";
     const sessionFile = ctx.sessionManager.getSessionFile();
@@ -780,9 +780,9 @@ export default function (pi: ExtensionAPI) {
   async function handleCommand(ws: UnifiedWS, command: RpcCommand) {
     const id = command.id;
     const ctx = latestCtx;
-    // Always resolve `pi` from the global publisher rather than the
-    // closure-captured one. See `currentPi()` for the rationale.
-    const api = currentPi();
+    // Always resolve `omp` from the global publisher rather than the
+    // closure-captured one. See `currentOMP()` for the rationale.
+    const aomp = currentOMP();
 
     const success = (cmd: string, data?: unknown) => {
       const resp: Record<string, unknown> = { type: "response", command: cmd, success: true, id };
@@ -798,9 +798,9 @@ export default function (pi: ExtensionAPI) {
     // (`sendUserMessage`, `setThinkingLevel`, `setModel`, `setSessionName`,
     // …). Returning a clean error here is cheaper than letting the call
     // throw `"This extension ctx is stale after session replacement"` and
-    // having pi-mono re-emit it as an `extension_error` event in chat.
-    const requireApi = (cmd: string): ExtensionAPI | null => {
-      if (api) return api;
+    // having oh-my-omp re-emit it as an `extension_error` event in chat.
+    const requireAomp = (cmd: string): ExtensionAPI | null => {
+      if (api) return aomp;
       sendTo(ws, error(cmd, "No active session"));
       return null;
     };
@@ -900,7 +900,7 @@ export default function (pi: ExtensionAPI) {
               ws,
               error(
                 "new_session",
-                "New session requires the desktop broker with this embedded pi version.",
+                "New session requires the desktop broker with this embedded omp version.",
               ),
             );
             break;
@@ -924,7 +924,7 @@ export default function (pi: ExtensionAPI) {
               ws,
               error(
                 "switch_session",
-                "Session switching requires the desktop broker with this embedded pi version.",
+                "Session switching requires the desktop broker with this embedded omp version.",
               ),
             );
             break;
@@ -963,9 +963,9 @@ export default function (pi: ExtensionAPI) {
           break;
         }
 
-        case "get_pi_version": {
-          // Embedded pi version is forwarded by Picot (Rust) at spawn time.
-          sendTo(ws, success("get_pi_version", { version: EMBEDDED_PI_VERSION }));
+        case "get_omp_version": {
+          // Embedded omp version is forwarded by Ompcot (Rust) at spawn time.
+          sendTo(ws, success("get_omp_version", { version: EMBEDDED_OMP_VERSION }));
           break;
         }
 
@@ -982,22 +982,22 @@ export default function (pi: ExtensionAPI) {
 
         // ─── API keys (auth.json) ───
         //
-        // Why: GUI-launched Picot (Finder/dock) does not inherit
+        // Why: GUI-launched Ompcot (Finder/dock) does not inherit
         // ANTHROPIC_API_KEY etc. from the user's login shell, and we
         // deliberately removed the brittle login-shell env-harvest path in
         // commit 8b1f5e4. The user therefore needs an in-app way to write
-        // their API key into ~/.pi/agent/auth.json once, which then sticks
-        // across runs (same file format pi's `/login` writes).
+        // their API key into ~/.omp/agent/auth.json once, which then sticks
+        // across runs (same file format omp's `/login` writes).
         //
         // These handlers expose a minimal CRUD over auth.json scoped to the
         // built-in providers we know about. OAuth providers are deliberately
         // excluded — they require a browser round-trip we don't support yet
-        // from the desktop UI; users who need OAuth should run `pi /login`
+        // from the desktop UI; users who need OAuth should run `omp /login`
         // from a terminal.
         case "list_auth_status": {
           // Use the cached process-scoped registry when available so this
           // works even if the user opens Settings → Authentication before
-          // pi's first session_start has fired, or between sessions during
+          // omp's first session_start has fired, or between sessions during
           // a new_session / switch_session / fork reload. See the
           // EmbeddedServerGlobal.modelRegistry comment for the full why.
           const registry = ctx?.modelRegistry ?? globalState.modelRegistry;
@@ -1244,14 +1244,14 @@ export default function (pi: ExtensionAPI) {
             const args = command.outputPath
               ? `"${sessionFile}" "${command.outputPath}"`
               : `"${sessionFile}"`;
-            // process.execPath at runtime is the embedded pi binary, which
+            // process.execPath at runtime is the embedded omp binary, which
             // supports --export when invoked as a top-level CLI.
             const output = execSync(`"${process.execPath}" --export ${args}`, {
               cwd: process.cwd(),
               timeout: 30000,
               encoding: "utf-8",
             });
-            // pi prints the output path
+            // omp prints the output path
             const result =
               output.trim().split("\n").pop() || sessionFile.replace(".jsonl", ".html");
             sendTo(ws, success("export_html", { path: result }));
@@ -1310,7 +1310,7 @@ export default function (pi: ExtensionAPI) {
 
     // Auto-redirect remote browsers to the full mobile URL so users don't
     // need to manually append ?mobile=1&brokerWs=... to the LAN address.
-    const brokerPort = Number.parseInt(process.env.PI_STUDIO_BROKER_PORT || "", 10);
+    const brokerPort = Number.parseInt(process.env.OMCOT_BROKER_PORT || "", 10);
     const host = req.headers.host || "";
     const hostName = host.split(":")[0];
     const isLoopback = hostName === "localhost" || hostName === "127.0.0.1" || hostName === "::1";
@@ -1423,9 +1423,9 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    if (urlPath === "/api/pi-version" && req.method === "GET") {
+    if (urlPath === "/api/omp-version" && req.method === "GET") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: true, version: EMBEDDED_PI_VERSION }));
+      res.end(JSON.stringify({ success: true, version: EMBEDDED_OMP_VERSION }));
       return;
     }
 
@@ -1621,14 +1621,14 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    // Session switch — in embedded mode, this is a no-op (session is controlled by Picot).
+    // Session switch — in embedded mode, this is a no-op (session is controlled by Ompcot).
     if (urlPath === "/api/sessions/switch" && req.method === "POST") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
           success: true,
           embedded: true,
-          note: "Session switching is controlled by Picot's Rust side",
+          note: "Session switching is controlled by Ompcot's Rust side",
         }),
       );
       return;
@@ -1656,9 +1656,9 @@ export default function (pi: ExtensionAPI) {
             res.end(JSON.stringify({ error: `Directory not found: ${resolved}` }));
             return;
           }
-          // Open a new terminal window running pi in the selected directory.
-          // Note: this still uses the user's PATH `pi`, not the embedded one,
-          // because Picot's own workspace flow lives in Tauri commands;
+          // Open a new terminal window running omp in the selected directory.
+          // Note: this still uses the user's PATH `omp`, not the embedded one,
+          // because Ompcot's own workspace flow lives in Tauri commands;
           // this endpoint is the legacy "open in external terminal" affordance.
           const { execSync } = require("node:child_process");
           const escaped = resolved.replace(/'/g, "'\\''");
@@ -1688,7 +1688,7 @@ export default function (pi: ExtensionAPI) {
     // Agent config read/write
     if (urlPath === "/api/agent-config" && req.method === "GET") {
       try {
-        const configPath = path.join(PI_AGENT_ROOT, "settings.json");
+        const configPath = path.join(OMP_AGENT_ROOT, "settings.json");
         const content = fs.existsSync(configPath) ? fs.readFileSync(configPath, "utf8") : "{}";
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ success: true, content, path: configPath }));
@@ -1714,7 +1714,7 @@ export default function (pi: ExtensionAPI) {
           }
           // Validate JSON before saving
           JSON.parse(content);
-          const configPath = path.join(PI_AGENT_ROOT, "settings.json");
+          const configPath = path.join(OMP_AGENT_ROOT, "settings.json");
           fs.mkdirSync(path.dirname(configPath), { recursive: true });
           fs.writeFileSync(configPath, content, "utf8");
           res.writeHead(200, { "Content-Type": "application/json" });
@@ -1729,19 +1729,19 @@ export default function (pi: ExtensionAPI) {
 
     // LLM providers / models.json read/write
     //
-    // Exposes ~/.pi/agent/models.json — the file pi uses to declare custom
+    // Exposes ~/.omp/agent/models.json — the file omp uses to declare custom
     // providers and models (Ollama, vLLM, LM Studio, OpenAI-compat proxies,
     // OpenRouter routing overrides, etc). See docs/models.md in the embedded
-    // pi runtime for the schema. The frontend Settings → Configuration →
+    // omp runtime for the schema. The frontend Settings → Configuration →
     // "LLM providers" panel reads and writes through these endpoints so users
-    // never have to leave Picot to edit the file by hand.
+    // never have to leave Ompcot to edit the file by hand.
     //
     // After a successful save we call modelRegistry.refresh() so the new
     // providers/models show up in the model picker immediately — matching the
-    // pi behaviour where /model rereads models.json on each invocation.
+    // omp behaviour where /model rereads models.json on each invocation.
     if (urlPath === "/api/models-config" && req.method === "GET") {
       try {
-        const configPath = path.join(PI_AGENT_ROOT, "models.json");
+        const configPath = path.join(OMP_AGENT_ROOT, "models.json");
         const content = fs.existsSync(configPath)
           ? fs.readFileSync(configPath, "utf8")
           : '{\n  "providers": {}\n}\n';
@@ -1769,7 +1769,7 @@ export default function (pi: ExtensionAPI) {
           }
           // Validate as JSON before saving.
           const parsed = JSON.parse(content);
-          // Light schema sanity check — pi itself does the real validation
+          // Light schema sanity check — omp itself does the real validation
           // on reload, but reject the obviously wrong shape early so users
           // get a clear error instead of a silently broken models.json.
           if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
@@ -1786,10 +1786,10 @@ export default function (pi: ExtensionAPI) {
             res.end(JSON.stringify({ success: false, error: "models.json must be a JSON object" }));
             return;
           }
-          const configPath = path.join(PI_AGENT_ROOT, "models.json");
+          const configPath = path.join(OMP_AGENT_ROOT, "models.json");
           fs.mkdirSync(path.dirname(configPath), { recursive: true });
           fs.writeFileSync(configPath, content, "utf8");
-          // Reload pi's in-memory model registry so the picker sees the new
+          // Reload omp's in-memory model registry so the picker sees the new
           // providers/models without restarting the workspace.
           // IMPORTANT: await refresh() so the registry is fully updated
           // before we respond — the frontend calls get_available_models
@@ -1852,7 +1852,7 @@ export default function (pi: ExtensionAPI) {
 
   // Drop cache entries for files that no longer exist under SESSIONS_DIR.
   // Cheap (single iteration over the Map keys) and bounds memory growth in
-  // long-lived pi processes where users archive / delete sessions.
+  // long-lived omp processes where users archive / delete sessions.
   function pruneSessionCaches(liveFiles: Set<string>) {
     for (const key of globalState.sessionHeaderCache.keys()) {
       if (!liveFiles.has(key)) globalState.sessionHeaderCache.delete(key);
@@ -1960,7 +1960,7 @@ export default function (pi: ExtensionAPI) {
 
             if (sessions.length === 0) return null;
 
-            // Directory-name decoding is lossy for paths containing "-" (e.g. "pi-mono").
+            // Directory-name decoding is lossy for paths containing "-" (e.g. "oh-my-pi").
             // Prefer the real cwd recorded in session headers when available.
             const cwdCounts = new Map<string, number>();
             for (const s of sessions) {
@@ -2583,7 +2583,7 @@ export default function (pi: ExtensionAPI) {
   // ═══════════════════════════════════════
   //
   // The HTTP/WS server is process-scoped (see `globalState`). On the first
-  // session_start of the pi process we actually create and bind the server.
+  // session_start of the omp process we actually create and bind the server.
   // On every subsequent session_start (after new_session / switch_session /
   // fork → extension reload), we just re-publish the current session's
   // command handler / state-snapshot builder / latest ctx into the global so
@@ -2596,7 +2596,7 @@ export default function (pi: ExtensionAPI) {
     globalState.handleCommand = handleCommand;
     globalState.buildStateSnapshot = buildStateSnapshot;
     globalState.getLatestCtx = () => latestCtx;
-    globalState.getApi = () => pi;
+    globalState.getAomp = () => omp;
 
     // Re-register the instance entry with the *current* session file so
     // `/api/instances` reports the right session.
@@ -2695,7 +2695,7 @@ export default function (pi: ExtensionAPI) {
 
     // ─── Path A: Bun runtime ─────────────────────────────────────────────
     //
-    // The bundled `pi` is compiled with `bun build --compile`, where the
+    // The bundled `omp` is compiled with `bun build --compile`, where the
     // node-style `http.createServer().on("upgrade", ...)` path silently
     // drops `socket.write` and the handshake never completes. `Bun.serve`
     // has a native upgrade path that works.
@@ -2788,7 +2788,7 @@ export default function (pi: ExtensionAPI) {
         let urlPath = url.pathname;
 
         // Auto-redirect remote browsers to the full mobile URL.
-        const brokerPort = Number.parseInt(process.env.PI_STUDIO_BROKER_PORT || "", 10);
+        const brokerPort = Number.parseInt(process.env.OMCOT_BROKER_PORT || "", 10);
         const host = req.headers.get("host") || url.host;
         const hostName = host.split(":")[0];
         const isLoopback =
@@ -2880,7 +2880,7 @@ export default function (pi: ExtensionAPI) {
     });
 
     const tryListen = (port: number, maxAttempts = 10) => {
-      // Picot's mobile dev mode is always reachable from the local network.
+      // Ompcot's mobile dev mode is always reachable from the local network.
       server.listen(port, BIND_HOST, () => {
         onListening(port);
         globalState.server = {
@@ -2910,7 +2910,7 @@ export default function (pi: ExtensionAPI) {
       globalState.localUrl = `http://${localHost}:${port}`;
       const lanUrls = buildLanUrls(port);
       globalState.lanUrl = lanUrls[0] || "";
-      console.log(`[Embedded] Picot embedded server running on ${globalState.localUrl}`);
+      console.log(`[Embedded] Ompcot embedded server running on ${globalState.localUrl}`);
       const statusTarget = !isLoopbackHost(BIND_HOST)
         ? `${BIND_HOST}:${port}${globalState.lanUrl ? ` (${globalState.lanUrl})` : ""}`
         : `${BIND_HOST}:${port}`;
@@ -3037,13 +3037,13 @@ export default function (pi: ExtensionAPI) {
   // ═══════════════════════════════════════
   // Auto-start on session begin
   // ═══════════════════════════════════════
-  pi.on("session_start", async (_event, ctx) => {
+  omp.on("session_start", async (_event, ctx) => {
     rememberCtx(ctx);
     startServer(ctx);
 
     // Push a fresh state snapshot to every already-connected client.
     //
-    // Why: pi reloads this extension on `switch_session` / `new_session` /
+    // Why: omp reloads this extension on `switch_session` / `new_session` /
     // `fork`, which fires `session_shutdown` on the old instance and
     // `session_start` on the new one. The HTTP/WS server is process-scoped
     // and survives that reload (see `EmbeddedServerGlobal`), so the
@@ -3067,7 +3067,7 @@ export default function (pi: ExtensionAPI) {
   // ═══════════════════════════════════════
   // Per-session teardown (NOT process shutdown — see EmbeddedServerGlobal)
   // ═══════════════════════════════════════
-  pi.on("session_shutdown", async () => {
+  omp.on("session_shutdown", async () => {
     // Drop our captured ctx so we don't accidentally use a torn-down session
     // before the next instance re-publishes its bindings.
     latestCtx = null;
@@ -3080,7 +3080,7 @@ export default function (pi: ExtensionAPI) {
       globalState.handleCommand = null;
       globalState.buildStateSnapshot = null;
       globalState.getLatestCtx = null;
-      globalState.getApi = null;
+      globalState.getAomp = null;
     }
     console.log("[Embedded] Session shutdown (server stays up)");
   });

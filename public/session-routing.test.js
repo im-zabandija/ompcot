@@ -7,11 +7,11 @@ describe("session routing helpers", () => {
     { port: 47822, sessionFile: "/tmp/session-b.jsonl", cwd: "/tmp/b" },
   ];
 
-  test("resolves the active pi process by selected session file", () => {
+  test("resolves the active omp process by selected session file", () => {
     expect(findPortForSession(instances, "/tmp/session-b.jsonl", 47821)).toBe(47822);
   });
 
-  test("resolves workspace path from the active pi process port", () => {
+  test("resolves workspace path from the active omp process port", () => {
     expect(getWorkspacePathForPort(instances, 47822)).toBe("/tmp/b");
   });
 });

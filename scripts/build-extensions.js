@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Bundle each pi extension TypeScript source under `extensions/` into a
+ * Bundle each omp extension TypeScript source under `extensions/` into a
  * self-contained CommonJS file under `extensions/dist/`.
  *
  * Why this exists
  * ---------------
- * pi loads extensions with jiti and resolves their `import` statements via
+ * omp loads extensions with jiti and resolves their `import` statements via
  * Node's module algorithm at runtime. In dev that works because the source
  * lives next to this repo's `node_modules/`. Inside a packaged `.app`, the
  * raw `extensions/*.ts` is shipped without `node_modules`, so any non-builtin
@@ -15,14 +15,14 @@
  * Notes
  * - We keep node built-ins external (esbuild does this automatically with
  *   `platform: "node"`).
- * - `@earendil-works/pi-coding-agent` (and its legacy `@mariozechner/...`
+ * - `@oh-my-pi/omp-coding-agent` (and its legacy `@oh-my-pi/...`
  *   alias) are external too: extensions only `import type` from them, but we
  *   still mark them external defensively in case any value-level imports are
- *   added later — the pi runtime provides those at load time.
- * - Output is `.mjs` (ESM). pi's extension loader treats the module's
+ *   added later — the omp runtime provides those at load time.
+ * - Output is `.mjs` (ESM). omp's extension loader treats the module's
  *   `export default` as the factory function. Bundling as CJS hides the
  *   default behind `module.exports.default`, which jiti does not unwrap, so
- *   pi rejects it with "Extension does not export a valid factory function".
+ *   omp rejects it with "Extension does not export a valid factory function".
  */
 
 const path = require("node:path");
@@ -36,12 +36,12 @@ const OUT_DIR = path.join(SRC_DIR, "dist");
 const ENTRIES = ["embedded-server.ts"];
 
 const EXTERNAL = [
-  "@earendil-works/pi-coding-agent",
-  "@earendil-works/pi-ai",
-  "@earendil-works/pi-tui",
-  "@mariozechner/pi-coding-agent",
-  "@mariozechner/pi-ai",
-  "@mariozechner/pi-tui",
+  "@oh-my-pi/omp-coding-agent",
+  "@oh-my-pi/omp-ai",
+  "@oh-my-pi/omp-tui",
+  "@oh-my-pi/omp-coding-agent",
+  "@oh-my-pi/omp-ai",
+  "@oh-my-pi/omp-tui",
   "typebox",
 ];
 

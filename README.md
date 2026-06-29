@@ -2,10 +2,10 @@
 
 **English** | [中文](./README.zh.md)
 
-A local desktop GUI for the [Pi](https://github.com/badlogic/pi-mono) coding agent. No cloud, no account — runs entirely on your machine.
+A local desktop GUI for the [Pi](https://github.com/badlogic/oh-my-pi) coding agent. No cloud, no account — runs entirely on your machine.
 
 
-Picot ships a known-good build of the `pi` runtime **inside the .app bundle**, so there's no separate `pi` install to manage, no PATH shenanigans, and no version drift between Picot and the agent it talks to.
+Picot ships a known-good build of the `omp` runtime **inside the .app bundle**, so there's no separate `omp` install to manage, no PATH shenanigans, and no version drift between Picot and the agent it talks to.
 
 <p align="center">
   <img width="1200" alt="Picot hero" src="https://github.com/user-attachments/assets/27d1b71e-77e8-420c-84ab-5e56eb48335a" />
@@ -19,7 +19,7 @@ Picot ships a known-good build of the `pi` runtime **inside the .app bundle**, s
 
 [Download from GitHub Releases](https://github.com/shixin-guo/picot/releases)
 
-You **do not** need to install the `pi` CLI separately — Picot bundles its own pi runtime.
+You **do not** need to install the `omp` CLI separately — Picot bundles its own omp runtime.
 
 ### macOS unsigned release notice
 
@@ -73,7 +73,7 @@ Picot gives you a full visual interface for Pi. Open any project folder, start c
 
 ### 🗂️ Multi-Session & Multi-Agent
 
-- **Multiple agents in parallel** — each session spawns its own headless pi process; no new OS window, no interruption of running sessions
+- **Multiple agents in parallel** — each session spawns its own headless omp process; no new OS window, no interruption of running sessions
 - Browse and resume any past session from the sidebar
 - Full-text search across all session history with highlighted snippets
 - Sessions sorted by creation time; live session marked with a green dot
@@ -105,7 +105,7 @@ Picot gives you a full visual interface for Pi. Open any project folder, start c
 
 
 - Browse, install, and remove community packages from within the UI
-- Built on top of `pi install` — no separate package commands needed
+- Built on top of `omp install` — no separate package commands needed
 
 ### 💰 Cost & Usage Dashboard
 
@@ -157,12 +157,12 @@ Picot gives you a full visual interface for Pi. Open any project folder, start c
 
 Picot does not re-implement agent logic — it embeds Pi and exposes its runtime capabilities through a native UI.
 
-- **Embedded `pi --mode rpc` runtime** — one managed process per workspace, isolated by project
+- **Embedded `omp --mode rpc` runtime** — one managed process per workspace, isolated by project
 - **Streaming RPC bridge** — token-by-token output, tool-call events, and thinking blocks rendered live
 - **Session lifecycle APIs** — create, switch, and resume sessions; full per-project history
-- **WebSocket broker** — multiple UI clients can connect to the same pi process simultaneously
-- **Extension compatibility** — user extensions from `~/.pi/agent/extensions/` and `.pi/extensions/` are auto-loaded
-- **Credential reuse** — reads Pi's existing `~/.pi/agent/auth.json`; no separate login needed
+- **WebSocket broker** — multiple UI clients can connect to the same omp process simultaneously
+- **Extension compatibility** — user extensions from `~/.omp/agent/extensions/` and `.omp/extensions/` are auto-loaded
+- **Credential reuse** — reads OMP's existing `~/.omp/agent/auth.json`; no separate login needed
 
 ---
 
@@ -172,25 +172,25 @@ Picot does not re-implement agent logic — it embeds Pi and exposes its runtime
 ┌──────────────────────────────────────────────────────┐
 │ Picot .app                                       │
 │                                                      │
-│   Tauri + PiManager (Rust)                           │
-│      ├─► spawn  pi --mode rpc  (project A, :3001)    │
-│      ├─► spawn  pi --mode rpc  (project B, :3002)    │
+│   Tauri + OmpManager (Rust)                           │
+│      ├─► spawn  omp --mode rpc  (project A, :3001)    │
+│      ├─► spawn  omp --mode rpc  (project B, :3002)    │
 │      └─► OS Window per project ──► WebView ──► HTTP  │
 │                                                      │
 │   resources/                                         │
 │      ├─ public/             (frontend)               │
 │      ├─ extensions/         (embedded-server.mjs)    │
-│      └─ pi/                 (bun-compiled pi binary) │
+│      └─ pi/                 (bun-compiled omp binary) │
 └──────────────────────────────────────────────────────┘
                        │
                        ▼ reads / writes
-              ~/.pi/agent/
+              ~/.omp/agent/
                  ├─ sessions/   (chat history)
                  ├─ auth.json   (API keys)
                  └─ settings.json
 ```
 
-The embedded pi process loads `embedded-server.mjs` at startup. That extension owns the HTTP + WebSocket surface the Tauri WebView talks to: static assets, `/api/sessions`, `/api/cost-dashboard`, RPC bridge for prompts, etc. Picot's Rust side controls process lifecycle, port allocation, and window management.
+The embedded omp process loads `embedded-server.mjs` at startup. That extension owns the HTTP + WebSocket surface the Tauri WebView talks to: static assets, `/api/sessions`, `/api/cost-dashboard`, RPC bridge for prompts, etc. Picot's Rust side controls process lifecycle, port allocation, and window management.
 
 ---
 
@@ -198,9 +198,9 @@ The embedded pi process loads `embedded-server.mjs` at startup. That extension o
 
 1. Launch **Picot**
 2. Click a project bubble or pick a folder
-3. Start chatting — the embedded pi agent starts automatically
+3. Start chatting — the embedded omp agent starts automatically
 
-Provide your model credentials via `pi /login` inside any workspace, or by writing `~/.pi/agent/auth.json` directly. Picot doesn't manage credentials itself.
+Provide your model credentials via `omp /login` inside any workspace, or by writing `~/.omp/agent/auth.json` directly. Picot doesn't manage credentials itself.
 
 ---
 
@@ -210,13 +210,13 @@ Provide your model credentials via `pi /login` inside any workspace, or by writi
 git clone https://github.com/shixin-guo/picot.git
 cd picot
 bun install --frozen-lockfile
-bun run dev      # fetch embedded pi binary + start tauri dev with hot reload
+bun run dev      # fetch embedded omp binary + start tauri dev with hot reload
 ```
 
 To make a release build:
 
 ```bash
-bun run build    # downloads embedded pi binary, then runs tauri build
+bun run build    # downloads embedded omp binary, then runs tauri build
 ```
 
 After any changes under `src-tauri/`:
@@ -225,7 +225,7 @@ After any changes under `src-tauri/`:
 bun run check:rust   # cargo check + clippy + fmt (fast; no full build needed)
 ```
 
-To bump the embedded pi version, edit `scripts/pi-version.json`, run `bun run fetch:pi`, smoke-test, and commit.
+To bump the embedded omp version, edit `scripts/omp-version.json`, run `bun run fetch:omp`, smoke-test, and commit.
 
 ---
 
@@ -233,9 +233,9 @@ To bump the embedded pi version, edit `scripts/pi-version.json`, run `bun run fe
 
 Picot is a maintained fork of **Tau**, adapted for Pi-first, local development workflows. Key additions:
 
-- **Tauri-native PiManager** — spawns one `pi --mode rpc` process per project window
-- **Embedded pi runtime** — no separate global install; Picot ships its own binary
-- **Multi-session without new windows** — headless pi processes, current WebView navigates
+- **Tauri-native OmpManager** — spawns one `omp --mode rpc` process per project window
+- **Embedded omp runtime** — no separate global install; Picot ships its own binary
+- **Multi-session without new windows** — headless omp processes, current WebView navigates
 - **LAN + mobile access** — QR code, PWA support, WebSocket broker for multi-client
 
 ---

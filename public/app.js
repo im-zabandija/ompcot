@@ -70,7 +70,7 @@ const navigateInWindow = (url) => {
 // `+ New Session`, `start new chat`, `Open Project`, and `Open Folder`
 // all end with `window.location.href = http://<current-host>:<newPort>/`,
 // which is a full-page navigation and would otherwise show a 1–2s
-// freeze (while pi spawns) and then a white flash (while the WebView
+// freeze (while omp spawns) and then a white flash (while the WebView
 // reloads). To make this look like a single smooth transition we:
 //
 //   1. Open a fullscreen spinner overlay BEFORE awaiting openWorkspace.
@@ -82,7 +82,7 @@ const navigateInWindow = (url) => {
 // swap fails before navigation (e.g. openWorkspace rejects).
 function showSwapOverlay(label) {
   try {
-    sessionStorage.setItem("pi-studio:swapping-instance", "1");
+    sessionStorage.setItem("ompcot:swapping-instance", "1");
   } catch {}
   document.body.classList.add("swapping-instance");
   const overlay = document.getElementById("instance-swap-overlay");
@@ -94,7 +94,7 @@ function showSwapOverlay(label) {
 
 function hideSwapOverlay() {
   try {
-    sessionStorage.removeItem("pi-studio:swapping-instance");
+    sessionStorage.removeItem("ompcot:swapping-instance");
   } catch {}
   document.body.classList.remove("swapping-instance");
   const overlay = document.getElementById("instance-swap-overlay");
@@ -109,7 +109,7 @@ const onBeforeInstanceSwap = (label) => showSwapOverlay(label);
 
 // If the page booted into the overlay (because we just navigated from
 // a previous instance), fade it out as soon as the WebSocket reaches
-// the new pi. The post-connect wait avoids a brief flash of empty
+// the new omp. The post-connect wait avoids a brief flash of empty
 // chat UI before /api/sessions and get_state finish populating things.
 function dismissBootSwapOverlayWhenReady() {
   if (!document.body.classList.contains("swapping-instance")) return;
@@ -119,7 +119,7 @@ function dismissBootSwapOverlayWhenReady() {
       if (overlay) overlay.setAttribute("data-visible", "false");
       document.body.classList.remove("swapping-instance");
       try {
-        sessionStorage.removeItem("pi-studio:swapping-instance");
+        sessionStorage.removeItem("ompcot:swapping-instance");
       } catch {}
     });
   };
@@ -221,14 +221,14 @@ let lastUsage = null; // Full usage object for context visualiser
 let mirrorActiveSessionFile = null; // The live session file path from the TUI
 let viewingActiveSession = true; // Whether we're viewing the live session or a historical one
 let isMirrorMode = false; // Set when mirror_sync received
-let liveInstances = []; // All running Picot instances [{port, sessionFile, cwd}]
+let liveInstances = []; // All running Ompcot instances [{port, sessionFile, cwd}]
 let workspaceLaunchInProgress = false;
 // When true, the next foreground message lifecycle events should reload the
 // sidebar until the newly persisted session file appears in the list.
 let pendingNewSessionRefresh = false;
 let pendingNewSessionPreviousFile = null;
 // When set while streaming, holds the session filePath to switch to once the
-// current agent run ends. The history is rendered immediately; pi gets the
+// current agent run ends. The history is rendered immediately; omp gets the
 // switch_session RPC only after agent_end so the running call is not aborted.
 let pendingSessionSwitchPath = null;
 let sessionsLoaded = false;
@@ -240,7 +240,7 @@ let sessionsLoaded = false;
 let sessionSelectChain = Promise.resolve();
 let deferredMirrorSync = null;
 let lastRenderedWelcomeWorkspacePath = null;
-// Maps port -> sessionFile for each pi process we're tracking
+// Maps port -> sessionFile for each omp process we're tracking
 const portSessionMap = new Map();
 // The port that wsClient is currently connected to (the "foreground" session)
 let foregroundPort = getCurrentPort();
@@ -381,12 +381,12 @@ fileSidebarToggle.addEventListener("click", () => {
   if (!isCollapsed && !fileBrowser.currentPath) {
     fileBrowser.load(); // Load session cwd
   }
-  localStorage.setItem("pi-studio-file-sidebar", isCollapsed ? "closed" : "open");
+  localStorage.setItem("ompcot-file-sidebar", isCollapsed ? "closed" : "open");
 });
 
 fileSidebarClose.addEventListener("click", () => {
   fileSidebar.classList.add("collapsed");
-  localStorage.setItem("pi-studio-file-sidebar", "closed");
+  localStorage.setItem("ompcot-file-sidebar", "closed");
 });
 
 fileSidebarUp.addEventListener("click", () => {
@@ -408,7 +408,7 @@ document.getElementById("file-sidebar-finder").addEventListener("click", () => {
 // "Open workspace in app" header control (VS Code / Cursor / Terminal / …)
 // Mirrors the Codex-style split button in the chat header.
 // ═══════════════════════════════════════
-const HEADER_OPEN_APP_STORAGE_KEY = "pi-studio-open-app";
+const HEADER_OPEN_APP_STORAGE_KEY = "ompcot-open-app";
 const HEADER_OPEN_APP_MONOGRAMS = {
   vscode: "VS",
   cursor: "C",
@@ -555,7 +555,7 @@ document.addEventListener("click", () => closeHeaderOpenAppMenu());
 void loadHeaderOpenApps();
 
 // Restore file sidebar state
-if (localStorage.getItem("pi-studio-file-sidebar") === "open") {
+if (localStorage.getItem("ompcot-file-sidebar") === "open") {
   fileSidebar.classList.remove("collapsed");
   fileBrowser.load();
 }
@@ -634,7 +634,7 @@ wsClient.addEventListener("disconnected", () => {
     updateUI();
   }
 
-  // If the streaming state is still true 3 s after disconnect (pi likely
+  // If the streaming state is still true 3 s after disconnect (omp likely
   // crashed — agent_end won't re-fire after reconnect), unlock the UI.
   // Brief intentional reconnects (Case 1 session switch) complete in < 100 ms
   // so they are unaffected by the 3-second gate.
@@ -660,7 +660,7 @@ wsClient.addEventListener("serverError", (e) => {
   messageRenderer.renderError(e.detail.message);
 });
 
-// The broker could not deliver a command to any live pi process. For a tracked
+// The broker could not deliver a command to any live omp process. For a tracked
 // prompt this means the user's message was dropped — surface it, clear the
 // optimistic streaming/typing state, and restore the text so it isn't lost.
 wsClient.addEventListener("commandUndeliverable", (e) => {
@@ -701,7 +701,7 @@ function handleRPCEvent(event) {
   const eventSourcePort = event?.__broker?.sourcePort ?? null;
 
   // Port-based guard: the broker broadcasts every upstream's events to all UI
-  // clients, so an event from a *different* pi process (e.g. the previous
+  // clients, so an event from a *different* omp process (e.g. the previous
   // session that is still streaming after the user started a new parallel
   // session) must never render into the foreground UI. A brand-new session
   // has no session file yet, so the sessionId guard below can't catch this —
@@ -741,7 +741,7 @@ function handleRPCEvent(event) {
       break;
     case "message_start":
       handleMessageStart(event.message);
-      // Refresh the sidebar as soon as the new session is persisted. Pi writes
+      // Refresh the sidebar as soon as the new session is persisted. OMP writes
       // the brand-new session's .jsonl on the first user message round-trip, so
       // refreshing on the user message (not just the assistant turn) makes the
       // session — with its first message as the title — show up immediately.
@@ -832,7 +832,7 @@ function handleCompactionEnd(event) {
 /**
  * Refresh the sidebar after a brand-new session's first message round-trips.
  *
- * Pi only persists a new session's .jsonl on the first message round-trip, and
+ * OMP only persists a new session's .jsonl on the first message round-trip, and
  * `/api/sessions` can briefly return *successfully* without the new file yet
  * (loadSessions' built-in retry only covers fetch failures, not "fetched but
  * the row isn't there"). So we reload, and if the freshly created session still
@@ -890,7 +890,7 @@ function handleAgentEnd(event = null) {
   updateUI();
 
   // Deferred session switch: user clicked a history session while streaming.
-  // Now that the agent run is done, tell pi to switch — no abort needed.
+  // Now that the agent run is done, tell omp to switch — no abort needed.
   if (pendingSessionSwitchPath) {
     const targetPath = pendingSessionSwitchPath;
     pendingSessionSwitchPath = null;
@@ -1207,7 +1207,7 @@ async function addImageFiles(files) {
       const img = await processImageFile(file);
       pendingImages.push(img);
     } catch (e) {
-      console.error("[Picot] Image processing failed:", e);
+      console.error("[Ompcot] Image processing failed:", e);
     }
   }
   renderImagePreviews();
@@ -1275,7 +1275,7 @@ function clearMessageQueue() {
 
 // Prompts are sent fire-and-forget over the WebSocket. The broker replies with
 // `command_undeliverable` (correlated by requestId) when it cannot route the
-// command to a live pi process. We track in-flight prompt requestIds here so the
+// command to a live omp process. We track in-flight prompt requestIds here so the
 // `commandUndeliverable` handler can tell a real dropped prompt apart from
 // background/system commands and recover the user's text. Entries self-expire:
 // the broker decides deliverability synchronously, so anything not reported
@@ -1314,7 +1314,7 @@ function sendMessage() {
 
   if (pendingImages.length > 0) {
     cmd.images = pendingImages.map((img) => {
-      console.log(`[Picot] Sending image: mimeType=${img.mimeType}, dataLen=${img.data?.length}`);
+      console.log(`[Ompcot] Sending image: mimeType=${img.mimeType}, dataLen=${img.data?.length}`);
       return {
         type: "image",
         data: img.data,
@@ -1512,7 +1512,7 @@ async function showSessionStats() {
 }
 
 // ═══════════════════════════════════════
-// Model Picker
+// Model OMPcker
 // ═══════════════════════════════════════
 
 const modelDropdown = document.getElementById("model-dropdown");
@@ -1916,7 +1916,7 @@ setupSidebarSearchControl({
 /**
  * Reset the chat surface to a fresh "new session" view inside the current window.
  * Clears renderers/state, unmarks the active sidebar item and refreshes the list
- * so the newly created session shows up once pi writes its first message to disk.
+ * so the newly created session shows up once omp writes its first message to disk.
  */
 async function resetUiForNewSession() {
   pendingNewSessionPreviousFile =
@@ -1964,7 +1964,7 @@ async function activateNewParallelSession(port, cwd) {
 async function newSession() {
   if (nativeAvailable()) {
     // Default behavior is process-efficient: create the new chat in-place on
-    // the current pi process. Only spawn a dedicated process when a parallel
+    // the current omp process. Only spawn a dedicated process when a parallel
     // task is actually running.
     await startInWindowNewSession({
       transport,
@@ -2003,7 +2003,7 @@ async function newSession() {
   }
 
   // Browser/dev fallback: classic in-place "new session" against the same
-  // pi process (no Tauri windows available in this mode).
+  // omp process (no Tauri windows available in this mode).
   sessionTotalCost = 0;
   lastInputTokens = 0;
   updateCostDisplay();
@@ -2131,7 +2131,7 @@ async function handleSessionSelectImpl(session, project) {
   updateCostDisplay();
   updateTokenUsage();
 
-  // Native host: switch session via control command to the current pi instance
+  // Native host: switch session via control command to the current omp instance
   if (nativeAvailable() && session.filePath) {
     const wasStreaming = state.isStreaming;
     clearMessageQueue();
@@ -2375,7 +2375,7 @@ function handleMirrorSync(data) {
   }
 
   // The broker broadcasts every upstream's `mirror_sync` to all UI clients,
-  // including snapshots a *background* pi process emits on its own
+  // including snapshots a *background* omp process emits on its own
   // `session_start` (e.g. the previously-running session that keeps streaming
   // after the user switched to an older session). Such a stray snapshot must
   // NOT hijack the foreground UI: applying it would clobber the rendered
@@ -2415,7 +2415,7 @@ function handleMirrorSync(data) {
     sourcePort: data.port || foregroundPort,
   });
   viewingActiveSession = true;
-  // The snapshot's `isStreaming` comes from the pi process's instantaneous
+  // The snapshot's `isStreaming` comes from the omp process's instantaneous
   // `!ctx.isIdle()`, which can momentarily read false between messages / tool
   // calls of an agent run that is still actively going. The sidebar's
   // streaming set is driven by real `agent_start` / `agent_end` events and is
@@ -2901,7 +2901,7 @@ const btnThinkingLevel = document.getElementById("btn-thinking-level");
 const toggleShowThinking = document.getElementById("toggle-show-thinking");
 const toggleAuth = document.getElementById("toggle-auth");
 const authSection = document.getElementById("settings-auth-section");
-const piVersionValue = document.getElementById("setting-pi-version-value");
+const piVersionValue = document.getElementById("setting-omp-version-value");
 let piVersionCache = null;
 let piVersionInflight = null;
 let loadInlineConfigEditor = async () => {};
@@ -2926,13 +2926,13 @@ function selectSettingsTab(tabKey = "general") {
   }
 }
 
-function formatPiVersionError(err, fallback = "unknown error") {
+function formatOMPVersionError(err, fallback = "unknown error") {
   const raw = String(err?.message || err?.error || err || fallback).trim();
   if (!raw) return fallback;
   return raw.length > 56 ? `${raw.slice(0, 56)}...` : raw;
 }
 
-async function loadPiVersion() {
+async function loadOMPVersion() {
   if (!piVersionValue) return;
   if (piVersionCache) {
     piVersionValue.textContent = piVersionCache;
@@ -2944,7 +2944,7 @@ async function loadPiVersion() {
   piVersionInflight = (async () => {
     try {
       if (nativeAvailable()) {
-        const version = await transport.getPiVersion();
+        const version = await transport.getOMPVersion();
         if (version) {
           piVersionCache = version;
           piVersionValue.textContent = piVersionCache;
@@ -2952,19 +2952,19 @@ async function loadPiVersion() {
           piVersionValue.textContent = "Unavailable (empty version)";
         }
       } else {
-        const data = await rpcCommand({ type: "get_pi_version" });
+        const data = await rpcCommand({ type: "get_omp_version" });
         if (data?.success && data.data?.version) {
           piVersionCache = data.data.version;
           piVersionValue.textContent = piVersionCache;
         } else {
-          const reason = formatPiVersionError(data?.error, "version missing in response");
-          console.error("[settings] failed to load pi version:", data);
+          const reason = formatOMPVersionError(data?.error, "version missing in response");
+          console.error("[settings] failed to load omp version:", data);
           piVersionValue.textContent = `Unavailable (${reason})`;
         }
       }
     } catch (err) {
-      const reason = formatPiVersionError(err);
-      console.error("[settings] failed to load pi version:", err);
+      const reason = formatOMPVersionError(err);
+      console.error("[settings] failed to load omp version:", err);
       piVersionValue.textContent = `Unavailable (${reason})`;
     } finally {
       piVersionInflight = null;
@@ -2987,10 +2987,10 @@ function setExtensionActionButton(button, label, loading = false) {
 // Browse community packages (pi-packages-api)
 // ═══════════════════════════════════════
 
-const PKG_API_BASE = "https://pi-packages-api.shixin.workers.dev";
+const PKG_API_BASE = "https://pi-packages-aomp.shixin.workers.dev";
 const browseListEl = document.getElementById("pkg-browse-list");
 const browseSearchEl = document.getElementById("pkg-browse-search");
-const browsePillsEl = document.getElementById("pkg-browse-pills");
+const browseOMPllsEl = document.getElementById("pkg-browse-pills");
 const browseCountEl = document.getElementById("pkg-browse-count");
 let browsePaginationEl = document.getElementById("pkg-browse-pagination");
 if (!browsePaginationEl && browseListEl && browseListEl.parentNode) {
@@ -3063,7 +3063,7 @@ async function fetchBrowsePackages() {
 async function fetchInstalledSources() {
   if (!nativeAvailable()) return new Set();
   try {
-    const configured = await transport.listPiPackages();
+    const configured = await transport.listOMP Packages();
     return new Set(Array.isArray(configured) ? configured : []);
   } catch {
     return new Set();
@@ -3334,10 +3334,10 @@ function createBrowseRow(pkg) {
       status.title = status.textContent;
       try {
         if (installed) {
-          await transport.removePiPackage(source);
+          await transport.removeOMP Package(source);
           browseInstalledSet.delete(source);
         } else {
-          await transport.installPiPackage(source);
+          await transport.installOMP Package(source);
           browseInstalledSet.add(source);
         }
         renderBrowsePackages();
@@ -3356,12 +3356,12 @@ function createBrowseRow(pkg) {
   return row;
 }
 
-if (browsePillsEl) {
-  browsePillsEl.addEventListener("click", (event) => {
+if (browseOMPllsEl) {
+  browseOMPllsEl.addEventListener("click", (event) => {
     const pill = event.target.closest(".pkg-browse-pill");
     if (!pill) return;
     browseActiveType = pill.dataset.pkgType || "all";
-    for (const p of browsePillsEl.querySelectorAll(".pkg-browse-pill")) {
+    for (const p of browseOMPllsEl.querySelectorAll(".pkg-browse-pill")) {
       p.classList.toggle("active", p === pill);
     }
     browsePage = 1;
@@ -3462,7 +3462,7 @@ async function openSettings() {
     piVersionValue.textContent = piVersionCache || "Loading...";
   }
   setTimeout(() => {
-    if (!settingsPanel.classList.contains("hidden")) loadPiVersion();
+    if (!settingsPanel.classList.contains("hidden")) loadOMPVersion();
   }, 300);
   void refreshLanUrl();
   // Fetch current state for toggles
@@ -3594,7 +3594,7 @@ if (isMobile()) {
   });
 }
 
-// Make the Picot icon in sidebar switch back to chat
+// Make the Ompcot icon in sidebar switch back to chat
 document.querySelector(".mode-link:first-child")?.addEventListener("click", () => {
   closeSettings();
 });
@@ -3648,4 +3648,4 @@ if (splash) {
   });
 }
 
-console.log("🚀 Picot initialized");
+console.log("🚀 Ompcot initialized");

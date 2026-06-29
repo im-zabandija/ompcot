@@ -14,11 +14,11 @@ export class SessionSidebar {
     this.projects = [];
     this.collapsedProjects = new Set();
     this.searchQuery = "";
-    // TODO(rename->picot): localStorage keys kept as `pi-studio-*` for backward compat — migration needed before changing.
-    this.favourites = JSON.parse(localStorage.getItem("pi-studio-favourites") || "[]");
-    this.archived = JSON.parse(localStorage.getItem("pi-studio-archived") || "[]");
-    this.archivedCollapsed = localStorage.getItem("pi-studio-archived-collapsed") !== "false";
-    this.unread = new Set(JSON.parse(localStorage.getItem("pi-studio-unread") || "[]"));
+    // TODO(rename->picot): localStorage keys kept as `ompcot-*` for backward compat — migration needed before changing.
+    this.favourites = JSON.parse(localStorage.getItem("ompcot-favourites") || "[]");
+    this.archived = JSON.parse(localStorage.getItem("ompcot-archived") || "[]");
+    this.archivedCollapsed = localStorage.getItem("ompcot-archived-collapsed") !== "false";
+    this.unread = new Set(JSON.parse(localStorage.getItem("ompcot-unread") || "[]"));
     this.streamingFiles = new Set();
     this.projectVisibleSessionCounts = new Map();
     this.contextMenu = null;
@@ -42,19 +42,19 @@ export class SessionSidebar {
   }
 
   saveFavourites() {
-    localStorage.setItem("pi-studio-favourites", JSON.stringify(this.favourites));
+    localStorage.setItem("ompcot-favourites", JSON.stringify(this.favourites));
   }
 
   saveArchived() {
-    localStorage.setItem("pi-studio-archived", JSON.stringify(this.archived));
+    localStorage.setItem("ompcot-archived", JSON.stringify(this.archived));
   }
 
   saveArchivedCollapsed() {
-    localStorage.setItem("pi-studio-archived-collapsed", String(this.archivedCollapsed));
+    localStorage.setItem("ompcot-archived-collapsed", String(this.archivedCollapsed));
   }
 
   saveUnread() {
-    localStorage.setItem("pi-studio-unread", JSON.stringify(Array.from(this.unread)));
+    localStorage.setItem("ompcot-unread", JSON.stringify(Array.from(this.unread)));
   }
 
   isUnread(filePath) {
@@ -250,7 +250,7 @@ export class SessionSidebar {
       reason.includes("networkerror") ||
       reason.includes("load failed");
     const message = likelyRuntimeDown
-      ? "Failed to load sessions. Pi runtime may be unavailable."
+      ? "Failed to load sessions. OMP runtime may be unavailable."
       : "Failed to load sessions.";
     this.container.innerHTML = `<div class="session-loading">${message} <button class="retry-link" id="retry-load-sessions">Retry</button></div>`;
     const retryBtn = this.container.querySelector("#retry-load-sessions");

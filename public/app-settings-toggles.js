@@ -25,7 +25,7 @@ export function setupSettingsToggles({
     }
   });
 
-  const showThinking = localStorage.getItem("pi-studio-show-thinking") !== "false";
+  const showThinking = localStorage.getItem("ompcot-show-thinking") !== "false";
   if (toggleShowThinking) {
     toggleShowThinking.className = `settings-toggle${showThinking ? " on" : ""}`;
   }
@@ -35,7 +35,7 @@ export function setupSettingsToggles({
     const isOn = toggleShowThinking.classList.contains("on");
     toggleShowThinking.className = `settings-toggle${isOn ? "" : " on"}`;
     document.body.classList.toggle("hide-thinking", isOn);
-    localStorage.setItem("pi-studio-show-thinking", !isOn);
+    localStorage.setItem("ompcot-show-thinking", !isOn);
   });
 
   toggleAuth?.addEventListener("click", async () => {

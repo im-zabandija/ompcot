@@ -2,30 +2,30 @@
 
 ## Product
 
-**Picot** is a local desktop GUI for the Pi coding agent. It is a Tauri app that bundles its own `pi` runtime — there is no separate install of `pi` to manage.
+**Picot** is a local desktop GUI for the OMP coding agent. It is a Tauri app that bundles its own `omp` runtime — there is no separate install of `omp` to manage.
 
 ### Architecture
 
-Tauri wraps the web UI. A Rust `PiManager` (`src-tauri/src/pi_manager.rs`) spawns one `pi --mode rpc` subprocess per workspace, each on its own port, using the embedded pi binary shipped in `src-tauri/resources/pi/` (downloaded by `scripts/fetch-pi-binary.js` from pi-mono releases at the version pinned in `scripts/pi-version.json`). Each workspace gets its own OS window. Workspaces are opened via the native folder picker ("Open Folder"); clicking it opens or focuses a workspace window. Multi-project, multi-agent, no terminal required.
+Tauri wraps the web UI. A Rust `OmpManager` (`src-tauri/src/omp_manager.rs`) spawns one `omp --mode rpc` subprocess per workspace, each on its own port, using the embedded omp binary shipped in `src-tauri/resources/omp/` (downloaded by `scripts/fetch-omp-binary.js` from oh-my-omp releases at the version pinned in `scripts/omp-version.json`). Each workspace gets its own OS window. Workspaces are opened via the native folder picker ("Open Folder"); clicking it opens or focuses a workspace window. Multi-project, multi-agent, no terminal required.
 
 ```
 Picot .app
   resources/
     public/                       (frontend)
     extensions/embedded-server.mjs (HTTP + WS server, runs inside pi)
-    pi/<bun-compiled pi binary + assets>
-  Rust PiManager
-    spawn pi --mode rpc --extension embedded-server.mjs  (project A, :3001)
-    spawn pi --mode rpc --extension embedded-server.mjs  (project B, :3002)
+    pi/<bun-compiled omp binary + assets>
+  Rust OmpManager
+    spawn omp --mode rpc --extension embedded-server.mjs  (project A, :3001)
+    spawn omp --mode rpc --extension embedded-server.mjs  (project B, :3002)
     OS Window per project  →  WebView  →  localhost:300X
   Tauri IPC commands wired through public/tauri-bridge.js
 ```
 
 Tauri IPC commands (invoked via `window.tauriNative` in `public/tauri-bridge.js`):
-- `cmd_open_workspace(cwd)` — spawn pi for a workspace, open a window
-- `cmd_new_session(port)` — create a new session in a running pi
+- `cmd_open_workspace(cwd)` — spawn omp for a workspace, open a window
+- `cmd_new_session(port)` — create a new session in a running omp
 - `cmd_switch_session(port, sessionPath)` — resume a historical session
-- `cmd_stop_instance(port)` — kill a pi process
+- `cmd_stop_instance(port)` — kill a omp process
 - `cmd_pick_folder()` — native folder picker
 
 ### Goals
@@ -33,7 +33,7 @@ Tauri IPC commands (invoked via `window.tauriNative` in `public/tauri-bridge.js`
 - Local desktop GUI: all projects and agents visible in one app
 - Multi-project: each project has its own window, isolated working directory, session history, and running agent
 - Multi-agent: spawn new agents per project; switch between sessions without leaving the app
-- Multi-task: a `pi --mode rpc` process can only drive **one active session at a time** (switching/forking inside one process *replaces* the active session — the old `.jsonl` is preserved on disk, but it stops being the live, running session). So every concurrently-running session structurally needs its own `pi` process. Picot handles this without spawning OS windows: both "+ New Session" (header) and "start new chat" (sidebar project tile) spawn a fresh **headless** pi for the target cwd and navigate the current window's WebView to it. The previously-attached pi process keeps running in the background (PiManager retains it; reachable from the running-instances list / launcher / sidebar). Net effect: no new OS window, no interruption of the previously-running session, and you can still run multiple agents in parallel against the same project.
+- Multi-task: a `omp --mode rpc` process can only drive **one active session at a time** (switching/forking inside one process *replaces* the active session — the old `.jsonl` is preserved on disk, but it stops being the live, running session). So every concurrently-running session structurally needs its own `omp` process. Picot handles this without spawning OS windows: both "+ New Session" (header) and "start new chat" (sidebar project tile) spawn a fresh **headless** pi for the target cwd and navigate the current window's WebView to it. The previously-attached omp process keeps running in the background (OmpManager retains it; reachable from the running-instances list / launcher / sidebar). Net effect: no new OS window, no interruption of the previously-running session, and you can still run multiple agents in parallel against the same project.
 - Visualization: streaming chat, tool-call cards, thinking blocks, token/cost tracking per session
 - Fully self-contained desktop app: zero dependency on the user's PATH / shell environment / globally installed pi
 
@@ -41,17 +41,17 @@ Tauri IPC commands (invoked via `window.tauriNative` in `public/tauri-bridge.js`
 
 - Frontend: vanilla JS, no framework (`public/`)
 - Backend: Rust (Tauri) wraps + manages process lifecycle; Node.js extension (`embedded-server.ts`) implements the HTTP + WS surface the WebView talks to
-- PI integration: always via embedded `pi --mode rpc` subprocess — never re-implement PI runtime logic
+- PI integration: always via embedded `omp --mode rpc` subprocess — never re-implement PI runtime logic
 - Session history and working directory are isolated per project/port
-- The embedded pi version is the source of truth: `pi --version` shown in the UI comes from `PI_STUDIO_PI_VERSION` (set by Rust at spawn time, populated from `scripts/pi-version.json`). A user-installed pi on `$PATH` is irrelevant and never touched.
-- User extensions under `~/.pi/agent/extensions/` and `<workspace>/.pi/extensions/` are still auto-loaded by the embedded pi (embedding doesn't disable user extensions).
+- The embedded omp version is the source of truth: `omp --version` shown in the UI comes from `OMCOT_OMP_VERSION` (set by Rust at spawn time, populated from `scripts/omp-version.json`). A user-installed pi on `$PATH` is irrelevant and never touched.
+- User extensions under `~/.omp/agent/extensions/` and `<workspace>/.omp/extensions/` are still auto-loaded by the embedded omp (embedding doesn't disable user extensions).
 
 ### PI references
 
-- RPC protocol: `/opt/homebrew/lib/node_modules/@mariozechner/pi-coding-agent/docs/rpc.md`
-- SDK: `/opt/homebrew/lib/node_modules/@mariozechner/pi-coding-agent/docs/sdk.md`
-- Session format: `/opt/homebrew/lib/node_modules/@mariozechner/pi-coding-agent/docs/session.md`
-- JSON mode: `/opt/homebrew/lib/node_modules/@mariozechner/pi-coding-agent/docs/json.md`
+- RPC protocol: `/opt/homebrew/lib/node_modules/@oh-my-pi/omp-coding-agent/docs/rpc.md`
+- SDK: `/opt/homebrew/lib/node_modules/@oh-my-pi/omp-coding-agent/docs/sdk.md`
+- Session format: `/opt/homebrew/lib/node_modules/@oh-my-pi/omp-coding-agent/docs/session.md`
+- JSON mode: `/opt/homebrew/lib/node_modules/@oh-my-pi/omp-coding-agent/docs/json.md`
 
 ---
 
@@ -71,13 +71,13 @@ bun run <script>                # run package.json scripts
 ## Common commands
 
 ```bash
-bun run dev              # fetch embedded pi binary, then start tauri dev (hot reload)
+bun run dev              # fetch embedded omp binary, then start tauri dev (hot reload)
 bun run test             # vitest run + check-tauri-permissions
 bun run test:watch       # vitest in watch mode
 bun run check:rust       # cargo check + clippy + fmt (use after every Rust edit)
-bun run fetch:pi         # download the locked pi binary into src-tauri/resources/pi/
+bun run fetch:omp         # download the locked omp binary into src-tauri/resources/omp/
 bun run build:extensions # compile extensions/embedded-server.ts → dist/embedded-server.mjs
-bun run build            # full release build (runs prebuild: fetch:pi + build:extensions)
+bun run build            # full release build (runs prebuild: fetch:omp + build:extensions)
 ```
 
 Single test file: `bun run vitest run public/settings-save-status.test.js`
@@ -117,8 +117,8 @@ The frontend (`public/`) is vanilla JS with **no framework**. Keep it modular:
 Picot is a Tauri v2 app. The three main layers:
 
 **1. Rust / Tauri (`src-tauri/`)** — process lifecycle and window management.
-- `src-tauri/src/pi_manager.rs` — `PiManager` spawns one `pi --mode rpc` subprocess per workspace, each on its own port. Manages port allocation, process lifecycle, and RPC message forwarding.
-- `src-tauri/src/main.rs` — Tauri commands wired to `PiManager`: `cmd_open_workspace`, `cmd_new_session`, `cmd_switch_session`, `cmd_stop_instance`, `cmd_pick_folder`.
+- `src-tauri/src/omp_manager.rs` — `OmpManager` spawns one `omp --mode rpc` subprocess per workspace, each on its own port. Manages port allocation, process lifecycle, and RPC message forwarding.
+- `src-tauri/src/main.rs` — Tauri commands wired to `OmpManager`: `cmd_open_workspace`, `cmd_new_session`, `cmd_switch_session`, `cmd_stop_instance`, `cmd_pick_folder`.
 
 **2. Frontend (`public/`)** — vanilla JS, no framework.
 - `app.js` — main entry: workspace launcher, window setup, session nav, settings
@@ -132,32 +132,32 @@ Picot is a Tauri v2 app. The three main layers:
 - `themes.js` — theme switching (6 built-in themes)
 
 **3. Embedded server (`extensions/`)** — TypeScript compiled to `dist/embedded-server.mjs`.
-- Runs **inside** the `pi --mode rpc` process as a pi extension
+- Runs **inside** the `omp --mode rpc` process as a omp extension
 - Owns the HTTP + WebSocket surface the Tauri WebView talks to: static asset serving, `/api/sessions`, `/api/cost-dashboard`, RPC bridge for prompts
 
 ## Key data flows
 
-- User action → `window.tauriNative.*` (tauri-bridge.js) → Tauri IPC → PiManager (Rust) → `pi --mode rpc` subprocess
-- Chat messages → WebSocket (websocket-client.js) → embedded-server.mjs (inside pi) → pi RPC
-- Multi-session: "+ New Session" spawns a **headless** pi process (no new OS window) and navigates the current WebView to it. The old pi process keeps running.
+- User action → `window.tauriNative.*` (tauri-bridge.js) → Tauri IPC → OmpManager (Rust) → `omp --mode rpc` subprocess
+- Chat messages → WebSocket (websocket-client.js) → embedded-server.mjs (inside pi) → omp RPC
+- Multi-session: "+ New Session" spawns a **headless** omp process (no new OS window) and navigates the current WebView to it. The old omp process keeps running.
 
-## Bumping the embedded pi version
+## Bumping the embedded omp version
 
-1. Edit `scripts/pi-version.json` → `version`.
-2. `bun run fetch:pi` (re-downloads the platform tarball, replaces `src-tauri/resources/pi/`).
-3. Smoke test: `./src-tauri/resources/pi/pi --version` and `bun run dev`.
-4. Commit `scripts/pi-version.json`. Do **not** commit `src-tauri/resources/pi/`; it is gitignored.
+1. Edit `scripts/omp-version.json` → `version`.
+2. `bun run fetch:omp` (re-downloads the platform tarball, replaces `src-tauri/resources/omp/`).
+3. Smoke test: `./src-tauri/resources/omp/omp --version` and `bun run dev`.
+4. Commit `scripts/omp-version.json`. Do **not** commit `src-tauri/resources/omp/`; it is gitignored.
 
 ## Embedded pi: how it ends up inside the .app
 
-End users never run `fetch:pi`. The flow that puts `pi` inside the shipped bundle is:
+End users never run `fetch:omp`. The flow that puts `omp` inside the shipped bundle is:
 
-1. **Pre-build hook.** `package.json` `prebuild` runs `bun run fetch:pi` before `tauri build`. Downloads the platform tarball into `src-tauri/resources/pi/` (idempotent; skipped if `.version` matches). Bun honors npm-style `pre*` / `post*` lifecycle hooks for `bun run`.
-2. **Tauri before-hooks.** `tauri.conf.json` `build.beforeBuildCommand` and `build.beforeDevCommand` BOTH run `bun run fetch:pi` first, so even invoking `tauri build` / `tauri dev` directly (no `bun run build`) still guarantees the binary is present.
-3. **Tauri bundling.** `tauri.conf.json` `bundle.resources` maps `./resources/pi` → `pi`, so the entire pi runtime tree is copied into `<App>.app/Contents/Resources/pi/` at package time.
-4. **Last-line guard (build.rs).** `src-tauri/build.rs` PANICS at compile time if `resources/pi/<bin>` is missing in a release profile. This prevents `cargo build --release` (or any IDE that bypasses bun) from silently producing a .app with no pi inside. Override only for local experiments via `PI_STUDIO_SKIP_BIN_CHECK=1`.
+1. **Pre-build hook.** `package.json` `prebuild` runs `bun run fetch:omp` before `tauri build`. Downloads the platform tarball into `src-tauri/resources/omp/` (idempotent; skipped if `.version` matches). Bun honors npm-style `pre*` / `post*` lifecycle hooks for `bun run`.
+2. **Tauri before-hooks.** `tauri.conf.json` `build.beforeBuildCommand` and `build.beforeDevCommand` BOTH run `bun run fetch:omp` first, so even invoking `tauri build` / `tauri dev` directly (no `bun run build`) still guarantees the binary is present.
+3. **Tauri bundling.** `tauri.conf.json` `bundle.resources` maps `./resources/omp` → `omp`, so the entire omp runtime tree is copied into `<App>.app/Contents/Resources/pi/` at package time.
+4. **Last-line guard (build.rs).** `src-tauri/build.rs` PANICS at compile time if `resources/omp/<bin>` is missing in a release profile. This prevents `cargo build --release` (or any IDE that bypasses bun) from silently producing a .app with no pi inside. Override only for local experiments via `OMCOT_SKIP_BIN_CHECK=1`.
 
-Net effect: there is no path that ships a Picot release without the embedded pi binary. End users get a self-contained app — no PATH lookups, no `bun run fetch:pi`, no manual install of pi.
+Net effect: there is no path that ships a Picot release without the embedded omp binary. End users get a self-contained app — no PATH lookups, no `bun run fetch:omp`, no manual install of pi.
 
 ## Post-fix verification (Rust / Tauri)
 

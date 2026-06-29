@@ -10,13 +10,13 @@ use std::time::{Duration, Instant};
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-struct PiProcess {
+struct OmpProcess {
     child: Child,
     stdin: ChildStdin,
 }
 
-pub struct PiManager {
-    processes: Arc<Mutex<HashMap<u16, PiProcess>>>,
+pub struct OmpManager {
+    processes: Arc<Mutex<HashMap<u16, OmpProcess>>>,
     /// Maps session_file -> port for dedicated per-session processes.
     session_ports: Arc<Mutex<HashMap<String, u16>>>,
     /// Maps workspace_port -> [dedicated session ports] for cleanup on window close.
@@ -27,17 +27,17 @@ pub struct PiManager {
 struct EmbeddedExtensionResolution {
     path: String,
     /// Tag describing which candidate matched, for diagnostic logging.
-    /// Examples: "bundled", "dev:source", "env:PI_STUDIO_EXTENSION".
+    /// Examples: "bundled", "dev:source", "env:OMCOT_EXTENSION".
     source: &'static str,
 }
 
-/// `scripts/pi-version.json` baked into the binary at compile time so we can
-/// forward the locked pi version to the embedded server (which displays it
+/// `scripts/omp-version.json` baked into the binary at compile time so we can
+/// forward the locked omp version to the embedded server (which displays it
 /// in the UI footer) without re-running fetch logic at startup.
-const PI_VERSION_JSON: &str = include_str!("../../scripts/pi-version.json");
+const OMP_VERSION_JSON: &str = include_str!("../../scripts/omp-version.json");
 
-/// Locked pi version string (e.g. "0.77.0"). Resolved lazily on first call.
-pub fn locked_pi_version() -> &'static str {
+/// Locked omp version string (e.g. "0.77.0"). Resolved lazily on first call.
+pub fn locked_omp_version() -> &'static str {
     static CACHED: OnceLock<String> = OnceLock::new();
     CACHED.get_or_init(|| {
         // We deliberately do a hand-rolled extraction rather than a full
@@ -46,30 +46,30 @@ pub fn locked_pi_version() -> &'static str {
         // dependency makes this fn callable from `const` contexts in the
         // future if needed. If the JSON shape grows, switch to serde_json.
         let needle = "\"version\"";
-        let bytes = PI_VERSION_JSON;
+        let bytes = OMP_VERSION_JSON;
         let start = bytes
             .find(needle)
-            .expect("pi-version.json: missing \"version\" key");
+            .expect("omp-version.json: missing \"version\" key");
         let after_key = &bytes[start + needle.len()..];
         let colon = after_key
             .find(':')
-            .expect("pi-version.json: malformed \"version\" entry");
+            .expect("omp-version.json: malformed \"version\" entry");
         let after_colon = &after_key[colon + 1..];
         let first_quote = after_colon
             .find('"')
-            .expect("pi-version.json: \"version\" value not quoted");
+            .expect("omp-version.json: \"version\" value not quoted");
         let rest = &after_colon[first_quote + 1..];
         let end_quote = rest
             .find('"')
-            .expect("pi-version.json: unterminated \"version\" value");
+            .expect("omp-version.json: unterminated \"version\" value");
         rest[..end_quote].to_string()
     })
 }
 
 #[cfg(target_os = "windows")]
 fn configure_child_process_for_windows(command: &mut Command) {
-    // Prevent child `pi.exe` processes from creating a visible console window
-    // when Picot runs as a GUI app on Windows.
+    // Prevent child `omp.exe` processes from creating a visible console window
+    // when Ompcot runs as a GUI app on Windows.
     command.creation_flags(CREATE_NO_WINDOW);
 }
 
@@ -105,7 +105,7 @@ fn build_augmented_path() -> String {
 
         if let Ok(home) = std::env::var("HOME") {
             let h = Path::new(&home);
-            extras.push(pi_extension_npm_bin_dir(h));
+            extras.push(omp_extension_npm_bin_dir(h));
             extras.push(h.join(".local/bin"));
             extras.push(h.join(".bun/bin"));
             extras.push(h.join(".volta/bin"));
@@ -138,7 +138,7 @@ fn build_augmented_path() -> String {
         }
         if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
             let h = Path::new(&home);
-            extras.push(pi_extension_npm_bin_dir(h));
+            extras.push(omp_extension_npm_bin_dir(h));
             extras.push(h.join(".cargo").join("bin"));
             extras.push(h.join(".bun").join("bin"));
             extras.push(h.join("scoop").join("shims"));
@@ -156,8 +156,8 @@ fn build_augmented_path() -> String {
         .unwrap_or_else(|| std::env::var("PATH").unwrap_or_default())
 }
 
-fn pi_extension_npm_bin_dir(home: &Path) -> PathBuf {
-    home.join(".pi")
+fn omp_extension_npm_bin_dir(home: &Path) -> PathBuf {
+    home.join(".omp")
         .join("agent")
         .join("npm")
         .join("node_modules")
@@ -170,30 +170,30 @@ fn log_child_path_diagnostics(context: &str, path: &str) {
         .ok();
     let Some(home) = home else {
         log::info!(
-            "[pi-desktop] child PATH diagnostics: context={} home=<unset> path={}",
+            "[ompcot] child PATH diagnostics: context={} home=<unset> path={}",
             context,
             path
         );
         return;
     };
 
-    let pi_extension_bin = pi_extension_npm_bin_dir(Path::new(&home));
-    let hypa_bin = pi_extension_bin.join(if cfg!(target_os = "windows") {
+    let omp_extension_bin = omp_extension_npm_bin_dir(Path::new(&home));
+    let hypa_bin = omp_extension_bin.join(if cfg!(target_os = "windows") {
         "hypa.cmd"
     } else {
         "hypa"
     });
     let dirs: Vec<PathBuf> = std::env::split_paths(path).collect();
-    let contains_pi_extension_bin = dirs.iter().any(|dir| dir == &pi_extension_bin);
+    let contains_omp_extension_bin = dirs.iter().any(|dir| dir == &omp_extension_bin);
 
     log::info!(
-        "[pi-desktop] child PATH diagnostics: context={} pi_extension_bin={} exists={} hypa_bin={} hypa_exists={} contains_pi_extension_bin={} path={}",
+        "[ompcot] child PATH diagnostics: context={} omp_extension_bin={} exists={} hypa_bin={} hypa_exists={} contains_omp_extension_bin={} path={}",
         context,
-        pi_extension_bin.display(),
-        pi_extension_bin.is_dir(),
+        omp_extension_bin.display(),
+        omp_extension_bin.is_dir(),
         hypa_bin.display(),
         hypa_bin.is_file(),
-        contains_pi_extension_bin,
+        contains_omp_extension_bin,
         path
     );
 }
@@ -202,7 +202,7 @@ fn log_child_path_diagnostics(context: &str, path: &str) {
 /// `\\?\UNC\`) from a path string.
 ///
 /// Tauri's `resource_dir()` returns extended-length paths (e.g.
-/// `\\?\C:\Users\...\Picot\pi\pi.exe`). The embedded pi (Bun 1.3.10,
+/// `\\?\C:\Users\...\Ompcot\pi\omp.exe`). The embedded omp (Bun 1.3.10,
 /// Windows arm64, compiled standalone) segfaults (`Segmentation fault at
 /// address 0x18`) when it is launched with — or asked to load an
 /// `--extension` from — a `\\?\`-prefixed path. Passing the plain
@@ -220,11 +220,11 @@ fn strip_verbatim_prefix(path: &str) -> String {
 }
 
 /// Return a path to the embedded-server extension that is safe to pass as a
-/// `--extension` argument to the embedded pi binary.
+/// `--extension` argument to the embedded omp binary.
 ///
-/// On Windows the Bun-compiled pi binary truncates `--extension` values at the
-/// first space (e.g. `C:\...\Picot\...\embedded-server.mjs` is loaded as
-/// `C:\...\Pi`), which then fails to load and segfaults the process. Since Pi
+/// On Windows the Bun-compiled omp binary truncates `--extension` values at the
+/// first space (e.g. `C:\...\Ompcot\...\embedded-server.mjs` is loaded as
+/// `C:\...\OMP`), which then fails to load and segfaults the process. Since OMP
 /// Studio always installs under a space-containing path, we mirror the
 /// extension file into a space-free directory under the system temp dir and
 /// return that path instead. The copy is idempotent (skipped when an existing
@@ -233,12 +233,12 @@ fn strip_verbatim_prefix(path: &str) -> String {
 /// On non-Windows platforms, or when the path has no space, the original path
 /// is returned unchanged.
 #[cfg(not(target_os = "windows"))]
-fn sanitize_extension_path_for_pi(original: &str) -> String {
+fn sanitize_extension_path_for_omp(original: &str) -> String {
     original.to_string()
 }
 
 #[cfg(target_os = "windows")]
-fn sanitize_extension_path_for_pi(original: &str) -> String {
+fn sanitize_extension_path_for_omp(original: &str) -> String {
     if !original.contains(' ') {
         return original.to_string();
     }
@@ -246,7 +246,7 @@ fn sanitize_extension_path_for_pi(original: &str) -> String {
     match mirror_to_space_free_dir(Path::new(original)) {
         Ok(mirrored) => {
             log::info!(
-                "[pi-desktop] extension path contains spaces; mirrored to space-free path: {} -> {}",
+                "[ompcot] extension path contains spaces; mirrored to space-free path: {} -> {}",
                 original,
                 mirrored.display()
             );
@@ -257,7 +257,7 @@ fn sanitize_extension_path_for_pi(original: &str) -> String {
             // pre-existing crash, but we don't want the mirroring step itself
             // to be a new hard failure mode.
             log::warn!(
-                "[pi-desktop] failed to mirror extension to space-free path ({}); using original: {}",
+                "[ompcot] failed to mirror extension to space-free path ({}); using original: {}",
                 e,
                 original
             );
@@ -266,7 +266,7 @@ fn sanitize_extension_path_for_pi(original: &str) -> String {
     }
 }
 
-/// Copy `src` into `<temp>/pi-studio-ext/<filename>` (a space-free directory),
+/// Copy `src` into `<temp>/ompcot-ext/<filename>` (a space-free directory),
 /// skipping the copy when an up-to-date mirror already exists. Returns the
 /// mirrored path.
 #[cfg(target_os = "windows")]
@@ -282,9 +282,9 @@ fn mirror_to_space_free_dir(src: &Path) -> std::io::Result<PathBuf> {
     // Guard: if the temp dir itself contains a space, fall back to a
     // well-known space-free root so the workaround actually helps.
     if dest_dir.to_string_lossy().contains(' ') {
-        dest_dir = PathBuf::from("C:\\ProgramData\\pi-studio");
+        dest_dir = PathBuf::from("C:\\ProgramData\\ompcot");
     }
-    dest_dir.push("pi-studio-ext");
+    dest_dir.push("ompcot-ext");
     std::fs::create_dir_all(&dest_dir)?;
 
     let dest = dest_dir.join(file_name);
@@ -314,7 +314,7 @@ fn mirror_is_up_to_date(src: &Path, dest: &Path) -> bool {
     }
 }
 
-impl PiManager {
+impl OmpManager {
     pub fn new(static_dir: PathBuf) -> Self {
         Self {
             processes: Arc::new(Mutex::new(HashMap::new())),
@@ -324,27 +324,27 @@ impl PiManager {
         }
     }
 
-    /// Locate the embedded pi binary shipped inside the Tauri bundle.
+    /// Locate the embedded omp binary shipped inside the Tauri bundle.
     ///
     /// Lookup order:
-    /// 1. `PI_BIN` env var (escape hatch for testing a different binary).
+    /// 1. `OMP_BIN` env var (escape hatch for testing a different binary).
     /// 2. `<static_dir>/../pi/<bin>` — the production location, sibling of
     ///    the bundled `public/` and `extensions/` resource dirs.
-    /// 3. *Debug builds only:* `<repo>/src-tauri/resources/pi/<bin>` —
-    ///    populated by `bun run fetch:pi`, used during `tauri dev`.
+    /// 3. *Debug builds only:* `<repo>/src-tauri/resources/omp/<bin>` —
+    ///    populated by `bun run fetch:omp`, used during `tauri dev`.
     ///
     /// Returns `Err` (not `Ok(None)`) if no binary is found, so callers can
-    /// surface a clear "run `bun run fetch:pi`" message rather than spawning
+    /// surface a clear "run `bun run fetch:omp`" message rather than spawning
     /// a missing/stale binary.
-    fn resolve_bundled_pi(&self) -> Result<PathBuf, String> {
+    fn resolve_bundled_omp(&self) -> Result<PathBuf, String> {
         let bin_name = if cfg!(target_os = "windows") {
-            "pi.exe"
+            "omp.exe"
         } else {
-            "pi"
+            "omp"
         };
 
         // Explicit override (rare; useful when smoke-testing a hand-built pi).
-        if let Ok(explicit) = std::env::var("PI_BIN") {
+        if let Ok(explicit) = std::env::var("OMP_BIN") {
             let candidate = PathBuf::from(explicit.trim());
             if candidate.is_file() {
                 return Ok(candidate);
@@ -355,7 +355,7 @@ impl PiManager {
         let bundled = self
             .static_dir
             .parent()
-            .map(|parent| parent.join("pi").join(bin_name));
+            .map(|parent| parent.join("omp").join(bin_name));
         if let Some(p) = bundled.clone() {
             if p.is_file() {
                 return Ok(p);
@@ -366,7 +366,7 @@ impl PiManager {
         if cfg!(debug_assertions) {
             let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("resources")
-                .join("pi")
+                .join("omp")
                 .join(bin_name);
             if dev_path.is_file() {
                 return Ok(dev_path);
@@ -380,10 +380,10 @@ impl PiManager {
             .collect::<Vec<_>>()
             .join("\n");
         Err(format!(
-            "Could not find embedded pi binary. Tried:\n{}\n\n\
-             For dev: run `bun run fetch:pi` from the repo root.\n\
-             For release: the .app bundle is missing `resources/pi/{}`. \
-             Reinstall Picot.",
+            "Could not find embedded omp binary. Tried:\n{}\n\n\
+             For dev: run `bun run fetch:omp` from the repo root.\n\
+             For release: the .app bundle is missing `resources/omp/{}`. \
+             Reinstall Ompcot.",
             tried_str, bin_name
         ))
     }
@@ -392,13 +392,13 @@ impl PiManager {
     ///
     /// Returns the first existing candidate from this priority order:
     ///
-    /// 1. `PI_STUDIO_EXTENSION` env var (explicit override; useful for tests).
+    /// 1. `OMCOT_EXTENSION` env var (explicit override; useful for tests).
     /// 2. Bundled `extensions/embedded-server.mjs` next to `static_dir`. This
-    ///    is what shipped Picot installs use; the bundle is produced by
+    ///    is what shipped Ompcot installs use; the bundle is produced by
     ///    `scripts/build-extensions.js` and is fully self-contained (no
     ///    `node_modules` lookup at runtime).
     /// 3. Source `extensions/embedded-server.ts` next to `static_dir`. Used
-    ///    by `tauri dev` where pi loads the raw `.ts` via jiti against the
+    ///    by `tauri dev` where omp loads the raw `.ts` via jiti against the
     ///    repo's `node_modules/`.
     /// 4. *Debug builds only:* repo-relative paths via `CARGO_MANIFEST_DIR`
     ///    and `cwd`. These are gated to debug builds because
@@ -409,12 +409,12 @@ impl PiManager {
     /// fail-fast and surface the error to the user instead of silently
     /// spawning a pi that has no `/api` surface.
     fn resolve_embedded_extension_path(&self) -> Result<EmbeddedExtensionResolution, String> {
-        if let Ok(explicit) = std::env::var("PI_STUDIO_EXTENSION") {
+        if let Ok(explicit) = std::env::var("OMCOT_EXTENSION") {
             let candidate = explicit.trim();
             if !candidate.is_empty() && Path::new(candidate).exists() {
                 return Ok(EmbeddedExtensionResolution {
                     path: candidate.to_string(),
-                    source: "env:PI_STUDIO_EXTENSION",
+                    source: "env:OMCOT_EXTENSION",
                 });
             }
         }
@@ -474,9 +474,9 @@ impl PiManager {
     }
 
     pub fn spawn(&self, cwd: &str, port: u16, session_path: Option<&str>) -> Result<(), String> {
-        let pi_bin = self.resolve_bundled_pi()?;
+        let pi_bin = self.resolve_bundled_omp()?;
         // Tauri resolves resource paths as `\\?\`-prefixed extended-length
-        // paths. Bun (the embedded pi runtime) segfaults on Windows arm64 when
+        // paths. Bun (the embedded omp runtime) segfaults on Windows arm64 when
         // launched from such a path, so normalize the binary path and every
         // path-shaped argument/env we hand to it back to the plain form.
         let pi_bin_str = strip_verbatim_prefix(&pi_bin.to_string_lossy());
@@ -484,24 +484,24 @@ impl PiManager {
         let cwd = strip_verbatim_prefix(cwd);
 
         // We treat a missing embedded-server extension as a hard error
-        // rather than continuing to spawn pi without `--extension`. Without
-        // the extension, pi runs as a plain RPC process with no
+        // rather than continuing to spawn omp without `--extension`. Without
+        // the extension, omp runs as a plain RPC process with no
         // `/api/sessions` or `/ws`, which the web UI then renders as
         // "Failed to load sessions" / "Disconnected" — a confusing soft
         // failure that hides the real bundling bug.
         let extension = self.resolve_embedded_extension_path()?;
         log::info!(
-            "[pi-desktop] embedded-server resolved: source={} path={}",
+            "[ompcot] embedded-server resolved: source={} path={}",
             extension.source,
             extension.path
         );
 
-        // The embedded pi (Bun-compiled standalone) mis-parses `--extension`
+        // The embedded omp (Bun-compiled standalone) mis-parses `--extension`
         // paths that contain spaces on Windows: it truncates at the first
-        // space, so `...\Picot\extensions\embedded-server.mjs` is loaded
-        // as `...\Pi`, which then fails to load and crashes the process
+        // space, so `...\Ompcot\extensions\embedded-server.mjs` is loaded
+        // as `...\OMP`, which then fails to load and crashes the process
         // (segfault) during extension-load error handling. The primary fix is
-        // the space-free `productName` ("Picot") so the install dir has no
+        // the space-free `productName` ("Ompcot") so the install dir has no
         // space; this mirroring remains as a defensive fallback for paths that
         // can still contain spaces out of our control (e.g. a Windows username
         // like `C:\Users\Shi Xin\...`). Work around it by mirroring the
@@ -510,7 +510,7 @@ impl PiManager {
         // Also strip the `\\?\` verbatim prefix first: Bun on Windows arm64
         // segfaults when loading an extension from an extended-length path.
         let extension_path =
-            sanitize_extension_path_for_pi(&strip_verbatim_prefix(&extension.path));
+            sanitize_extension_path_for_omp(&strip_verbatim_prefix(&extension.path));
 
         let mut args: Vec<String> = vec![
             "--extension".to_string(),
@@ -524,7 +524,7 @@ impl PiManager {
         }
 
         log::info!(
-            "[pi-desktop] spawning pi: bin={} args={:?} cwd={} port={} static_dir={}",
+            "[ompcot] spawning pi: bin={} args={:?} cwd={} port={} static_dir={}",
             pi_bin_str,
             args,
             cwd,
@@ -541,14 +541,14 @@ impl PiManager {
             .args(&args)
             .current_dir(&cwd)
             .env("PATH", augmented_path)
-            .env("PI_STUDIO_STATIC_DIR", &static_dir)
-            .env("PI_STUDIO_PORT", port.to_string())
-            .env("PI_STUDIO_PI_VERSION", locked_pi_version())
+            .env("OMCOT_STATIC_DIR", &static_dir)
+            .env("OMCOT_PORT", port.to_string())
+            .env("OMCOT_OMP_VERSION", locked_omp_version())
             .stdin(Stdio::piped())
-            // Drop stdout: pi emits RPC frames on it that we don't consume here, and
+            // Drop stdout: omp emits RPC frames on it that we don't consume here, and
             // letting it fill an unread pipe would eventually block the child.
             .stdout(Stdio::null())
-            // Inherit stderr so pi's startup/runtime errors are visible in the same
+            // Inherit stderr so omp's startup/runtime errors are visible in the same
             // terminal running `bun run dev` — critical for diagnosing failures of
             // new_session / open_workspace that would otherwise be silent.
             .stderr(Stdio::inherit());
@@ -556,15 +556,15 @@ impl PiManager {
         let spawn_started_at = Instant::now();
         let mut child = child.spawn().map_err(|e| {
             format!(
-                "Failed to spawn embedded pi ({}): {}. \
+                "Failed to spawn embedded omp ({}): {}. \
                  The bundled binary may be corrupted or unsupported on this OS/arch. \
-                 Reinstall Picot, or for dev rerun `bun run fetch:pi`.",
+                 Reinstall Ompcot, or for dev rerun `bun run fetch:omp`.",
                 pi_bin.display(),
                 e,
             )
         })?;
         log::info!(
-            "[pi-desktop] pi process spawned: port={} pid={} elapsed_ms={}",
+            "[ompcot] omp process spawned: port={} pid={} elapsed_ms={}",
             port,
             child.id(),
             spawn_started_at.elapsed().as_millis()
@@ -575,17 +575,17 @@ impl PiManager {
             .ok_or_else(|| "Failed to get pi stdin".to_string())?;
 
         let mut lock = self.processes.lock().unwrap();
-        lock.insert(port, PiProcess { child, stdin });
+        lock.insert(port, OmpProcess { child, stdin });
 
         Ok(())
     }
 
-    /// Send an RPC command to a pi instance (JSON line on stdin)
+    /// Send an RPC command to a omp instance (JSON line on stdin)
     pub fn send_rpc(&self, port: u16, cmd: serde_json::Value) -> Result<(), String> {
         let mut lock = self.processes.lock().unwrap();
         let proc = lock
             .get_mut(&port)
-            .ok_or_else(|| format!("No pi instance on port {}", port))?;
+            .ok_or_else(|| format!("No omp instance on port {}", port))?;
         let mut line = cmd.to_string();
         line.push('\n');
         proc.stdin
@@ -617,7 +617,7 @@ impl PiManager {
         }
     }
 
-    /// Spawn (or reuse) a dedicated pi process for a specific session file,
+    /// Spawn (or reuse) a dedicated omp process for a specific session file,
     /// so it can run concurrently with the workspace's primary process.
     /// Returns the port the dedicated process is listening on.
     pub fn spawn_session_dedicated(
@@ -674,7 +674,7 @@ impl PiManager {
     /// Run `pi <args...>` with the embedded binary and return stdout.
     /// Used by Settings UI package management operations (install/remove/list).
     pub fn run_pi_command(&self, args: &[String]) -> Result<String, String> {
-        let pi_bin = self.resolve_bundled_pi()?;
+        let pi_bin = self.resolve_bundled_omp()?;
         let pi_bin_str = strip_verbatim_prefix(&pi_bin.to_string_lossy());
         let augmented_path = build_augmented_path();
         log_child_path_diagnostics("run_pi_command", &augmented_path);
@@ -688,7 +688,7 @@ impl PiManager {
             .stderr(Stdio::piped());
         let output = command.output().map_err(|e| {
             format!(
-                "Failed to run embedded pi command ({} {:?}): {}",
+                "Failed to run embedded omp command ({} {:?}): {}",
                 pi_bin_str, args, e
             )
         })?;
@@ -705,12 +705,12 @@ impl PiManager {
             format!("exit status {}", output.status)
         };
         Err(format!(
-            "Embedded pi command failed: {} {:?}: {}",
+            "Embedded omp command failed: {} {:?}: {}",
             pi_bin_str, args, details
         ))
     }
 
-    /// Parse `pi list` output and extract package sources.
+    /// Parse `omp list` output and extract package sources.
     pub fn list_configured_package_sources(&self) -> Result<Vec<String>, String> {
         let args = vec!["list".to_string()];
         let output = self.run_pi_command(&args)?;
@@ -733,7 +733,7 @@ impl PiManager {
                 }
                 continue;
             }
-            // `pi list` currently emits entries prefixed with two spaces.
+            // `omp list` currently emits entries prefixed with two spaces.
             if let Some(value) = trimmed.strip_prefix("npm:") {
                 sources.push(format!("npm:{}", value));
                 continue;
@@ -770,7 +770,7 @@ pub async fn wait_for_health(port: u16, timeout_secs: u64) -> Result<(), String>
     wait_for_endpoint(port, "/api/health", timeout_secs).await
 }
 
-/// Wait for a specific HTTP endpoint on the pi instance to respond with a non-5xx status.
+/// Wait for a specific HTTP endpoint on the omp instance to respond with a non-5xx status.
 /// Useful when we need to confirm the API surface the frontend will hit first (e.g. /api/sessions)
 /// is ready before navigating, avoiding cold-start races where /api/health is up but route
 /// handlers are still warming.
@@ -796,10 +796,10 @@ mod tests {
     use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
 
     #[test]
-    fn augmented_path_includes_pi_extension_npm_bin() {
+    fn augmented_path_includes_omp_extension_npm_bin() {
         let home = std::env::var("HOME").expect("HOME must be set for this test");
         let expected = Path::new(&home)
-            .join(".pi")
+            .join(".omp")
             .join("agent")
             .join("npm")
             .join("node_modules")

@@ -1,8 +1,8 @@
 [package]
 name = "picot"
 version = "0.2.2"
-description = "Pi Agent Desktop - session manager for pi coding agent"
-authors = ["Pi Desktop"]
+description = "Omp Agent Desktop - session manager for omp coding agent"
+authors = ["OMP Desktop"]
 edition = "2021"
 
 [[bin]]

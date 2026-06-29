@@ -52,7 +52,7 @@ function readThemeCookie() {
     for (const entry of cookies) {
       const eq = entry.indexOf("=");
       if (eq === -1) continue;
-      if (entry.slice(0, eq) !== "pi-studio-theme") continue;
+      if (entry.slice(0, eq) !== "ompcot-theme") continue;
       const raw = entry.slice(eq + 1);
       try {
         return decodeURIComponent(raw);
@@ -66,7 +66,7 @@ function readThemeCookie() {
 
 function loadSavedFilters() {
   try {
-    const raw = localStorage.getItem("pi-studio-cost-filters");
+    const raw = localStorage.getItem("ompcot-cost-filters");
     if (!raw) return;
     const saved = JSON.parse(raw);
     if (saved.range) currentRange = saved.range;
@@ -80,7 +80,7 @@ function loadSavedFilters() {
 
 function saveFilters() {
   localStorage.setItem(
-    "pi-studio-cost-filters",
+    "ompcot-cost-filters",
     JSON.stringify({
       range: currentRange,
       scope: scopeSelect?.value ?? "all",

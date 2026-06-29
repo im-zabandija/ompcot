@@ -93,8 +93,8 @@ export class WsTransport {
 
   // ── Versions / packages ────────────────────────────────────────────────────
 
-  getPiVersion() {
-    return this._control("get_pi_version", {});
+  getOMPVersion() {
+    return this._control("get_omp_version", {});
   }
 
   getAppVersion() {
@@ -105,15 +105,15 @@ export class WsTransport {
     return this._control("is_dev", {});
   }
 
-  listPiPackages() {
+  listOMP Packages() {
     return this._control("list_pi_packages", {});
   }
 
-  installPiPackage(source) {
+  installOMP Package(source) {
     return this._control("install_pi_package", { source }, { timeoutMs: PACKAGE_TIMEOUT_MS });
   }
 
-  removePiPackage(source) {
+  removeOMP Package(source) {
     return this._control("remove_pi_package", { source }, { timeoutMs: PACKAGE_TIMEOUT_MS });
   }
 

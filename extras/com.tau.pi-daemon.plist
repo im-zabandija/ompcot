@@ -3,14 +3,14 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.pistudio.pi-daemon</string>
+    <string>com.ompcot.omp-daemon</string>
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/tmux</string>
         <string>new-session</string>
         <string>-d</string>
         <string>-s</string>
-        <string>pi-daemon</string>
+        <string>omp-daemon</string>
         <string>bash -c 'while true; do pi; sleep 5; done'</string>
     </array>
     <key>RunAtLoad</key>
@@ -18,9 +18,9 @@
     <key>KeepAlive</key>
     <false/>
     <key>StandardOutPath</key>
-    <string>/tmp/pi-daemon.log</string>
+    <string>/tmp/omp-daemon.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/pi-daemon.log</string>
+    <string>/tmp/omp-daemon.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>

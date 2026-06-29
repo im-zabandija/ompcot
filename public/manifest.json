@@ -1,7 +1,7 @@
 {
-  "name": "Picot",
-  "short_name": "Picot",
-  "description": "Local desktop GUI for the Pi coding agent",
+  "name": "Ompcot",
+  "short_name": "Ompcot",
+  "description": "Local desktop GUI for the OMP coding agent",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f3ef",

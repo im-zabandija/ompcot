@@ -2,11 +2,11 @@
  * Theme system — four themes: two light, two dark
  *
  * Storage note: the active theme is persisted in a cookie (not
- * localStorage). Picot spawns one pi process per workspace, each on
+ * localStorage). Ompcot spawns one omp process per workspace, each on
  * its own port, and every workspace window is loaded from
  * `http://localhost:<port>`. localStorage is partitioned per origin, so
  * `localhost:3001` and `localhost:3002` would each see a different
- * `pi-studio-theme` value — meaning any new project window would forget
+ * `ompcot-theme` value — meaning any new project window would forget
  * the user's theme and fall back to the OS default (usually dark). Cookies
  * on `localhost` are shared across ports, so a single cookie is visible
  * to every workspace window.
@@ -51,8 +51,8 @@ export const themes = {
   },
 };
 
-// TODO(rename->picot): cookie key kept as `pi-studio-theme` for backward compat — changing it would reset all existing users' theme preference.
-const THEME_COOKIE = "pi-studio-theme";
+// TODO(rename->picot): cookie key kept as `ompcot-theme` for backward compat — changing it would reset all existing users' theme preference.
+const THEME_COOKIE = "ompcot-theme";
 const THEME_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10; // 10 years
 
 function readThemeCookie() {

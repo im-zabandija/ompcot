@@ -1,28 +1,28 @@
 {
-  "name": "picot",
-  "version": "0.2.2",
-  "description": "Local Codex-style desktop GUI for the Pi coding agent",
+  "name": "ompcot",
+  "version": "0.3.0",
+  "description": "Local Codex-style desktop GUI for the OMP coding agent",
   "keywords": [
     "picot",
-    "pi",
+    "omp",
     "coding-agent",
     "desktop",
     "multi-agent",
     "tauri"
   ],
-  "author": "deflating",
+  "author": "ZephyrQ",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/shixin-guo/picot.git"
+    "url": "https://github.com/zephyrq-z/ompcot.git"
   },
   "scripts": {
     "tauri": "tauri",
-    "dev": "bun run fetch:pi && PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
-    "fetch:pi": "bun run scripts/fetch-pi-binary.js",
+    "dev": "bun run fetch:omp && PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
+    "fetch:omp": "bun run scripts/fetch-omp-binary.js",
     "build:extensions": "bun run scripts/build-extensions.js",
     "build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build",
-    "prebuild": "bun run fetch:pi && bun run build:extensions",
+    "prebuild": "bun run fetch:omp && bun run build:extensions",
     "release": "bash scripts/release.sh",
     "release:mac:dmg": "bash scripts/release-macos-dmg.sh",
     "test": "vitest run && bun run scripts/check-tauri-permissions.js",

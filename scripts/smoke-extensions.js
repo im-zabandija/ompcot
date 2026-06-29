@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Verify that the bundled mirror-server extension is *self-contained* —
- * i.e. it can be loaded by `pi --extension ...` from a directory that has
+ * i.e. it can be loaded by `omp --extension ...` from a directory that has
  * no `node_modules/` anywhere up the tree, and the resulting HTTP server
  * answers `/api/health` and `/api/sessions`.
  *
@@ -15,9 +15,9 @@
  *
  * Skip vs. fail
  * -------------
- * If `pi` is not installed on the runner, we skip with exit code 0 and
+ * If `omp` is not installed on the runner, we skip with exit code 0 and
  * a loud warning, because the rest of the build pipeline does not depend
- * on pi being present. CI workflows that *do* expect pi can install it
+ * on omp being present. CI workflows that *do* expect omp can install it
  * themselves and rely on this script's exit code to gate the release.
  */
 
@@ -40,8 +40,8 @@ function info(msg) {
   console.log(`[smoke-extensions] ${msg}`);
 }
 
-function checkPiAvailable() {
-  const probe = spawnSync("pi", ["--version"], { encoding: "utf8" });
+function checkOMPAvailable() {
+  const probe = spawnSync("omp", ["--version"], { encoding: "utf8" });
   if (probe.error || probe.status !== 0) {
     return null;
   }
@@ -85,23 +85,23 @@ async function main() {
   }
   info(`bundle: ${BUNDLE} (${(fs.statSync(BUNDLE).size / 1024).toFixed(1)} KB)`);
 
-  const piVersion = checkPiAvailable();
+  const piVersion = checkOMPAvailable();
   if (!piVersion) {
-    info("pi not found in PATH; skipping smoke test (this is OK in environments without pi).");
+    info("omp not found in PATH; skipping smoke test (this is OK in environments without pi).");
     process.exit(0);
   }
-  info(`pi available: ${piVersion}`);
+  info(`omp available: ${piVersion}`);
 
   // Use a tmpdir as cwd so jiti cannot "rescue" the bundle by finding the
   // repo's node_modules/ up-tree. This is the strictest possible lookup
   // environment, matching what an installed .app sees on a fresh machine.
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "pi-smoke-"));
-  info(`spawning pi from sandbox cwd: ${sandbox}`);
+  info(`spawning omp from sandbox cwd: ${sandbox}`);
 
-  const child = spawn("pi", ["--extension", BUNDLE, "--mode", "rpc"], {
+  const child = spawn("omp", ["--extension", BUNDLE, "--mode", "rpc"], {
     cwd: sandbox,
-    env: { ...process.env, PI_STUDIO_PORT: String(PORT) },
-    // pi --mode rpc treats stdin closing as a shutdown signal, so we keep
+    env: { ...process.env, OMCOT_PORT: String(PORT) },
+    // omp --mode rpc treats stdin closing as a shutdown signal, so we keep
     // stdin piped (and never write to it) for the lifetime of the test.
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -115,7 +115,7 @@ async function main() {
     }
   });
   child.on("error", (err) => {
-    info(`pi spawn error: ${err}`);
+    info(`omp spawn error: ${err}`);
   });
 
   const exitPromise = new Promise((resolve) => child.on("exit", resolve));
@@ -134,7 +134,7 @@ async function main() {
     info(`/api/sessions returned ${sessions.body.length} bytes of JSON`);
     ok = true;
   } catch (err) {
-    console.error("[smoke-extensions] pi stderr was:");
+    console.error("[smoke-extensions] omp stderr was:");
     console.error(stderrBuf || "(empty)");
     fail(err.message);
   } finally {

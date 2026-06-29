@@ -43,7 +43,7 @@ gh release view <tag> --json name,assets --jq '{name, assets:(.assets|length)}'
 
 1. **Collect material** (tag defaults to the most recent tag):
    ```bash
-   .pi/skills/release-notes/scripts/collect-commits.sh <tag>
+   .omp/skills/release-notes/scripts/collect-commits.sh <tag>
    ```
    Gives `tag=`, `prev_tag=`, `compare_url=`, and the deduplicated commit list.
 
@@ -64,7 +64,7 @@ gh release view <tag> --json name,assets --jq '{name, assets:(.assets|length)}'
 
 4. **Publish** after approval:
    ```bash
-   .pi/skills/release-notes/scripts/publish-release-notes.sh <tag> /tmp/release-notes-<tag>.md
+   .omp/skills/release-notes/scripts/publish-release-notes.sh <tag> /tmp/release-notes-<tag>.md
    ```
    The script derives the repo from the `origin` remote, passes `--repo`
    explicitly, and edits the release (or creates it if missing).

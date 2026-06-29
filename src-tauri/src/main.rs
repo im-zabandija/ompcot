@@ -1,11 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod broker_ws;
-mod pi_manager;
+mod omp_manager;
 
 use broker_ws::BrokerWs;
-use pi_manager::{
-    locked_pi_version, wait_for_endpoint, wait_for_health as wait_for_pi_health, PiManager,
+use omp_manager::{
+    locked_omp_version, wait_for_endpoint, wait_for_health as wait_for_omp_health, OmpManager,
 };
 use serde_json::Value;
 use std::fs::{self, File};
@@ -18,13 +18,13 @@ use tauri::{AppHandle, Manager, State, TitleBarStyle, WebviewUrl, WebviewWindowB
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_dialog::MessageDialogKind;
 
-type PiManagerState = Arc<PiManager>;
+type OmpManagerState = Arc<OmpManager>;
 type BrokerWsState = Arc<BrokerWs>;
 
 // ─── Tauri Commands ───────────────────────────────────────────────────────────
 
-/// Create a new session within the current workspace (RPC command to existing pi)
-fn new_session_core(port: u16, manager: &PiManager, broker: &BrokerWs) -> Result<(), String> {
+/// Create a new session within the current workspace (RPC command to existing omp)
+fn new_session_core(port: u16, manager: &OmpManager, broker: &BrokerWs) -> Result<(), String> {
     let result = manager.send_rpc(port, serde_json::json!({ "type": "new_session" }));
     if result.is_ok() {
         broker.set_active_port(port);
@@ -36,7 +36,7 @@ fn new_session_core(port: u16, manager: &PiManager, broker: &BrokerWs) -> Result
 fn switch_session_core(
     port: u16,
     session_path: &str,
-    manager: &PiManager,
+    manager: &OmpManager,
     broker: &BrokerWs,
 ) -> Result<(), String> {
     let result = manager.send_rpc(
@@ -49,9 +49,9 @@ fn switch_session_core(
     result
 }
 
-/// Open a workspace directory by spawning a separate pi process.
-/// When `open_window` is true (default) a new OS window is opened for the new pi.
-/// When false, the pi process is spawned headlessly and the caller is expected to
+/// Open a workspace directory by spawning a separate omp process.
+/// When `open_window` is true (default) a new OS window is opened for the new omp.
+/// When false, the omp process is spawned headlessly and the caller is expected to
 /// navigate the current window to the returned port.
 #[allow(clippy::too_many_arguments)]
 async fn open_workspace_core(
@@ -61,7 +61,7 @@ async fn open_workspace_core(
     open_window: bool,
     wait_for_health: bool,
     wait_for_sessions: bool,
-    manager: &PiManager,
+    manager: &OmpManager,
     broker: &BrokerWs,
     app: Option<&AppHandle>,
 ) -> Result<u16, String> {
@@ -70,7 +70,7 @@ async fn open_workspace_core(
     let spawn_started_at = Instant::now();
     manager.spawn(cwd, port, session_path)?;
     log::info!(
-        "[pi-desktop] open_workspace spawn complete: port={} cwd={} elapsed_ms={}",
+        "[ompcot] open_workspace spawn complete: port={} cwd={} elapsed_ms={}",
         port,
         cwd,
         spawn_started_at.elapsed().as_millis()
@@ -82,14 +82,14 @@ async fn open_workspace_core(
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         if let Some(status) = manager.check_exited(port) {
             return Err(format!(
-                "Pi process exited immediately (port {}, status: {}). \
+                "OMP process exited immediately (port {}, status: {}). \
                  Check stderr for crash details.",
                 port, status
             ));
         }
 
         let health_started_at = Instant::now();
-        match wait_for_pi_health(port, 30).await {
+        match wait_for_omp_health(port, 30).await {
             Ok(_) => {}
             Err(e) => {
                 let extra = if let Some(status) = manager.check_exited(port) {
@@ -101,7 +101,7 @@ async fn open_workspace_core(
             }
         }
         log::info!(
-            "[pi-desktop] open_workspace health ready: port={} elapsed_ms={}",
+            "[ompcot] open_workspace health ready: port={} elapsed_ms={}",
             port,
             health_started_at.elapsed().as_millis()
         );
@@ -116,7 +116,7 @@ async fn open_workspace_core(
         let new_session_started_at = Instant::now();
         manager.send_rpc(port, serde_json::json!({ "type": "new_session" }))?;
         log::info!(
-            "[pi-desktop] open_workspace new_session sent: port={} elapsed_ms={}",
+            "[ompcot] open_workspace new_session sent: port={} elapsed_ms={}",
             port,
             new_session_started_at.elapsed().as_millis()
         );
@@ -125,12 +125,12 @@ async fn open_workspace_core(
         let sessions_started_at = Instant::now();
         match wait_for_endpoint(port, "/api/sessions", 4).await {
             Ok(_) => log::info!(
-                "[pi-desktop] open_workspace sessions ready: port={} elapsed_ms={}",
+                "[ompcot] open_workspace sessions ready: port={} elapsed_ms={}",
                 port,
                 sessions_started_at.elapsed().as_millis()
             ),
             Err(err) => log::warn!(
-                "[pi-desktop] open_workspace sessions warmup skipped: port={} error={}",
+                "[ompcot] open_workspace sessions warmup skipped: port={} error={}",
                 port,
                 err
             ),
@@ -141,37 +141,37 @@ async fn open_workspace_core(
             open_workspace_window(app, port, &broker.url())?;
         } else {
             log::warn!(
-                "[pi-desktop] open_workspace requested a window but no AppHandle is available (port {})",
+                "[ompcot] open_workspace requested a window but no AppHandle is available (port {})",
                 port
             );
         }
     }
     log::info!(
-        "[pi-desktop] open_workspace complete: port={} total_elapsed_ms={}",
+        "[ompcot] open_workspace complete: port={} total_elapsed_ms={}",
         port,
         started_at.elapsed().as_millis()
     );
     Ok(port)
 }
 
-/// Stop (kill) a pi instance
-fn stop_instance_core(port: u16, manager: &PiManager, broker: &BrokerWs) {
+/// Stop (kill) a omp instance
+fn stop_instance_core(port: u16, manager: &OmpManager, broker: &BrokerWs) {
     manager.kill(port);
     broker.unregister_port(port);
 }
 
-/// Spawn (or reuse) a dedicated pi process for a specific session file so it
+/// Spawn (or reuse) a dedicated omp process for a specific session file so it
 /// can run concurrently with the workspace's primary process.
 /// Returns the port the dedicated process is listening on.
 async fn spawn_session_process_core(
     workspace_port: u16,
     session_file: &str,
     cwd: &str,
-    manager: &PiManager,
+    manager: &OmpManager,
     broker: &BrokerWs,
 ) -> Result<u16, String> {
     let port = manager.spawn_session_dedicated(workspace_port, session_file.to_string(), cwd)?;
-    wait_for_pi_health(port, 15).await?;
+    wait_for_omp_health(port, 15).await?;
     // Use track_background_session instead of register_session so the dedicated
     // process is routable by session ID but does NOT become the default
     // active_port — that would silently misroute commands from the session the
@@ -240,7 +240,7 @@ fn macos_installed_app_names() -> std::collections::HashSet<String> {
     names
 }
 
-/// List the external apps Picot can open a project in. On macOS this is
+/// List the external apps Ompcot can open a project in. On macOS this is
 /// filtered down to the apps actually installed; on other platforms it falls
 /// back to a fixed list of CLI launchers (resolved against PATH at open time).
 fn list_installed_apps_core() -> Vec<AppTarget> {
@@ -442,7 +442,7 @@ fn open_workspace_window(app: &AppHandle, port: u16, broker_ws_url: &str) -> Res
 
     let builder =
         WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url.parse().unwrap()))
-            .title("Picot")
+            .title("Ompcot")
             .inner_size(1300.0, 860.0)
             .min_inner_size(800.0, 600.0)
             .icon(icon)
@@ -475,7 +475,7 @@ fn open_bootstrap_window(app: &AppHandle, startup_error: &str) -> Result<(), Str
     let url = format!("bootstrap.html?startupError={}", encoded_error);
 
     let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(url.into()))
-        .title("Picot")
+        .title("Ompcot")
         .inner_size(900.0, 640.0)
         .min_inner_size(700.0, 480.0)
         .icon(icon)
@@ -578,7 +578,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        std::env::temp_dir().join(format!("pi-studio-{label}-{suffix}"))
+        std::env::temp_dir().join(format!("ompcot-{label}-{suffix}"))
     }
 
     #[test]
@@ -631,10 +631,10 @@ fn extract_session_cwd(session_path: &PathBuf) -> Option<String> {
 }
 
 fn find_latest_session_boot_target() -> Option<(String, String)> {
-    let sessions_root = dirs::home_dir()?.join(".pi/agent/sessions");
+    let sessions_root = dirs::home_dir()?.join(".omp/agent/sessions");
     if !sessions_root.exists() {
         log::info!(
-            "[pi-desktop] startup resume skipped: sessions dir not found at {}",
+            "[ompcot] startup resume skipped: sessions dir not found at {}",
             sessions_root.display()
         );
         return None;
@@ -656,7 +656,7 @@ fn find_latest_session_boot_target() -> Option<(String, String)> {
 
 #[tauri::command]
 async fn cmd_retry_startup(
-    manager: State<'_, PiManagerState>,
+    manager: State<'_, OmpManagerState>,
     broker: State<'_, BrokerWsState>,
 ) -> Result<u16, String> {
     let home_cwd = dirs::home_dir()
@@ -668,11 +668,11 @@ async fn cmd_retry_startup(
         None => (home_cwd, None),
     };
     // Mirror the main setup hook: never adopt a port we don't own. Always
-    // claim a fresh one so the resulting pi is driveable via our PiManager.
+    // claim a fresh one so the resulting omp is driveable via our OmpManager.
     let initial_port = manager.next_port();
     manager.spawn(&cwd, initial_port, session_path.as_deref())?;
     broker.register_session(initial_port, session_path.as_deref().unwrap_or(""));
-    if let Err(e) = wait_for_pi_health(initial_port, 30).await {
+    if let Err(e) = wait_for_omp_health(initial_port, 30).await {
         // Tear down the upstream reconnect loop started by register_session so it
         // doesn't spin forever against a dead port every 750ms.
         broker.unregister_port(initial_port);
@@ -761,18 +761,18 @@ fn resolve_control_port(port: Option<u16>, broker: &BrokerWs) -> Result<u16, Str
         return Ok(port);
     }
     // No explicit target. Falling back to the global active_port is only safe
-    // when a single pi process is live; with several (multi-window) it belongs
+    // when a single omp process is live; with several (multi-window) it belongs
     // to whichever window registered last, so a lifecycle op (new_session /
     // switch_session / stop_instance) could land on the wrong workspace (F4).
     if broker.live_upstream_count() > 1 {
         return Err(
-            "Ambiguous target: multiple pi instances are running; a port must be specified"
+            "Ambiguous target: multiple omp instances are running; a port must be specified"
                 .to_string(),
         );
     }
     broker
         .active_port()
-        .ok_or_else(|| "No active pi instance".to_string())
+        .ok_or_else(|| "No active omp instance".to_string())
 }
 
 /// Build + install the async handler the broker uses to execute `broker_control`
@@ -781,7 +781,7 @@ fn resolve_control_port(port: Option<u16>, broker: &BrokerWs) -> Result<u16, Str
 /// regardless of transport. Native ops (folder picker, devtools, updater,
 /// open-in-app/external) require an OS host and are only meaningful when this
 /// handler is installed — which is exactly what `capabilities.native` advertises.
-fn install_control_handler(broker: &Arc<BrokerWs>, manager: Arc<PiManager>, app: AppHandle) {
+fn install_control_handler(broker: &Arc<BrokerWs>, manager: Arc<OmpManager>, app: AppHandle) {
     let broker_for_handler = broker.clone();
     let handler: broker_ws::ControlHandler = Arc::new(
         move |command: String, args: Value, progress: broker_ws::ProgressSink| {
@@ -849,7 +849,7 @@ fn install_control_handler(broker: &Arc<BrokerWs>, manager: Arc<PiManager>, app:
                         .await?;
                         Ok(Value::from(port))
                     }
-                    "get_pi_version" => Ok(Value::from(locked_pi_version())),
+                    "get_omp_version" => Ok(Value::from(locked_omp_version())),
                     "get_app_version" => Ok(Value::from(env!("CARGO_PKG_VERSION"))),
                     "is_dev" => Ok(Value::from(cfg!(debug_assertions))),
                     "pick_folder" => Ok(match pick_folder_core(&app).await {
@@ -916,7 +916,7 @@ fn main() {
     // macOS GUI apps (launched from Finder/Dock) inherit only the minimal
     // system PATH (/usr/bin:/bin:/usr/sbin:/sbin).  fix_path_env::fix() runs
     // the user's login shell and merges its environment into this process so
-    // that all child processes (pi binary, npm, git, …) see the same tools
+    // that all child processes (omp binary, npm, git, …) see the same tools
     // as a normal terminal session.
     if let Err(err) = fix_path_env::fix() {
         eprintln!("[picot] failed to sync PATH from login shell: {err}");
@@ -939,9 +939,9 @@ fn main() {
         )
         .setup(|app| {
             let static_dir = find_static_dir(app);
-            let manager = Arc::new(PiManager::new(static_dir));
+            let manager = Arc::new(OmpManager::new(static_dir));
             let broker = Arc::new(BrokerWs::start().expect("failed to start broker websocket"));
-            std::env::set_var("PI_STUDIO_BROKER_PORT", broker.port().to_string());
+            std::env::set_var("OMCOT_BROKER_PORT", broker.port().to_string());
             install_control_handler(&broker, manager.clone(), app.handle().clone());
 
             let home_cwd = dirs::home_dir()
@@ -951,65 +951,65 @@ fn main() {
             let (cwd, session_path) = match find_latest_session_boot_target() {
                 Some((resolved_cwd, resolved_session_path)) => {
                     log::info!(
-                        "[pi-desktop] startup resume target selected: cwd={} session={}",
+                        "[ompcot] startup resume target selected: cwd={} session={}",
                         resolved_cwd, resolved_session_path
                     );
                     (resolved_cwd, Some(resolved_session_path))
                 }
                 None => {
                     log::info!(
-                        "[pi-desktop] startup resume fallback: using home directory {}",
+                        "[ompcot] startup resume fallback: using home directory {}",
                         home_cwd
                     );
                     (home_cwd, None)
                 }
             };
 
-            // Pick the first free port at/above 47821. We deliberately do NOT
-            // reuse a port that is already in use, even if "something pi-shaped"
+            // OMP ck the first free port at/above 47821. We deliberately do NOT
+            // reuse a port that is already in use, even if "something omp-shaped"
             // is listening on it, because:
             //
             //   1. We can't drive that process: `cmd_new_session` /
-            //      `cmd_switch_session` write to *our* `PiManager.processes`
-            //      map. A pi we didn't spawn (e.g. left over from an installed
-            //      Picot still running, or a previous `bun run dev` whose
+            //      `cmd_switch_session` write to *our* `OmpManager.processes`
+            //      map. A omp we didn't spawn (e.g. left over from an installed
+            //      Ompcot still running, or a previous `bun run dev` whose
             //      Rust side crashed without taking its children with it) is
             //      not in that map, so every RPC fails with
-            //      `No pi instance on port <p>` and the UI looks broken.
+            //      `No omp instance on port <p>` and the UI looks broken.
             //
             //   2. Even if we could control it, the WebView would be talking
-            //      to a completely different pi process with a different cwd
+            //      to a completely different omp process with a different cwd
             //      and a different session history. That's strictly worse
             //      than starting our own.
             //
-            // Allocating a fresh port for *this* Picot instance is the
+            // Allocating a fresh port for *this* Ompcot instance is the
             // simple invariant that avoids both classes of confusion. The
             // tradeoff is that `http://localhost:47821` is no longer a
-            // guaranteed entry point — but Picot doesn't promise that;
+            // guaranteed entry point — but Ompcot doesn't promise that;
             // the WebView discovers its port via the window URL.
             let initial_port = manager.next_port();
 
             let mut startup_ok = true;
             if initial_port != 47821 {
                 log::warn!(
-                    "[pi-desktop] port 47821 unavailable, using {} instead (likely another Picot instance is running)",
+                    "[ompcot] port 47821 unavailable, using {} instead (likely another Ompcotcot instance is running)",
                     initial_port
                 );
             }
             if let Err(err) = manager.spawn(&cwd, initial_port, session_path.as_deref()) {
                 startup_ok = false;
-                log::error!("[pi-desktop] startup failed to spawn pi: {}", err);
+                log::error!("[ompcot] startup failed to spawn omp: {}", err);
                 if let Err(window_err) = open_bootstrap_window(&app.handle().clone(), &err) {
                     log::error!(
-                        "[pi-desktop] failed to open bootstrap window after startup error: {}",
+                        "[ompcot] failed to open bootstrap window after startup error: {}",
                         window_err
                     );
                     app.dialog()
                         .message(format!(
-                            "Picot could not start the embedded pi runtime.\n\n{}\n\nThe Picot installation may be incomplete or corrupted. Please reinstall Picot and try again.",
+                            "Ompcot could not start the embedded omp runtime.\n\n{}\n\nThe Ompcot installation may be incomplete or corrupted. Please reinstall Ompcot and try again.",
                             err
                         ))
-                        .title("Picot startup failed")
+                        .title("Ompcot startup failed")
                         .kind(MessageDialogKind::Error)
                         .show(|_| {});
                 }
@@ -1022,8 +1022,8 @@ fn main() {
                 broker.register_session(initial_port, session_path.as_deref().unwrap_or(""));
                 let app_handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(e) = wait_for_pi_health(initial_port, 30).await {
-                        log::error!("Pi failed to start: {}", e);
+                    if let Err(e) = wait_for_omp_health(initial_port, 30).await {
+                        log::error!("OMP failed to start: {}", e);
                         // Tear down the upstream reconnect loop started by
                         // register_session so it doesn't spin forever against a
                         // dead port every 750ms.
@@ -1047,7 +1047,7 @@ fn main() {
                 let label = window.label();
                 if let Some(port_str) = label.strip_prefix("workspace-") {
                     if let Ok(port) = port_str.parse::<u16>() {
-                        if let Some(manager) = window.try_state::<PiManagerState>() {
+                        if let Some(manager) = window.try_state::<OmpManagerState>() {
                             manager.kill_workspace_dedicated(port);
                             manager.kill(port);
                         }
@@ -1067,7 +1067,7 @@ fn main() {
         .expect("error while building tauri application")
         .run(|app_handle: &tauri::AppHandle, event| {
             if let tauri::RunEvent::Exit = event {
-                if let Some(manager) = app_handle.try_state::<PiManagerState>() {
+                if let Some(manager) = app_handle.try_state::<OmpManagerState>() {
                     manager.kill_all();
                 }
             }

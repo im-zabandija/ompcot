@@ -87,7 +87,7 @@ bun install --lockfile-only
 
 echo "Refreshing src-tauri/Cargo.lock..."
 # Cargo.lock contains a `picot` entry whose version tracks Cargo.toml.
-# Run `cargo update -p pi-studio` so the lockfile is in sync with the bumped
+# Run `cargo update -p ompcot` so the lockfile is in sync with the bumped
 # Cargo.toml *before* we commit, otherwise the next local cargo invocation
 # will leave a dirty Cargo.lock behind after the release commit is pushed.
 # Ensure ~/.cargo/bin is on PATH (rustup default install location), since

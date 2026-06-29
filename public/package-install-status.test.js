@@ -29,8 +29,8 @@ describe("package install failure status", () => {
   });
 
   test("keeps permission errors actionable", () => {
-    expect(summarizePackageError("EACCES: permission denied, open ~/.pi/agent/npm")).toBe(
-      "Permission denied in ~/.pi/agent/npm (check owner/permissions).",
+    expect(summarizePackageError("EACCES: permission denied, open ~/.omp/agent/npm")).toBe(
+      "Permission denied in ~/.omp/agent/npm (check owner/permissions).",
     );
   });
 

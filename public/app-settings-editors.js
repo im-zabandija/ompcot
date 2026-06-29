@@ -436,7 +436,7 @@ export function setupSettingsEditors({
   modelsConfigDocsLink?.addEventListener("click", (e) => {
     e.preventDefault();
     const url =
-      "https://github.com/earendil-works/pi-mono/blob/main/packages/coding-agent/docs/models.md";
+      "https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/docs/models.md";
     fetch("/api/open", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

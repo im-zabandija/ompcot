@@ -14,9 +14,9 @@ cd "$ROOT_DIR"
 # Mirror the `prebuild` lifecycle hook. The release script intentionally
 # calls `tauri build` directly (not `bun run build`) so the lifecycle hook
 # does NOT fire automatically. Reproduce it here so a release never ships
-# with a stale or missing embedded pi binary / extension bundle.
-echo "Fetching embedded pi binary (idempotent if version matches)..."
-bun run "$ROOT_DIR/scripts/fetch-pi-binary.js"
+# with a stale or missing embedded omp binary / extension bundle.
+echo "Fetching embedded omp binary (idempotent if version matches)..."
+bun run "$ROOT_DIR/scripts/fetch-omp-binary.js"
 echo "Building extensions bundle..."
 bun run "$ROOT_DIR/scripts/build-extensions.js"
 

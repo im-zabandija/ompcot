@@ -87,9 +87,9 @@ describe("startInWindowNewSession parallel-spawn", () => {
 });
 
 describe("isDeadPortError", () => {
-  it("matches the PiManager dead-port error string", () => {
-    expect(isDeadPortError("No pi instance on port 47823")).toBe(true);
-    expect(isDeadPortError(new Error("No pi instance on port 47823"))).toBe(true);
+  it("matches the OmpManager dead-port error string", () => {
+    expect(isDeadPortError("No omp instance on port 47823")).toBe(true);
+    expect(isDeadPortError(new Error("No omp instance on port 47823"))).toBe(true);
   });
 
   it("does not match unrelated errors", () => {
@@ -102,7 +102,7 @@ describe("isDeadPortError", () => {
 describe("in-place dead-port recovery", () => {
   it("startInWindowNewSession spawns a fresh process when the port is dead", async () => {
     const transport = makeTransport();
-    transport.newSession = vi.fn().mockRejectedValue(new Error("No pi instance on port 47823"));
+    transport.newSession = vi.fn().mockRejectedValue(new Error("No omp instance on port 47823"));
     const onParallelSessionCreated = vi.fn().mockResolvedValue(undefined);
     const onInPlaceSessionCreated = vi.fn();
     const renderError = vi.fn();
@@ -153,7 +153,7 @@ describe("in-place dead-port recovery", () => {
 
   it("startNewProjectChat spawns a fresh process when the port is dead", async () => {
     const transport = makeTransport();
-    transport.newSession = vi.fn().mockRejectedValue(new Error("No pi instance on port 47823"));
+    transport.newSession = vi.fn().mockRejectedValue(new Error("No omp instance on port 47823"));
     const onParallelSessionCreated = vi.fn().mockResolvedValue(undefined);
     const renderError = vi.fn();
 

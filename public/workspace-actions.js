@@ -1,22 +1,22 @@
 // Multi-task model
 // ──────────────────
-// A `pi --mode rpc` process can only drive ONE active session at a time.
+// A `omp --mode rpc` process can only drive ONE active session at a time.
 // `new_session` / `switch_session` / fork inside an existing process just
 // *replace* the active session — the previous session's .jsonl stays on
 // disk and can be reloaded later, but it stops being the live, running
 // session in that process. So any concurrently-running session structurally
-// needs its own pi process.
+// needs its own omp process.
 //
 // "Start a new session" entry points (header "+ New Session" and sidebar
 // project tile "start new chat") both use the same pattern: spawn a fresh
-// HEADLESS pi for the target cwd and navigate THIS window's WebView to
-// the new port. The previously-attached pi process keeps running in the
-// background (PiManager retains it) and is reachable via the
+// HEADLESS omp for the target cwd and navigate THIS window's WebView to
+// the new port. The previously-attached omp process keeps running in the
+// background (OmpManager retains it) and is reachable via the
 // running-instances list / launcher / sidebar. Net effect: no new OS
 // window, no interruption of any previously-running session.
 //
 // "Open project" / "Open folder" entry points still attach to an existing
-// pi instance for the same cwd when one exists — those actions are about
+// omp instance for the same cwd when one exists — those actions are about
 // *finding* the project, not starting a new task.
 //
 // Swap overlay
@@ -24,7 +24,7 @@
 // All entry points that end in `navigate(url)` (a full-page WebView
 // reload) optionally take an `onBeforeSwap` callback. The host (app.js)
 // uses it to raise a full-screen overlay so the user sees a continuous
-// spinner instead of a 1–2 second freeze (while pi spawns) followed by a
+// spinner instead of a 1–2 second freeze (while omp spawns) followed by a
 // white flash (while the WebView reloads). The overlay is persisted
 // across the navigation boundary via sessionStorage; the new page boots
 // straight into it (see index.html bootstrap script).
@@ -55,14 +55,14 @@ export function buildWorkspaceUrl(port, env = globalThis.window || globalThis) {
 }
 
 // True when an in-place `new_session(port)` / `switch_session(port)` RPC
-// failed because the target port is no longer backed by a pi process the
-// Rust PiManager owns. This happens when `foregroundPort` drifts to a stale
+// failed because the target port is no longer backed by a omp process the
+// Rust OmpManager owns. This happens when `foregroundPort` drifts to a stale
 // port — e.g. a dedicated/background session process that has since exited,
 // or a leftover port from a previous run. The caller should recover by
 // spawning a fresh process rather than surfacing the raw error.
 export function isDeadPortError(error) {
   const message = typeof error === "string" ? error : error?.message || String(error || "");
-  return /No pi instance on port/i.test(message);
+  return /No omp instance on port/i.test(message);
 }
 
 function runOnBeforeSwap(onBeforeSwap, label) {
@@ -75,8 +75,8 @@ function runOnBeforeSwap(onBeforeSwap, label) {
 }
 
 // "Attach to workspace" flow used by Open Project / Open Folder. Reuses an
-// existing pi instance for the same cwd when present, otherwise spawns a
-// windowless pi and navigates the *current* window to it.
+// existing omp instance for the same cwd when present, otherwise spawns a
+// windowless omp and navigates the *current* window to it.
 async function attachToWorkspace({
   targetCwd,
   transport,
@@ -117,8 +117,8 @@ async function attachToWorkspace({
 }
 
 // "+ New Session" button in the current window's header.
-// Spawns a fresh headless pi process for the current cwd, then navigates
-// THIS window's WebView to it. The previous pi process keeps running in
+// Spawns a fresh headless omp process for the current cwd, then navigates
+// THIS window's WebView to it. The previous omp process keeps running in
 // the background — it's not killed, just no longer attached to this
 // window. The user can return to it via the running-instances list.
 export async function startInWindowNewSession({
@@ -209,7 +209,7 @@ export async function startInWindowNewSession({
   });
 }
 
-// Spawn a brand-new headless pi for `targetCwd` and either activate it
+// Spawn a brand-new headless omp for `targetCwd` and either activate it
 // in-place (when `onParallelSessionCreated` is provided) or navigate the
 // current window to it. Shared by "+ New Session" (parallel + dead-port
 // fallback) and the project-tile "start new chat" flow.
@@ -265,9 +265,9 @@ function resolveProjectCwd(project) {
 }
 
 // Sidebar "start new chat" entry point (project tile in the open
-// workspace window). Spawns a fresh headless pi for the project's cwd
-// and navigates THIS window to it. The previously-attached pi process
-// stays alive in the background (PiManager retains it; reachable via
+// workspace window). Spawns a fresh headless omp for the project's cwd
+// and navigates THIS window to it. The previously-attached omp process
+// stays alive in the background (OmpManager retains it; reachable via
 // the running-instances list). No new OS window is opened, and no
 // running session is interrupted — same model as in-window "+ New
 // Session", just sourced from a project tile instead of the header.
@@ -377,7 +377,7 @@ export async function startNewProjectChat({
 }
 
 // Launcher bubble / "Open Folder" entry point. Does NOT spawn a parallel
-// pi if one is already running for that cwd — opening a project is about
+// omp if one is already running for that cwd — opening a project is about
 // *finding* it, not starting a new task. The user can still hit "+ New
 // Session" inside the workspace window to fork a parallel agent.
 export async function openProjectWorkspace({

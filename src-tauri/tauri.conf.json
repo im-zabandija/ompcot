@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Picot",
-  "identifier": "works.earendil.picot",
-  "version": "0.2.2",
+  "productName": "Ompcot",
+  "identifier": "works.zephyrq.ompcot",
+  "version": "0.3.0",
   "build": {
     "frontendDist": "../public",
-    "beforeDevCommand": "bun run fetch:pi",
-    "beforeBuildCommand": "bun run fetch:pi && bun run build:extensions"
+    "beforeDevCommand": "bun run fetch:omp",
+    "beforeBuildCommand": "bun run fetch:omp && bun run build:extensions"
   },
   "app": {
     "withGlobalTauri": true,
@@ -38,18 +38,8 @@
     "resources": {
       "../public": "public",
       "../extensions/dist": "extensions",
-      "./resources/pi": "pi"
+      "./resources/omp": "omp"
     }
   },
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU5OUQ4Q0Y5MTA1MTFDRTEKUldUaEhGRVErWXlkNlNSa01lY0g5S1ltM3BjMHJhdUYxdXdsc25USndZdDBFeGZyeGpUa2JVZWEK",
-      "endpoints": [
-        "https://github.com/shixin-guo/picot/releases/latest/download/latest.json"
-      ],
-      "windows": {
-        "installMode": "passive"
-      }
-    }
-  }
+  "plugins": {}
 }

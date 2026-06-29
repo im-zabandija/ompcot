@@ -67,11 +67,11 @@ describe("WebSocketClient control commands", () => {
 
   test("sendControl emits a broker_control envelope and resolves on control_response", async () => {
     const { client, sent } = openClient();
-    const result = client.sendControl("get_pi_version", {});
+    const result = client.sendControl("get_omp_version", {});
 
     expect(sent[0]).toMatchObject({
       type: "broker_control",
-      command: "get_pi_version",
+      command: "get_omp_version",
       requestId: "ctl-1",
     });
 
@@ -142,7 +142,7 @@ describe("WebSocketClient control commands", () => {
 
   test("disconnecting rejects pending control requests", async () => {
     const { client } = openClient();
-    const result = client.sendControl("get_pi_version", {});
+    const result = client.sendControl("get_omp_version", {});
     client.rejectAllControls(new Error("WebSocket disconnected"));
     await expect(result).rejects.toThrow("WebSocket disconnected");
   });

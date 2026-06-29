@@ -89,9 +89,9 @@ impl BrokerWs {
         *self.inner.active_port.lock().unwrap()
     }
 
-    /// Number of pi upstream connections the broker is currently maintaining.
+    /// Number of omp upstream connections the broker is currently maintaining.
     /// Used to detect when a global `active_port` fallback would be ambiguous:
-    /// with more than one live pi process (multi-window / multi-workspace) the
+    /// with more than one live omp process (multi-window / multi-workspace) the
     /// active_port belongs to whichever window registered most recently, so it
     /// cannot be safely used to guess the target of an unaddressed command.
     pub fn live_upstream_count(&self) -> usize {
@@ -99,7 +99,7 @@ impl BrokerWs {
     }
 
     /// Install the handler used to execute `broker_control` requests. Called
-    /// once from main.rs after PiManager + BrokerWs exist.
+    /// once from main.rs after OmpManager + BrokerWs exist.
     pub fn set_control_handler(&self, handler: ControlHandler) {
         *self.inner.control_handler.lock().unwrap() = Some(handler);
     }
@@ -128,7 +128,7 @@ impl BrokerWs {
     /// Point `session_id` at `port`, first evicting any other session id that
     /// previously resolved to this port.
     ///
-    /// A `pi --mode rpc` process drives exactly ONE active session at a time, so
+    /// A `omp --mode rpc` process drives exactly ONE active session at a time, so
     /// a port maps to at most one session id. An in-place `new_session` /
     /// `switch_session` reuses the same port for a *different* session; without
     /// this eviction the PREVIOUS session id would keep pointing here. Because
@@ -240,7 +240,7 @@ impl BrokerWs {
             return;
         };
 
-        // `broker_control` requests are NOT forwarded to a pi upstream — they are
+        // `broker_control` requests are NOT forwarded to a omp upstream — they are
         // process/window lifecycle or native ops handled by the host (Rust).
         // Dispatch to the injected control handler and reply to this client only.
         if value.get("type").and_then(Value::as_str) == Some("broker_control") {
@@ -419,7 +419,7 @@ impl BrokerWs {
             return Some(source_port);
         }
         // Last resort: the global active_port. Safe only when unambiguous — with
-        // multiple live pi processes it belongs to whichever window registered
+        // multiple live omp processes it belongs to whichever window registered
         // most recently, so guessing it would misroute an unaddressed command
         // into another window's session. When ambiguous, return None so the
         // command surfaces as undeliverable (F3) instead of misrouting (F4).

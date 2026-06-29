@@ -2,10 +2,10 @@
 
 [English](./README.md) | **中文**
 
-本地桌面 GUI，专为 [Pi](https://github.com/badlogic/pi-mono) 编程 Agent 打造。无需云端，无需账号，完全在本机运行。
+本地桌面 GUI，专为 [Pi](https://github.com/badlogic/oh-my-pi) 编程 Agent 打造。无需云端，无需账号，完全在本机运行。
 
 
-Picot 将 `pi` 运行时**直接打包进 .app**，无需单独安装 `pi`，无需配置 PATH，也不存在版本不一致的问题。
+Picot 将 `omp` 运行时**直接打包进 .app**，无需单独安装 `omp`，无需配置 PATH，也不存在版本不一致的问题。
 
 <p align="center">
   <img width="1200" alt="Picot 主界面" src="https://github.com/user-attachments/assets/27d1b71e-77e8-420c-84ab-5e56eb48335a" />
@@ -17,7 +17,7 @@ Picot 将 `pi` 运行时**直接打包进 .app**，无需单独安装 `pi`，无
 
 [从 GitHub Releases 下载](https://github.com/shixin-guo/picot/releases)
 
-**无需单独安装 `pi` CLI** — Picot 内置了自己的 pi 运行时。
+**无需单独安装 `omp` CLI** — Picot 内置了自己的 pi 运行时。
 
 ### macOS 未签名提示
 
@@ -102,7 +102,7 @@ Picot 为 Pi 提供完整的可视化界面。打开任意项目文件夹，与 
 </p>
 
 - 在 UI 内浏览、安装和删除社区包
-- 基于 `pi install`，无需额外命令
+- 基于 `omp install`，无需额外命令
 
 ### 💰 费用 & 用量面板
 
@@ -153,12 +153,12 @@ Picot 为 Pi 提供完整的可视化界面。打开任意项目文件夹，与 
 
 Picot 不重新实现 Agent 逻辑——它内嵌 Pi 并通过原生 UI 暴露其运行时能力。
 
-- **内嵌 `pi --mode rpc` 运行时** — 每个工作区一个独立的托管进程
+- **内嵌 `omp --mode rpc` 运行时** — 每个工作区一个独立的托管进程
 - **流式 RPC 桥接** — 逐 Token 输出、工具调用事件和思考块实时渲染
 - **会话生命周期 API** — 创建、切换、恢复会话，完整的按项目历史
 - **WebSocket Broker** — 多个 UI 客户端可同时连接同一个 pi 进程
-- **扩展兼容** — 自动加载 `~/.pi/agent/extensions/` 和 `.pi/extensions/` 中的用户扩展
-- **凭证复用** — 读取 Pi 已有的 `~/.pi/agent/auth.json`，无需单独登录
+- **扩展兼容** — 自动加载 `~/.omp/agent/extensions/` 和 `.omp/extensions/` 中的用户扩展
+- **凭证复用** — 读取 Pi 已有的 `~/.omp/agent/auth.json`，无需单独登录
 
 ---
 
@@ -168,9 +168,9 @@ Picot 不重新实现 Agent 逻辑——它内嵌 Pi 并通过原生 UI 暴露�
 ┌──────────────────────────────────────────────────────┐
 │ Picot .app                                       │
 │                                                      │
-│   Tauri + PiManager (Rust)                           │
-│      ├─► 启动  pi --mode rpc  (项目 A, :3001)        │
-│      ├─► 启动  pi --mode rpc  (项目 B, :3002)        │
+│   Tauri + OmpManager (Rust)                           │
+│      ├─► 启动  omp --mode rpc  (项目 A, :3001)        │
+│      ├─► 启动  omp --mode rpc  (项目 B, :3002)        │
 │      └─► 每个项目一个 OS 窗口 ──► WebView ──► HTTP   │
 │                                                      │
 │   resources/                                         │
@@ -180,7 +180,7 @@ Picot 不重新实现 Agent 逻辑——它内嵌 Pi 并通过原生 UI 暴露�
 └──────────────────────────────────────────────────────┘
                        │
                        ▼ 读取 / 写入
-              ~/.pi/agent/
+              ~/.omp/agent/
                  ├─ sessions/   (对话历史)
                  ├─ auth.json   (API 密钥)
                  └─ settings.json
@@ -196,7 +196,7 @@ Picot 不重新实现 Agent 逻辑——它内嵌 Pi 并通过原生 UI 暴露�
 2. 点击项目气泡或选择一个文件夹
 3. 开始对话 — 嵌入的 pi Agent 会自动在该工作区启动
 
-通过任意工作区内的 `pi /login` 提供模型凭证，或直接写入 `~/.pi/agent/auth.json`。Picot 本身不管理凭证。
+通过任意工作区内的 `omp /login` 提供模型凭证，或直接写入 `~/.omp/agent/auth.json`。Picot 本身不管理凭证。
 
 ---
 
@@ -221,7 +221,7 @@ bun run build    # 下载内嵌 pi 二进制，然后运行 tauri build
 bun run check:rust   # cargo check + clippy + fmt（快速，无需完整构建）
 ```
 
-升级内嵌 pi 版本：编辑 `scripts/pi-version.json`，运行 `bun run fetch:pi`，冒烟测试后提交。
+升级内嵌 pi 版本：编辑 `scripts/omp-version.json`，运行 `bun run fetch:omp`，冒烟测试后提交。
 
 ---
 
@@ -229,7 +229,7 @@ bun run check:rust   # cargo check + clippy + fmt（快速，无需完整构建�
 
 Picot 是 **Tau** 的维护性 fork，专为 Pi 优先的本地开发工作流定制。主要增强：
 
-- **Tauri 原生 PiManager** — 每个项目窗口启动一个独立的 `pi --mode rpc` 进程
+- **Tauri 原生 OmpManager** — 每个项目窗口启动一个独立的 `omp --mode rpc` 进程
 - **内嵌 pi 运行时** — 无需全局安装，Picot 自带二进制
 - **多会话不开新窗口** — headless pi 进程，当前 WebView 直接切换
 - **局域网 + 移动端访问** — 二维码、PWA 支持、多客户端 WebSocket broker

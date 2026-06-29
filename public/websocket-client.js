@@ -2,7 +2,7 @@
  * WebSocket Client - Handles connection to backend WebSocket server
  */
 
-const BROKER_WS_STORAGE_KEY = "pi-studio:broker-ws-url";
+const BROKER_WS_STORAGE_KEY = "ompcot:broker-ws-url";
 
 // The shared broker URL is delivered to each page via the `?brokerWs=` query
 // param (the Rust host appends it when opening a window, and in-app navigations
@@ -239,7 +239,7 @@ export class WebSocketClient extends EventTarget {
   }
 
   // Send a control command (process/window lifecycle or native op handled by
-  // the broker host, not forwarded to a pi upstream) and resolve with the
+  // the broker host, not forwarded to a omp upstream) and resolve with the
   // broker's result. Mirrors the promise semantics of a Tauri `invoke()` so
   // callers can stay transport-agnostic. `onProgress` (optional) receives
   // streamed control_progress frames; `timeoutMs` overrides the default for
@@ -357,7 +357,7 @@ export class WebSocketClient extends EventTarget {
     }
 
     // The broker could not route/deliver a broker_command we sent (the target
-    // pi process is gone or no session is reachable). Surface it so a dropped
+    // omp process is gone or no session is reachable). Surface it so a dropped
     // prompt does not vanish silently — callers correlate via requestId.
     if (message.type === "command_undeliverable") {
       this.dispatchEvent(new CustomEvent("commandUndeliverable", { detail: message }));
@@ -410,7 +410,7 @@ export class WebSocketClient extends EventTarget {
       case "mirror_sync":
         // Do NOT call setRoutingContext here. The broker broadcasts every
         // upstream's `mirror_sync` to all UI clients, so a snapshot emitted by
-        // a *background* pi process (e.g. the previously-running session that
+        // a *background* omp process (e.g. the previously-running session that
         // keeps streaming after the user switched away) must not silently
         // hijack the routing context — otherwise the user's next command would
         // be routed to that background session. Routing context is owned by the

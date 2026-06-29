@@ -15,3 +15,5 @@ src-tauri/resources/pi/
 
 # Pi session exports
 pi-session-*.html
+src-tauri/resources/omp/omp
+src-tauri/resources/omp/.version
