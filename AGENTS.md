@@ -1,15 +1,15 @@
-# Picot
+# Ompcot
 
 ## Product
 
-**Picot** is a local desktop GUI for the OMP coding agent. It is a Tauri app that bundles its own `omp` runtime — there is no separate install of `omp` to manage.
+**Ompcot** is a local desktop GUI for the OMP coding agent. It is a Tauri app that bundles its own `omp` runtime — there is no separate install of `omp` to manage.
 
 ### Architecture
 
 Tauri wraps the web UI. A Rust `OmpManager` (`src-tauri/src/omp_manager.rs`) spawns one `omp --mode rpc` subprocess per workspace, each on its own port, using the embedded omp binary shipped in `src-tauri/resources/omp/` (downloaded by `scripts/fetch-omp-binary.js` from oh-my-omp releases at the version pinned in `scripts/omp-version.json`). Each workspace gets its own OS window. Workspaces are opened via the native folder picker ("Open Folder"); clicking it opens or focuses a workspace window. Multi-project, multi-agent, no terminal required.
 
 ```
-Picot .app
+Ompcot .app
   resources/
     public/                       (frontend)
     extensions/embedded-server.mjs (HTTP + WS server, runs inside pi)
@@ -33,9 +33,9 @@ Tauri IPC commands (invoked via `window.tauriNative` in `public/tauri-bridge.js`
 - Local desktop GUI: all projects and agents visible in one app
 - Multi-project: each project has its own window, isolated working directory, session history, and running agent
 - Multi-agent: spawn new agents per project; switch between sessions without leaving the app
-- Multi-task: a `omp --mode rpc` process can only drive **one active session at a time** (switching/forking inside one process *replaces* the active session — the old `.jsonl` is preserved on disk, but it stops being the live, running session). So every concurrently-running session structurally needs its own `omp` process. Picot handles this without spawning OS windows: both "+ New Session" (header) and "start new chat" (sidebar project tile) spawn a fresh **headless** pi for the target cwd and navigate the current window's WebView to it. The previously-attached omp process keeps running in the background (OmpManager retains it; reachable from the running-instances list / launcher / sidebar). Net effect: no new OS window, no interruption of the previously-running session, and you can still run multiple agents in parallel against the same project.
+- Multi-task: a `omp --mode rpc` process can only drive **one active session at a time** (switching/forking inside one process *replaces* the active session — the old `.jsonl` is preserved on disk, but it stops being the live, running session). So every concurrently-running session structurally needs its own `omp` process. Ompcot handles this without spawning OS windows: both "+ New Session" (header) and "start new chat" (sidebar project tile) spawn a fresh **headless** omp for the target cwd and navigate the current window's WebView to it. The previously-attached omp process keeps running in the background (OmpManager retains it; reachable from the running-instances list / launcher / sidebar). Net effect: no new OS window, no interruption of the previously-running session, and you can still run multiple agents in parallel against the same project.
 - Visualization: streaming chat, tool-call cards, thinking blocks, token/cost tracking per session
-- Fully self-contained desktop app: zero dependency on the user's PATH / shell environment / globally installed pi
+- Fully self-contained desktop app: zero dependency on the user's PATH / shell environment / globally installed omp
 
 ### Constraints
 
@@ -114,7 +114,7 @@ The frontend (`public/`) is vanilla JS with **no framework**. Keep it modular:
 
 ## Architecture
 
-Picot is a Tauri v2 app. The three main layers:
+Ompcot is a Tauri v2 app. The three main layers:
 
 **1. Rust / Tauri (`src-tauri/`)** — process lifecycle and window management.
 - `src-tauri/src/omp_manager.rs` — `OmpManager` spawns one `omp --mode rpc` subprocess per workspace, each on its own port. Manages port allocation, process lifecycle, and RPC message forwarding.
@@ -157,7 +157,7 @@ End users never run `fetch:omp`. The flow that puts `omp` inside the shipped bun
 3. **Tauri bundling.** `tauri.conf.json` `bundle.resources` maps `./resources/omp` → `omp`, so the entire omp runtime tree is copied into `<App>.app/Contents/Resources/pi/` at package time.
 4. **Last-line guard (build.rs).** `src-tauri/build.rs` PANICS at compile time if `resources/omp/<bin>` is missing in a release profile. This prevents `cargo build --release` (or any IDE that bypasses bun) from silently producing a .app with no pi inside. Override only for local experiments via `OMCOT_SKIP_BIN_CHECK=1`.
 
-Net effect: there is no path that ships a Picot release without the embedded omp binary. End users get a self-contained app — no PATH lookups, no `bun run fetch:omp`, no manual install of pi.
+Net effect: there is no path that ships a Ompcot release without the embedded omp binary. End users get a self-contained app — no PATH lookups, no `bun run fetch:omp`, no manual install of omp.
 
 ## Post-fix verification (Rust / Tauri)
 
@@ -183,7 +183,7 @@ bash scripts/check-rust.sh
 
 ## Auto-updater
 
-Picot uses the Tauri v2 updater plugin to fetch new releases from GitHub. The runtime side lives in `public/tauri-bridge.js` + `public/app.js` (Settings → General → Updates), and the build side is wired into `.github/workflows/release.yml` via the `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secrets. See `docs/AUTO_UPDATER.md` for the one-time signing-key setup and how `latest.json` flows from CI → GitHub release → installed app.
+Ompcot uses the Tauri v2 updater plugin to fetch new releases from GitHub. The runtime side lives in `public/tauri-bridge.js` + `public/app.js` (Settings → General → Updates), and the build side is wired into `.github/workflows/release.yml` via the `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secrets. See `docs/AUTO_UPDATER.md` for the one-time signing-key setup and how `latest.json` flows from CI → GitHub release → installed app.
 
 ## Tests
 

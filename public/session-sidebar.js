@@ -14,7 +14,7 @@ export class SessionSidebar {
     this.projects = [];
     this.collapsedProjects = new Set();
     this.searchQuery = "";
-    // TODO(rename->picot): localStorage keys kept as `ompcot-*` for backward compat — migration needed before changing.
+    // TODO(rename->ompcot): localStorage keys kept as `ompcot-*` for backward compat — migration needed before changing.
     this.favourites = JSON.parse(localStorage.getItem("ompcot-favourites") || "[]");
     this.archived = JSON.parse(localStorage.getItem("ompcot-archived") || "[]");
     this.archivedCollapsed = localStorage.getItem("ompcot-archived-collapsed") !== "false";

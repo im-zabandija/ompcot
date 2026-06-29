@@ -17,3 +17,4 @@ src-tauri/resources/pi/
 pi-session-*.html
 src-tauri/resources/omp/omp
 src-tauri/resources/omp/.version
+src-tauri/resources/omp/

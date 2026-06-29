@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "description": "Local Codex-style desktop GUI for the OMP coding agent",
   "keywords": [
-    "picot",
+    "ompcot",
     "omp",
     "coding-agent",
     "desktop",
@@ -18,11 +18,11 @@
   },
   "scripts": {
     "tauri": "tauri",
-    "dev": "bun run fetch:omp && PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
-    "fetch:omp": "bun run scripts/fetch-omp-binary.js",
+    "dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
+    "fetch:omp": "echo 'omp is found on PATH at runtime; no need to bundle'",
     "build:extensions": "bun run scripts/build-extensions.js",
     "build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build",
-    "prebuild": "bun run fetch:omp && bun run build:extensions",
+    "prebuild": "bun run build:extensions",
     "release": "bash scripts/release.sh",
     "release:mac:dmg": "bash scripts/release-macos-dmg.sh",
     "test": "vitest run && bun run scripts/check-tauri-permissions.js",

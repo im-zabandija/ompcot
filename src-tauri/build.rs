@@ -1,23 +1,5 @@
 use std::{fs, path::PathBuf};
 
-/// Hard guarantee: a Ompcot release build CANNOT be produced without the
-/// embedded omp binary inside `src-tauri/resources/omp/`.
-///
-/// Why this lives in build.rs
-/// --------------------------
-/// `tauri.conf.json` already lists `./resources/omp` under `bundle.resources`,
-/// and the package scripts run `fetch:omp` as a `prebuild` / `beforeBuildCommand`
-/// hook. But it is still possible to run `cargo build --release` directly
-/// (CI matrix shortcuts, IDE "build" buttons, manual debugging of bundling)
-/// without ever going through bun. When that happens the .app is silently
-/// produced WITHOUT a omp binary and end users hit the runtime "Could not
-/// find embedded omp binary" screen — exactly what we are trying to prevent.
-///
-/// This build script makes that failure mode impossible: in any non-debug
-/// cargo build we panic at compile time if the binary is missing, with a
-/// clear message pointing the developer at `bun run fetch:omp`. Debug builds
-/// keep working without the binary so `cargo check` / `clippy` / IDE flows
-/// don't require a network round-trip.
 fn main() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let extension_dist_dir = manifest_dir.join("..").join("extensions").join("dist");
@@ -35,10 +17,7 @@ fn main() {
 
     tauri_build::build();
 
-    // Re-run if the version pin or the binary itself changes, so cached
-    // builds notice when fetch:omp has been run between invocations.
-    println!("cargo:rerun-if-changed=resources/omp/.version");
-    println!("cargo:rerun-if-changed=../scripts/omp-version.json");
+    // Re-run if the extension source changes.
     println!("cargo:rerun-if-changed=../extensions/embedded-server.ts");
     println!("cargo:rerun-if-changed=../extensions/dist/embedded-server.mjs");
     println!("cargo:rerun-if-env-changed=OMCOT_SKIP_BIN_CHECK");
@@ -52,31 +31,7 @@ fn main() {
         return;
     }
 
-    let bin_name = if cfg!(target_os = "windows") {
-        "omp.exe"
-    } else {
-        "omp"
-    };
-
-    let bin_path = manifest_dir.join("resources").join("omp").join(bin_name);
     let extension_bundle_path = extension_dist_dir.join("embedded-server.mjs");
-
-    if !bin_path.is_file() {
-        panic!(
-            "\n\n\
-             Ompcot release build aborted: embedded omp binary is missing.\n\
-             Expected: {}\n\n\
-             Ompcot bundles the omp runtime inside the .app so end users do\n\
-             not need to fetch anything. Release builds therefore refuse to\n\
-             produce a .app without it.\n\n\
-             Fix: run `bun run fetch:omp` from the repo root before building.\n\
-             (Or `bun run build`, which already does this for you.)\n\n\
-             To bypass this check (NOT for shipping builds), set\n\
-             OMCOT_SKIP_BIN_CHECK=1.\n\n",
-            bin_path.display()
-        );
-    }
-
     if !extension_bundle_path.is_file() {
         panic!(
             "\n\n\

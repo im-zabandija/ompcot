@@ -5,8 +5,8 @@
   "version": "0.3.0",
   "build": {
     "frontendDist": "../public",
-    "beforeDevCommand": "bun run fetch:omp",
-    "beforeBuildCommand": "bun run fetch:omp && bun run build:extensions"
+    "beforeDevCommand": "bun run build:extensions",
+    "beforeBuildCommand": "bun run build:extensions"
   },
   "app": {
     "withGlobalTauri": true,
@@ -37,8 +37,7 @@
     ],
     "resources": {
       "../public": "public",
-      "../extensions/dist": "extensions",
-      "./resources/omp": "omp"
+      "../extensions/dist": "extensions"
     }
   },
   "plugins": {}

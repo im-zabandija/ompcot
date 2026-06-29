@@ -324,18 +324,17 @@ impl OmpManager {
         }
     }
 
-    /// Locate the embedded omp binary shipped inside the Tauri bundle.
+    /// Locate the omp binary.
     ///
     /// Lookup order:
     /// 1. `OMP_BIN` env var (escape hatch for testing a different binary).
-    /// 2. `<static_dir>/../pi/<bin>` — the production location, sibling of
-    ///    the bundled `public/` and `extensions/` resource dirs.
-    /// 3. *Debug builds only:* `<repo>/src-tauri/resources/omp/<bin>` —
-    ///    populated by `bun run fetch:omp`, used during `tauri dev`.
+    /// 2. `omp` on PATH — the user's system-installed omp (Homebrew, etc.).
+    ///    This means `brew upgrade omp` automatically picks up the latest.
+    /// 3. Bundled `<static_dir>/../omp/<bin>` — fallback for when no
+    ///    system omp is installed (e.g. first-time users).
+    /// 4. *Debug builds only:* `<repo>/src-tauri/resources/omp/<bin>`.
     ///
-    /// Returns `Err` (not `Ok(None)`) if no binary is found, so callers can
-    /// surface a clear "run `bun run fetch:omp`" message rather than spawning
-    /// a missing/stale binary.
+    /// Returns `Err` if no binary is found at all.
     fn resolve_bundled_omp(&self) -> Result<PathBuf, String> {
         let bin_name = if cfg!(target_os = "windows") {
             "omp.exe"
@@ -343,7 +342,7 @@ impl OmpManager {
             "omp"
         };
 
-        // Explicit override (rare; useful when smoke-testing a hand-built pi).
+        // 1. Explicit override (rare; useful when smoke-testing a hand-built omp).
         if let Ok(explicit) = std::env::var("OMP_BIN") {
             let candidate = PathBuf::from(explicit.trim());
             if candidate.is_file() {
@@ -351,6 +350,13 @@ impl OmpManager {
             }
         }
 
+        // 2. System omp on PATH — the common case. `brew upgrade omp` updates this.
+        if let Ok(path) = which::which(bin_name) {
+            log::info!("[ompcot] using system omp: {}", path.display());
+            return Ok(path);
+        }
+
+        // 3. Bundled fallback (for users without system omp).
         let mut tried: Vec<PathBuf> = Vec::new();
         let bundled = self
             .static_dir
@@ -363,6 +369,7 @@ impl OmpManager {
             tried.push(p);
         }
 
+        // 4. Dev fallback.
         if cfg!(debug_assertions) {
             let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("resources")
@@ -379,15 +386,18 @@ impl OmpManager {
             .map(|p| format!("  - {}", p.display()))
             .collect::<Vec<_>>()
             .join("\n");
+        let tried_msg = if tried_str.is_empty() {
+            String::from(" (none)")
+        } else {
+            format!("\n{}", tried_str)
+        };
         Err(format!(
-            "Could not find embedded omp binary. Tried:\n{}\n\n\
-             For dev: run `bun run fetch:omp` from the repo root.\n\
-             For release: the .app bundle is missing `resources/omp/{}`. \
-             Reinstall Ompcot.",
-            tried_str, bin_name
+            "Could not find omp binary. Install it via:\n  brew install omp\n\n\
+             Tried:{}\n\n\
+             For dev: run `bun run fetch:omp` from the repo root.",
+            tried_msg
         ))
     }
-
     /// Locate the embedded-server extension shipped with this build.
     ///
     /// Returns the first existing candidate from this priority order:

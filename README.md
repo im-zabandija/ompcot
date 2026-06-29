@@ -1,64 +1,42 @@
-# Picot （π-cot(e)）
+# Ompcot
 
-**English** | [中文](./README.zh.md)
+[English](./README.md) | [中文](./README.zh.md)
 
-A local desktop GUI for the [Pi](https://github.com/badlogic/oh-my-pi) coding agent. No cloud, no account — runs entirely on your machine.
+A local desktop GUI for the [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi) coding agent. No cloud, no account — runs entirely on your machine.
 
+Ompcot bundles the `omp` runtime **inside the .app**, so there's no separate `omp` install to manage, no PATH shenanigans, and no version drift between Ompcot and the agent it talks to.
 
-Picot ships a known-good build of the `omp` runtime **inside the .app bundle**, so there's no separate `omp` install to manage, no PATH shenanigans, and no version drift between Picot and the agent it talks to.
-
-<p align="center">
-  <img width="1200" alt="Picot hero" src="https://github.com/user-attachments/assets/27d1b71e-77e8-420c-84ab-5e56eb48335a" />
-</p>
-
-
+> **Forked from [Picot](https://github.com/shixin-guo/picot)** (which was a fork of Tau), adapted for OMP instead of Pi.
 
 ---
 
 ## Install
 
-[Download from GitHub Releases](https://github.com/shixin-guo/picot/releases)
+[Download from GitHub Releases](https://github.com/zephyrq-z/ompcot/releases)
 
-You **do not** need to install the `omp` CLI separately — Picot bundles its own omp runtime.
+You **do not** need to install the `omp` CLI separately — Ompcot bundles its own omp runtime.
 
 ### macOS unsigned release notice
 
-Picot currently ships macOS builds without Apple Developer ID signing/notarization. Expected Gatekeeper behavior:
+Ompcot currently ships macOS builds without Apple Developer ID signing/notarization. Expected Gatekeeper behavior:
 
-`"Picot" cannot be opened because the developer cannot be verified.`
+`"Ompcot" cannot be opened because the developer cannot be verified.`
 
 **To allow it:**
 
-1. Drag `Picot.app` into `/Applications`
+1. Drag `Ompcot.app` into `/Applications`
 2. Right-click → **Open**
 3. If blocked: **System Settings → Privacy & Security → Open Anyway**
-
-
-<p align="center">
-  <img width="420" alt="macOS Gatekeeper warning" src="https://github.com/user-attachments/assets/02e9cb30-9314-4c47-bc61-87d9f37b6848" />
-</p>
-
-Then click **Done**:
-
-<p align="center">
-  <img width="960" alt="Allow app in macOS security settings" src="https://github.com/user-attachments/assets/42ada9ae-b43d-47f1-bf38-ea38c34beb4f" />
-</p>
 
 ---
 
 ## What it does
 
-Picot gives you a full visual interface for Pi. Open any project folder, start chatting with the agent, browse sessions and files — no terminal required. Multiple projects run in parallel, each in its own window with its own isolated agent process.
+Ompcot gives you a full visual interface for OMP. Open any project folder, start chatting with the agent, browse sessions and files — no terminal required. Multiple projects run in parallel, each in its own window with its own isolated agent process.
 
 ---
 
 ## Features
-
-### 📸 UI Preview
-
-<p align="center">
-  <img width="1200" alt="Picot workspace and project UI" src="https://github.com/user-attachments/assets/ffde7b7a-1eb9-4da7-8916-e06b612aaea1" />
-</p>
 
 ### 💬 Chat
 
@@ -83,39 +61,20 @@ Picot gives you a full visual interface for Pi. Open any project folder, start c
 
 - **Multi-project** — each project gets its own window, working directory, session history, and agent
 - Shows the **current git branch** in the project header
-- **Open in external editor** — launch VS Code, Cursor, or any app directly from Picot
+- **Open in external editor** — launch VS Code, Cursor, or any app directly from Ompcot
 - Native folder picker to open any project without touching the terminal
 
 ### 📱 Mobile & LAN Access
-<p align="center">
-  <img width="900" alt="LAN and mobile access panel" src="https://github.com/user-attachments/assets/f50ce09d-1ba7-4a67-93dd-f8ff1bc2631f" />
-</p>
-<p align="center">
-  <img width="360" alt="Picot on mobile" src="https://github.com/user-attachments/assets/d1975347-a3d9-49fd-9d66-94942016ed19" />
-</p>
 
-
-- **LAN QR code** — scan to open Picot on any device on the same network
+- **LAN QR code** — scan to open Ompcot on any device on the same network
 - Mobile-optimised URL handling and App Launcher support (installable as PWA on iOS/Android)
 
 ### 📦 Package Manager
-<p align="center">
-  <img width="1200" alt="Built-in package manager UI" src="https://github.com/user-attachments/assets/e7e3a100-16db-4b63-b257-801b7f6b5e00" />
-</p>
-
 
 - Browse, install, and remove community packages from within the UI
 - Built on top of `omp install` — no separate package commands needed
 
 ### 💰 Cost & Usage Dashboard
-
-<p align="center">
-  <img width="1200" alt="Cost dashboard overview" src="https://github.com/user-attachments/assets/1c381a9f-c587-406f-8f62-f3f029aa5c3e" />
-</p>
-<p align="center">
-  <img width="1200" alt="Per-model and trend breakdown" src="https://github.com/user-attachments/assets/d9f07d41-d38a-454d-a46a-1ab8ed34c19b" />
-</p>
-
 
 - Per-session cost tracking with live token/cost metrics
 - Full cost dashboard with infobar, trends, and per-model breakdown
@@ -140,22 +99,17 @@ Picot gives you a full visual interface for Pi. Open any project folder, start c
 - Drag files onto the input to insert their path
 
 ### ⚙️ Settings & Control
-<p align="center">
-  <img width="1200" alt="Settings and controls" src="https://github.com/user-attachments/assets/44f884de-f2d1-45af-8a13-9b8d01d227a5" />
-</p>
-
 
 - Model picker with search/filter and keyboard support
 - Thinking level toggle (off / low / medium / high)
 - Auto and manual **context compaction** with status display
 - Push notification toggle
-- **Auto-updater** — Settings → General → Updates for one-click in-app updates
 
 ---
 
-## Pi capabilities integrated
+## OMP capabilities integrated
 
-Picot does not re-implement agent logic — it embeds Pi and exposes its runtime capabilities through a native UI.
+Ompcot does not re-implement agent logic — it embeds OMP and exposes its runtime capabilities through a native UI.
 
 - **Embedded `omp --mode rpc` runtime** — one managed process per workspace, isolated by project
 - **Streaming RPC bridge** — token-by-token output, tool-call events, and thinking blocks rendered live
@@ -170,17 +124,17 @@ Picot does not re-implement agent logic — it embeds Pi and exposes its runtime
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│ Picot .app                                       │
+│ Ompcot .app                                          │
 │                                                      │
-│   Tauri + OmpManager (Rust)                           │
-│      ├─► spawn  omp --mode rpc  (project A, :3001)    │
-│      ├─► spawn  omp --mode rpc  (project B, :3002)    │
+│   Tauri + OmpManager (Rust)                          │
+│      ├─► spawn  omp --mode rpc  (project A, :3001)   │
+│      ├─► spawn  omp --mode rpc  (project B, :3002)   │
 │      └─► OS Window per project ──► WebView ──► HTTP  │
 │                                                      │
 │   resources/                                         │
 │      ├─ public/             (frontend)               │
 │      ├─ extensions/         (embedded-server.mjs)    │
-│      └─ pi/                 (bun-compiled omp binary) │
+│      └─ omp/                (omp binary)             │
 └──────────────────────────────────────────────────────┘
                        │
                        ▼ reads / writes
@@ -190,33 +144,34 @@ Picot does not re-implement agent logic — it embeds Pi and exposes its runtime
                  └─ settings.json
 ```
 
-The embedded omp process loads `embedded-server.mjs` at startup. That extension owns the HTTP + WebSocket surface the Tauri WebView talks to: static assets, `/api/sessions`, `/api/cost-dashboard`, RPC bridge for prompts, etc. Picot's Rust side controls process lifecycle, port allocation, and window management.
+The embedded omp process loads `embedded-server.mjs` at startup. That extension owns the HTTP + WebSocket surface the Tauri WebView talks to: static assets, `/api/sessions`, `/api/cost-dashboard`, RPC bridge for prompts, etc. Ompcot's Rust side controls process lifecycle, port allocation, and window management.
 
 ---
 
 ## Usage
 
-1. Launch **Picot**
+1. Launch **Ompcot**
 2. Click a project bubble or pick a folder
 3. Start chatting — the embedded omp agent starts automatically
 
-Provide your model credentials via `omp /login` inside any workspace, or by writing `~/.omp/agent/auth.json` directly. Picot doesn't manage credentials itself.
+Provide your model credentials via `omp /login` inside any workspace, or by writing `~/.omp/agent/auth.json` directly. Ompcot doesn't manage credentials itself.
 
 ---
 
 ## Build from source
 
 ```bash
-git clone https://github.com/shixin-guo/picot.git
-cd picot
+git clone https://github.com/zephyrq-z/ompcot.git
+cd ompcot
 bun install --frozen-lockfile
-bun run dev      # fetch embedded omp binary + start tauri dev with hot reload
+bun run fetch:omp   # copy omp binary from Homebrew into resources/
+bun run dev          # start tauri dev with hot reload
 ```
 
 To make a release build:
 
 ```bash
-bun run build    # downloads embedded omp binary, then runs tauri build
+bun run build        # runs fetch:omp + build:extensions + tauri build
 ```
 
 After any changes under `src-tauri/`:
@@ -231,12 +186,11 @@ To bump the embedded omp version, edit `scripts/omp-version.json`, run `bun run 
 
 ## Upstream
 
-Picot is a maintained fork of **Tau**, adapted for Pi-first, local development workflows. Key additions:
+Ompcot is a fork of [Picot](https://github.com/shixin-guo/picot) (which was a fork of Tau), adapted for OMP. Key changes:
 
-- **Tauri-native OmpManager** — spawns one `omp --mode rpc` process per project window
-- **Embedded omp runtime** — no separate global install; Picot ships its own binary
-- **Multi-session without new windows** — headless omp processes, current WebView navigates
-- **LAN + mobile access** — QR code, PWA support, WebSocket broker for multi-client
+- **Pi → OMP migration** — all binary references, package names, paths, and env vars updated
+- **Homebrew-sourced binary** — copies omp from local Homebrew installation instead of downloading from GitHub releases
+- **OMP SDK packages** — `@oh-my-pi/pi-coding-agent` and related packages
 
 ---
 
