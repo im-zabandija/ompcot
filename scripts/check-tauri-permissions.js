@@ -2,7 +2,7 @@
 /**
  * Validates that every Tauri custom command registered in main.rs
  * has a matching permission entry in src-tauri/permissions/default.toml,
- * and that the capability file includes "pi-desktop:default".
+ * and that the capability file includes the app's default permission set.
  *
  * Run:  node scripts/check-tauri-permissions.js
  * Exit: 0 = OK, 1 = mismatch found
@@ -96,10 +96,7 @@ for (const cmd of allowedInToml) {
 // 4c. Capability must include the app's bundled default permission set.
 // Within the same app, the local permission group is referenced as "default"
 // (Tauri resolves it to <package>:default internally at build time).
-if (
-  capabilityPermissions.includes("default") ||
-  capabilityPermissions.includes("pi-desktop:default")
-) {
+if (capabilityPermissions.includes("default")) {
   pass(`capabilities/default.json includes the app default permission set`);
 } else {
   fail(

@@ -15,8 +15,8 @@
  * Notes
  * - We keep node built-ins external (esbuild does this automatically with
  *   `platform: "node"`).
- * - `@oh-my-pi/omp-coding-agent` (and its legacy `@oh-my-pi/...`
- *   alias) are external too: extensions only `import type` from them, but we
+ * - OMP's `@oh-my-pi/pi-*` SDK packages are external too: extensions only
+ *   `import type` from them, but we
  *   still mark them external defensively in case any value-level imports are
  *   added later — the omp runtime provides those at load time.
  * - Output is `.mjs` (ESM). omp's extension loader treats the module's
@@ -35,15 +35,7 @@ const OUT_DIR = path.join(SRC_DIR, "dist");
 
 const ENTRIES = ["embedded-server.ts"];
 
-const EXTERNAL = [
-  "@oh-my-pi/omp-coding-agent",
-  "@oh-my-pi/omp-ai",
-  "@oh-my-pi/omp-tui",
-  "@oh-my-pi/omp-coding-agent",
-  "@oh-my-pi/omp-ai",
-  "@oh-my-pi/omp-tui",
-  "typebox",
-];
+const EXTERNAL = ["@oh-my-pi/pi-coding-agent", "@oh-my-pi/pi-ai", "@oh-my-pi/pi-tui", "typebox"];
 
 async function buildOne(entry) {
   const inFile = path.join(SRC_DIR, entry);
@@ -69,12 +61,12 @@ async function buildOne(entry) {
     // does not provide them, so we shim them via banner.
     banner: {
       js: [
-        "import { createRequire as __piCreateRequire } from 'node:module';",
-        "import { fileURLToPath as __piFileURLToPath } from 'node:url';",
-        "import { dirname as __piDirname } from 'node:path';",
-        "const require = __piCreateRequire(import.meta.url);",
-        "const __filename = __piFileURLToPath(import.meta.url);",
-        "const __dirname = __piDirname(__filename);",
+        "import { createRequire as __ompCreateRequire } from 'node:module';",
+        "import { fileURLToPath as __ompFileURLToPath } from 'node:url';",
+        "import { dirname as __ompDirname } from 'node:path';",
+        "const require = __ompCreateRequire(import.meta.url);",
+        "const __filename = __ompFileURLToPath(import.meta.url);",
+        "const __dirname = __ompDirname(__filename);",
       ].join("\n"),
     },
   });

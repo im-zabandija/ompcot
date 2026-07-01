@@ -2,6 +2,8 @@
  * WebSocket Client - Handles connection to backend WebSocket server
  */
 
+import { appendAccessToken, resolveAccessToken } from "./access-control.js";
+
 const BROKER_WS_STORAGE_KEY = "ompcot:broker-ws-url";
 
 // The shared broker URL is delivered to each page via the `?brokerWs=` query
@@ -33,7 +35,8 @@ export function resolveWebSocketUrl(env = globalThis.window || globalThis) {
 
   const loc = env?.location || globalThis.location;
   const protocol = loc?.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${loc?.host || "127.0.0.1:47821"}/ws`;
+  const instanceUrl = `${protocol}//${loc?.host || "127.0.0.1:47821"}/ws`;
+  return appendAccessToken(instanceUrl, resolveAccessToken(env));
 }
 
 export class WebSocketClient extends EventTarget {

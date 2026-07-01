@@ -4,7 +4,7 @@
 
 A local desktop GUI for the [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi) coding agent. No cloud, no account — runs entirely on your machine.
 
-Ompcot bundles the `omp` runtime **inside the .app**, so there's no separate `omp` install to manage, no PATH shenanigans, and no version drift between Ompcot and the agent it talks to.
+Ompcot uses the `omp` runtime installed on your system. It resolves `OMP_BIN` first and then `omp` from `PATH`, so upgrading OMP does not require rebuilding the app.
 
 > **Forked from [Picot](https://github.com/shixin-guo/picot)** (which was a fork of Tau), adapted for OMP instead of Pi.
 
@@ -12,9 +12,13 @@ Ompcot bundles the `omp` runtime **inside the .app**, so there's no separate `om
 
 ## Install
 
-[Download from GitHub Releases](https://github.com/zephyrq-z/ompcot/releases)
+[Download from GitHub Releases](https://github.com/kyle-kw/ompcot/releases)
 
-You **do not** need to install the `omp` CLI separately — Ompcot bundles its own omp runtime.
+Install OMP before starting Ompcot. Use the installer for your platform from [omp.sh](https://omp.sh), or install the SDK package with Bun:
+
+```bash
+bun install -g @oh-my-pi/pi-coding-agent
+```
 
 ### macOS unsigned release notice
 
@@ -66,8 +70,11 @@ Ompcot gives you a full visual interface for OMP. Open any project folder, start
 
 ### 📱 Mobile & LAN Access
 
-- **LAN QR code** — scan to open Ompcot on any device on the same network
+- **LAN QR code** — scan to open Ompcot on any device on the same network; each
+  QR URL carries a random, per-launch access token
 - Mobile-optimised URL handling and App Launcher support (installable as PWA on iOS/Android)
+- The native control broker is loopback-only; LAN clients can access only the
+  token-protected OMP session endpoint represented by the QR code
 
 ### 📦 Package Manager
 
@@ -109,9 +116,9 @@ Ompcot gives you a full visual interface for OMP. Open any project folder, start
 
 ## OMP capabilities integrated
 
-Ompcot does not re-implement agent logic — it embeds OMP and exposes its runtime capabilities through a native UI.
+Ompcot does not re-implement agent logic — it manages OMP subprocesses and exposes their capabilities through a native UI.
 
-- **Embedded `omp --mode rpc` runtime** — one managed process per workspace, isolated by project
+- **Managed `omp --mode rpc` runtime** — one system OMP process per active workspace/session
 - **Streaming RPC bridge** — token-by-token output, tool-call events, and thinking blocks rendered live
 - **Session lifecycle APIs** — create, switch, and resume sessions; full per-project history
 - **WebSocket broker** — multiple UI clients can connect to the same omp process simultaneously
@@ -133,8 +140,7 @@ Ompcot does not re-implement agent logic — it embeds OMP and exposes its runti
 │                                                      │
 │   resources/                                         │
 │      ├─ public/             (frontend)               │
-│      ├─ extensions/         (embedded-server.mjs)    │
-│      └─ omp/                (omp binary)             │
+│      └─ extensions/         (embedded-server.mjs)    │
 └──────────────────────────────────────────────────────┘
                        │
                        ▼ reads / writes
@@ -144,34 +150,34 @@ Ompcot does not re-implement agent logic — it embeds OMP and exposes its runti
                  └─ settings.json
 ```
 
-The embedded omp process loads `embedded-server.mjs` at startup. That extension owns the HTTP + WebSocket surface the Tauri WebView talks to: static assets, `/api/sessions`, `/api/cost-dashboard`, RPC bridge for prompts, etc. Ompcot's Rust side controls process lifecycle, port allocation, and window management.
+The managed omp process loads `embedded-server.mjs` at startup. That extension owns the HTTP + WebSocket surface the Tauri WebView talks to: static assets, `/api/sessions`, `/api/cost-dashboard`, RPC bridge for prompts, etc. Ompcot's Rust side controls process lifecycle, port allocation, and window management.
 
 ---
 
 ## Usage
 
-1. Launch **Ompcot**
-2. Click a project bubble or pick a folder
-3. Start chatting — the embedded omp agent starts automatically
+1. Install OMP and ensure `omp` is on `PATH` (or set `OMP_BIN`)
+2. Launch **Ompcot**
+3. Click a project bubble or pick a folder
+4. Start chatting — the managed omp agent starts automatically
 
-Provide your model credentials via `omp /login` inside any workspace, or by writing `~/.omp/agent/auth.json` directly. Ompcot doesn't manage credentials itself.
+Provide model credentials in Ompcot Settings, via `omp /login`, or by writing `~/.omp/agent/auth.json`.
 
 ---
 
 ## Build from source
 
 ```bash
-git clone https://github.com/zephyrq-z/ompcot.git
+git clone https://github.com/kyle-kw/ompcot.git
 cd ompcot
 bun install --frozen-lockfile
-bun run fetch:omp   # copy omp binary from Homebrew into resources/
-bun run dev          # start tauri dev with hot reload
+bun run dev         # start tauri dev with hot reload
 ```
 
 To make a release build:
 
 ```bash
-bun run build        # runs fetch:omp + build:extensions + tauri build
+bun run build        # runs build:extensions + tauri build
 ```
 
 After any changes under `src-tauri/`:
@@ -180,16 +186,12 @@ After any changes under `src-tauri/`:
 bun run check:rust   # cargo check + clippy + fmt (fast; no full build needed)
 ```
 
-To bump the embedded omp version, edit `scripts/omp-version.json`, run `bun run fetch:omp`, smoke-test, and commit.
-
----
-
 ## Upstream
 
 Ompcot is a fork of [Picot](https://github.com/shixin-guo/picot) (which was a fork of Tau), adapted for OMP. Key changes:
 
-- **Pi → OMP migration** — all binary references, package names, paths, and env vars updated
-- **Homebrew-sourced binary** — copies omp from local Homebrew installation instead of downloading from GitHub releases
+- **Pi → OMP migration** — runtime references, paths, and environment variables use OMP
+- **System OMP runtime** — resolves `OMP_BIN` or `omp` from `PATH`; OMP upgrades take effect without rebuilding Ompcot
 - **OMP SDK packages** — `@oh-my-pi/pi-coding-agent` and related packages
 
 ---

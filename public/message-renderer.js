@@ -84,7 +84,7 @@ export class MessageRenderer {
       : "";
     this.container.innerHTML = `
       <div class="welcome">
-        <div class="welcome-icon"><img src="icons/logo-dark.svg" alt="Ompcot logo" class="tau-icon-welcome"></div>
+        <div class="welcome-icon"><img src="icons/logo-dark.svg" alt="Ompcot logo" class="ompcot-icon-welcome"></div>
         <p>Welcome to Ompcot</p>
         <p class="hint">Type a message below to start chatting with OMP, or select a session from the sidebar.</p>
         ${workspaceHtml}

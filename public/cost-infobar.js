@@ -16,7 +16,7 @@ function formatInt(value) {
 }
 
 function formatCompact(value) {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(Number(value || 0));
@@ -475,7 +475,7 @@ function _makeBarGradient(ctx, chartArea, color) {
 }
 
 function getModelChartPalette() {
-  return ["#3b82f6", "#10b981", "#f59e0b"];
+  return ["#4f8ff7", "#67c587", "#f3a64f"];
 }
 
 function getStackSegmentRadius(seriesList, datasetIndex, dataIndex) {
@@ -740,7 +740,7 @@ export function renderCostInfobar(section, payload = {}) {
   const overview = infobar.overview || {};
   const hasData = Number(overview.sessionCount || 0) > 0;
   if (titleEl) {
-    titleEl.textContent = "Pi Stats";
+    titleEl.textContent = "OMP Stats";
   }
   if (!hasData) {
     renderEmpty(overviewEl);

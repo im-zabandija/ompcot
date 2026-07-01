@@ -11,34 +11,10 @@ permissions:
 
 jobs:
   build-and-release:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # macOS Apple Silicon (arm64) host build.
-          - os: macos-latest
-          # macOS Intel (x64) build. The macos-13 Intel runner was retired by
-          # GitHub, so we cross-compile x86_64 from an Apple Silicon runner.
-          - os: macos-14
-            rust_target: x86_64-apple-darwin
-          # Linux deb/rpm bundling is currently more stable on 22.04 than
-          # 24.04 for GTK/WebKit bundles in CI.
-          - os: ubuntu-22.04
-          - os: ubuntu-24.04-arm
-          # Windows installers for Intel/AMD and ARM machines.
-          - os: windows-2022
-            rust_target: x86_64-pc-windows-msvc
-          - os: windows-11-arm
-            rust_target: aarch64-pc-windows-msvc
-
-    runs-on: ${{ matrix.os }}
+    name: Build Windows x64 release
+    runs-on: windows-2022
 
     env:
-      # Mitigate intermittent crates.io download failures on CI runners
-      # ("curl failed [16] Error in the HTTP2 framing layer"). Disabling
-      # HTTP/2 multiplexing forces cargo's curl downloader back to HTTP/1.1,
-      # which avoids the flaky HTTP2 framing-layer errors. The sparse
-      # protocol + retries make transient registry hiccups self-healing.
       CARGO_HTTP_MULTIPLEXING: "false"
       CARGO_NET_RETRY: "10"
       CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
@@ -56,12 +32,8 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.rust_target }}
+          targets: x86_64-pc-windows-msvc
 
-      # Cache the cargo registry + git db + target dir so successful crate
-      # downloads survive across runs. This both speeds up builds and makes
-      # transient crates.io download failures far less likely to break a
-      # release (the crate is usually already on disk from a prior run).
       - name: Cache cargo + build artifacts
         uses: actions/cache@v5
         with:
@@ -70,115 +42,36 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             src-tauri/target
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          key: cargo-Windows-X64-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: |
-            cargo-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          WEBKIT_DEV_PKG="libwebkit2gtk-4.1-dev"
-          if ! apt-cache show "$WEBKIT_DEV_PKG" >/dev/null 2>&1; then
-            WEBKIT_DEV_PKG="libwebkit2gtk-4.0-dev"
-          fi
-          sudo apt-get install -y \
-            desktop-file-utils \
-            "$WEBKIT_DEV_PKG" \
-            libappindicator3-dev \
-            librsvg2-dev \
-            gstreamer1.0-tools \
-            gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good \
-            rpm \
-            patchelf
+            cargo-Windows-X64-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build pi extensions bundle
+      - name: Build OMP extensions bundle
         run: bun run build:extensions
 
-      - name: Build Tauri app (Linux deb + rpm) and publish assets
-        if: runner.os == 'Linux'
+      # The repository currently has an invalid updater private-key/password
+      # pair. Build installers without updater artifacts so a signing-secret
+      # configuration error cannot discard otherwise valid NSIS/MSI packages.
+      # Re-enable updater artifacts only after installing a matching Tauri
+      # private key in GitHub Actions and updating the public key in
+      # src-tauri/tauri.conf.json.
+      - name: Build Windows installers and publish assets
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPIMAGE_EXTRACT_AND_RUN: 1
-          # Workaround for linuxdeploy/strip failures on modern ELF
-          # binaries (e.g. `.relr.dyn`), see tauri#14796.
-          NO_STRIP: "true"
-          # Signing key for the Tauri updater. Required so the bundler
-          # produces `*.sig` files and `latest.json` (the manifest the
-          # auto-updater reads from the GitHub release). Configure these
-          # one-time in repo Settings → Secrets → Actions. See
-          # docs/AUTO_UPDATER.md for how to generate the key pair.
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Ompcot ${{ github.ref_name }}"
+          tagName: "v__VERSION__"
+          releaseName: "Ompcot v__VERSION__"
           releaseBody: |
-            Automated release for `${{ github.ref_name }}`.
-            Download the installer for your platform from the assets below.
+            Automated Windows release for this version.
+            Download the NSIS or MSI installer from the assets below.
           releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
-          args: --bundles deb,rpm
-          # tauri-action will only attach `latest.json` (the updater
-          # manifest) when this is `true`. Combined with
-          # `bundle.createUpdaterArtifacts` in tauri.conf.json, the
-          # release ends up with: installers + `*.sig` files +
-          # `latest.json` pinning the URL/signature of each platform
-          # bundle. The Tauri updater endpoint then resolves to
-          # `https://github.com/.../releases/latest/download/latest.json`.
-          updaterJsonPreferNsis: true
-
-      - name: Build Tauri app (macOS) and publish assets
-        if: runner.os == 'macOS'
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Signing key for the Tauri updater. Required so the bundler
-          # produces `*.sig` files and `latest.json` (the manifest the
-          # auto-updater reads from the GitHub release). Configure these
-          # one-time in repo Settings → Secrets → Actions. See
-          # docs/AUTO_UPDATER.md for how to generate the key pair.
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Ompcot ${{ github.ref_name }}"
-          releaseBody: |
-            Automated release for `${{ github.ref_name }}`.
-            Download the installer for your platform from the assets below.
-          releaseDraft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          # When a Rust target is set (Intel cross-build on an Apple Silicon
-          # runner), pass it through so the bundler emits an x86_64 app.
-          args: ${{ matrix.rust_target && format('--target {0}', matrix.rust_target) || '' }}
-          # tauri-action will only attach `latest.json` (the updater
-          # manifest) when this is `true`. Combined with
-          # `bundle.createUpdaterArtifacts` in tauri.conf.json, the
-          # release ends up with: installers + `*.sig` files +
-          # `latest.json` pinning the URL/signature of each platform
-          # bundle. The Tauri updater endpoint then resolves to
-          # `https://github.com/.../releases/latest/download/latest.json`.
-          updaterJsonPreferNsis: true
-
-      - name: Build Tauri app (Windows NSIS + MSI) and publish assets
-        if: runner.os == 'Windows'
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Ompcot ${{ github.ref_name }}"
-          releaseBody: |
-            Automated release for `${{ github.ref_name }}`.
-            Download the installer for your platform from the assets below.
-          releaseDraft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          args: --target ${{ matrix.rust_target }} --bundles nsis,msi
-          updaterJsonPreferNsis: true
+          args: >-
+            --target x86_64-pc-windows-msvc
+            --bundles nsis,msi
+            --config src-tauri/tauri.ci-unsigned.conf.json
+          includeUpdaterJson: false

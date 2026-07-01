@@ -595,17 +595,17 @@ body {
 
 .infobar-tool-legend-dot[data-tool-color="0"],
 .infobar-model-color-1 {
-  background: #3b82f6;
+  background: #4f8ff7;
 }
 
 .infobar-tool-legend-dot[data-tool-color="1"],
 .infobar-model-color-2 {
-  background: #10b981;
+  background: #67c587;
 }
 
 .infobar-tool-legend-dot[data-tool-color="2"],
 .infobar-model-color-3 {
-  background: #f59e0b;
+  background: #f3a64f;
 }
 
 .infobar-tool-legend-dot[data-tool-color="3"] {

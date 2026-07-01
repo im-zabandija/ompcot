@@ -7,6 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
+use tokio_tungstenite::tungstenite::handshake::server::{ErrorResponse, Request, Response};
+use tokio_tungstenite::tungstenite::http::StatusCode;
 use tokio_tungstenite::tungstenite::Message;
 
 const PROTOCOL_VERSION: u8 = 1;
@@ -41,12 +43,13 @@ struct BrokerInner {
 #[derive(Clone)]
 pub struct BrokerWs {
     port: u16,
+    access_token: Arc<str>,
     inner: Arc<BrokerInner>,
 }
 
 impl BrokerWs {
     pub fn start() -> Result<Self, String> {
-        let std_listener = std::net::TcpListener::bind(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0))
+        let std_listener = std::net::TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0))
             .map_err(|e| format!("Failed to bind broker websocket: {}", e))?;
         std_listener
             .set_nonblocking(true)
@@ -57,6 +60,7 @@ impl BrokerWs {
             .port();
         let broker = Self {
             port,
+            access_token: Arc::from(generate_access_token()?),
             inner: Arc::new(BrokerInner::default()),
         };
         let server = broker.clone();
@@ -79,6 +83,10 @@ impl BrokerWs {
 
     pub fn port(&self) -> u16 {
         self.port
+    }
+
+    pub fn access_token(&self) -> &str {
+        &self.access_token
     }
 
     pub fn set_active_port(&self, port: u16) {
@@ -181,7 +189,7 @@ impl BrokerWs {
     }
 
     async fn handle_ui_client(self, stream: TcpStream) {
-        let ws = match tokio_tungstenite::accept_async(stream).await {
+        let ws = match tokio_tungstenite::accept_hdr_async(stream, validate_ui_handshake).await {
             Ok(ws) => ws,
             Err(err) => {
                 log::warn!("[broker-ws] UI websocket handshake failed: {}", err);
@@ -458,7 +466,10 @@ impl BrokerWs {
     }
 
     async fn run_upstream(self, port: u16, mut rx: mpsc::UnboundedReceiver<String>) {
-        let url = format!("ws://127.0.0.1:{}/ws", port);
+        let url = format!(
+            "ws://127.0.0.1:{}/ws?accessToken={}",
+            port, self.access_token
+        );
 
         loop {
             if self.inner.disabled_ports.lock().unwrap().contains(&port) {
@@ -563,6 +574,48 @@ impl BrokerWs {
     }
 }
 
+fn generate_access_token() -> Result<String, String> {
+    let mut bytes = [0_u8; 32];
+    getrandom::fill(&mut bytes).map_err(|err| format!("Failed to generate access token: {err}"))?;
+    let mut token = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        use std::fmt::Write as _;
+        write!(&mut token, "{byte:02x}").expect("writing to a String cannot fail");
+    }
+    Ok(token)
+}
+
+fn is_allowed_browser_origin(origin: &str) -> bool {
+    let Ok(uri) = origin.parse::<tokio_tungstenite::tungstenite::http::Uri>() else {
+        return false;
+    };
+    matches!(
+        uri.host()
+            .map(|host| host.to_ascii_lowercase().replace(['[', ']'], "")),
+        Some(host) if host == "localhost" || host == "127.0.0.1" || host == "::1"
+    )
+}
+
+#[allow(clippy::result_large_err)] // Signature is fixed by tungstenite's handshake callback.
+fn validate_ui_handshake(request: &Request, response: Response) -> Result<Response, ErrorResponse> {
+    let valid_path = request.uri().path() == "/ui-ws";
+    let valid_origin = request
+        .headers()
+        .get("origin")
+        .and_then(|value| value.to_str().ok())
+        .map(is_allowed_browser_origin)
+        // Non-browser loopback clients omit Origin. The listener itself is
+        // bound to 127.0.0.1, so accepting those does not expose LAN access.
+        .unwrap_or(true);
+    if valid_path && valid_origin {
+        return Ok(response);
+    }
+
+    let mut denied = ErrorResponse::new(Some("Forbidden".to_string()));
+    *denied.status_mut() = StatusCode::FORBIDDEN;
+    Err(denied)
+}
+
 fn extract_session_id(payload: &Value) -> Option<&str> {
     payload
         .get("sessionId")
@@ -573,6 +626,26 @@ fn extract_session_id(payload: &Value) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn access_tokens_are_random_256_bit_hex_values() {
+        let first = generate_access_token().unwrap();
+        let second = generate_access_token().unwrap();
+        assert_eq!(first.len(), 64);
+        assert!(first.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn browser_origin_is_limited_to_loopback_hosts() {
+        assert!(is_allowed_browser_origin("http://localhost:47821"));
+        assert!(is_allowed_browser_origin("http://127.0.0.1:47821"));
+        assert!(is_allowed_browser_origin("http://[::1]:47821"));
+        assert!(!is_allowed_browser_origin("https://attacker.example"));
+        assert!(!is_allowed_browser_origin(
+            "http://localhost.attacker.example"
+        ));
+    }
 
     #[test]
     fn extract_session_id_prefers_route_metadata() {
@@ -588,6 +661,7 @@ mod tests {
     fn command_routes_by_session_id_before_active_port() {
         let broker = BrokerWs {
             port: 49000,
+            access_token: Arc::from("test-token"),
             inner: Arc::new(BrokerInner::default()),
         };
         broker.set_active_port(47821);
@@ -606,6 +680,7 @@ mod tests {
     fn command_falls_back_to_active_port_without_route() {
         let broker = BrokerWs {
             port: 49000,
+            access_token: Arc::from("test-token"),
             inner: Arc::new(BrokerInner::default()),
         };
         broker.set_active_port(47821);
@@ -620,6 +695,7 @@ mod tests {
     fn in_place_session_swap_evicts_previous_session_route() {
         let broker = BrokerWs {
             port: 49000,
+            access_token: Arc::from("test-token"),
             inner: Arc::new(BrokerInner::default()),
         };
         // An unrelated session the user is NOT viewing lives on its own port.
@@ -641,6 +717,7 @@ mod tests {
     fn evicted_session_id_does_not_override_source_port() {
         let broker = BrokerWs {
             port: 49000,
+            access_token: Arc::from("test-token"),
             inner: Arc::new(BrokerInner::default()),
         };
         // Port 50001 hosted session A, then swapped in-place to session B.
@@ -665,6 +742,7 @@ mod tests {
     fn refuses_ambiguous_active_port_fallback_with_multiple_upstreams() {
         let broker = BrokerWs {
             port: 49000,
+            access_token: Arc::from("test-token"),
             inner: Arc::new(BrokerInner::default()),
         };
         // Two windows / workspaces are live; active_port is whichever registered
@@ -699,6 +777,7 @@ mod tests {
     fn command_routes_by_source_port_when_session_route_is_unknown() {
         let broker = BrokerWs {
             port: 49000,
+            access_token: Arc::from("test-token"),
             inner: Arc::new(BrokerInner::default()),
         };
         broker.set_active_port(47821);

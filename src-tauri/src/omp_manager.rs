@@ -46,18 +46,16 @@ pub fn locked_omp_version() -> &'static str {
             .map(PathBuf::from)
             .or_else(|| which::which(bin_name).ok());
         match bin {
-            Some(bin) => {
-                match Command::new(&bin).arg("--version").output() {
-                    Ok(output) => {
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        stdout.trim().to_string()
-                    }
-                    Err(e) => {
-                        log::warn!("[ompcot] failed to run omp --version: {}", e);
-                        "unknown".to_string()
-                    }
+            Some(bin) => match Command::new(&bin).arg("--version").output() {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    stdout.trim().to_string()
                 }
-            }
+                Err(e) => {
+                    log::warn!("[ompcot] failed to run omp --version: {}", e);
+                    "unknown".to_string()
+                }
+            },
             None => "unknown (omp not found on PATH)".to_string(),
         }
     })
@@ -199,7 +197,7 @@ fn log_child_path_diagnostics(context: &str, path: &str) {
 /// `\\?\UNC\`) from a path string.
 ///
 /// Tauri's `resource_dir()` returns extended-length paths (e.g.
-/// `\\?\C:\Users\...\Ompcot\pi\omp.exe`). The embedded omp (Bun 1.3.10,
+/// `\\?\C:\Users\...\Ompcot\omp.exe`). The Bun-compiled omp runtime
 /// Windows arm64, compiled standalone) segfaults (`Segmentation fault at
 /// address 0x18`) when it is launched with — or asked to load an
 /// `--extension` from — a `\\?\`-prefixed path. Passing the plain
@@ -217,7 +215,7 @@ fn strip_verbatim_prefix(path: &str) -> String {
 }
 
 /// Return a path to the embedded-server extension that is safe to pass as a
-/// `--extension` argument to the embedded omp binary.
+/// `--extension` argument to the omp binary.
 ///
 /// On Windows the Bun-compiled omp binary truncates `--extension` values at the
 /// first space (e.g. `C:\...\Ompcot\...\embedded-server.mjs` is loaded as
@@ -325,8 +323,8 @@ impl OmpManager {
     ///
     /// Lookup order:
     /// 1. `OMP_BIN` env var (escape hatch for testing a different binary).
-    /// 2. `omp` on PATH — the user's system-installed omp (Homebrew, etc.).
-    ///    This means `brew upgrade omp` automatically picks up the latest.
+    /// 2. `omp` on PATH — the user's system-installed OMP runtime.
+    ///    Upgrading OMP automatically makes the new version available.
     ///
     /// Returns `Err` if no binary is found at all.
     fn resolve_omp(&self) -> Result<PathBuf, String> {
@@ -344,17 +342,15 @@ impl OmpManager {
             }
         }
 
-        // 2. System omp on PATH — the common case. `brew upgrade omp` updates this.
+        // 2. System omp on PATH — the common case.
         if let Ok(path) = which::which(bin_name) {
             log::info!("[ompcot] using system omp: {}", path.display());
             return Ok(path);
         }
 
-        Err(format!(
-            "Could not find omp binary on PATH.\n\n\
-             Install omp via:\n  brew install omp\n\n\
-             Or set OMP_BIN to the path of your omp binary."
-        ))
+        Err("Could not find omp binary on PATH.\n\n\
+             Install omp from https://omp.sh or set OMP_BIN to the path of your omp binary."
+            .to_string())
     }
     /// Locate the embedded-server extension shipped with this build.
     ///
@@ -375,7 +371,7 @@ impl OmpManager {
     ///
     /// Returns `Err` (not `Ok(None)`) when nothing is found, so callers can
     /// fail-fast and surface the error to the user instead of silently
-    /// spawning a pi that has no `/api` surface.
+    /// spawning an omp process that has no `/api` surface.
     fn resolve_embedded_extension_path(&self) -> Result<EmbeddedExtensionResolution, String> {
         if let Ok(explicit) = std::env::var("OMCOT_EXTENSION") {
             let candidate = explicit.trim();
@@ -442,12 +438,12 @@ impl OmpManager {
     }
 
     pub fn spawn(&self, cwd: &str, port: u16, session_path: Option<&str>) -> Result<(), String> {
-        let pi_bin = self.resolve_omp()?;
+        let omp_bin = self.resolve_omp()?;
         // Tauri resolves resource paths as `\\?\`-prefixed extended-length
-        // paths. Bun (the embedded omp runtime) segfaults on Windows arm64 when
+        // paths. The Bun-compiled omp runtime segfaults on Windows arm64 when
         // launched from such a path, so normalize the binary path and every
         // path-shaped argument/env we hand to it back to the plain form.
-        let pi_bin_str = strip_verbatim_prefix(&pi_bin.to_string_lossy());
+        let omp_bin_str = strip_verbatim_prefix(&omp_bin.to_string_lossy());
         let static_dir = strip_verbatim_prefix(&self.static_dir.to_string_lossy());
         let cwd = strip_verbatim_prefix(cwd);
 
@@ -464,7 +460,7 @@ impl OmpManager {
             extension.path
         );
 
-        // The embedded omp (Bun-compiled standalone) mis-parses `--extension`
+        // The Bun-compiled omp standalone executable mis-parses `--extension`
         // paths that contain spaces on Windows: it truncates at the first
         // space, so `...\Ompcot\extensions\embedded-server.mjs` is loaded
         // as `...\OMP`, which then fails to load and crashes the process
@@ -492,8 +488,8 @@ impl OmpManager {
         }
 
         log::info!(
-            "[ompcot] spawning pi: bin={} args={:?} cwd={} port={} static_dir={}",
-            pi_bin_str,
+            "[ompcot] spawning omp: bin={} args={:?} cwd={} port={} static_dir={}",
+            omp_bin_str,
             args,
             cwd,
             port,
@@ -503,7 +499,7 @@ impl OmpManager {
         let augmented_path = build_augmented_path();
         log_child_path_diagnostics("spawn", &augmented_path);
 
-        let mut child = Command::new(&pi_bin_str);
+        let mut child = Command::new(&omp_bin_str);
         configure_child_process_for_windows(&mut child);
         child
             .args(&args)
@@ -525,8 +521,8 @@ impl OmpManager {
         let mut child = child.spawn().map_err(|e| {
             format!(
                 "Failed to spawn omp ({}): {}. \
-                 Make sure omp is installed (brew install omp) and on your PATH.",
-                pi_bin.display(),
+                 Install omp from https://omp.sh or make sure it is on your PATH.",
+                omp_bin.display(),
                 e,
             )
         })?;
@@ -539,7 +535,7 @@ impl OmpManager {
         let stdin = child
             .stdin
             .take()
-            .ok_or_else(|| "Failed to get pi stdin".to_string())?;
+            .ok_or_else(|| "Failed to get omp stdin".to_string())?;
 
         let mut lock = self.processes.lock().unwrap();
         lock.insert(port, OmpProcess { child, stdin });
@@ -547,7 +543,7 @@ impl OmpManager {
         Ok(())
     }
 
-    /// Send an RPC command to a omp instance (JSON line on stdin)
+    /// Send an RPC command to an omp instance (JSON line on stdin).
     pub fn send_rpc(&self, port: u16, cmd: serde_json::Value) -> Result<(), String> {
         let mut lock = self.processes.lock().unwrap();
         let proc = lock
@@ -638,14 +634,14 @@ impl OmpManager {
         port
     }
 
-    /// Run `pi <args...>` with the embedded binary and return stdout.
+    /// Run `omp <args...>` with the resolved system binary and return stdout.
     /// Used by Settings UI package management operations (install/remove/list).
-    pub fn run_pi_command(&self, args: &[String]) -> Result<String, String> {
-        let pi_bin = self.resolve_omp()?;
-        let pi_bin_str = strip_verbatim_prefix(&pi_bin.to_string_lossy());
+    pub fn run_omp_command(&self, args: &[String]) -> Result<String, String> {
+        let omp_bin = self.resolve_omp()?;
+        let omp_bin_str = strip_verbatim_prefix(&omp_bin.to_string_lossy());
         let augmented_path = build_augmented_path();
-        log_child_path_diagnostics("run_pi_command", &augmented_path);
-        let mut command = Command::new(&pi_bin_str);
+        log_child_path_diagnostics("run_omp_command", &augmented_path);
+        let mut command = Command::new(&omp_bin_str);
         configure_child_process_for_windows(&mut command);
         command
             .args(args)
@@ -656,7 +652,7 @@ impl OmpManager {
         let output = command.output().map_err(|e| {
             format!(
                 "Failed to run omp command ({} {:?}): {}",
-                pi_bin_str, args, e
+                omp_bin_str, args, e
             )
         })?;
         if output.status.success() {
@@ -673,14 +669,14 @@ impl OmpManager {
         };
         Err(format!(
             "Omp command failed: {} {:?}: {}",
-            pi_bin_str, args, details
+            omp_bin_str, args, details
         ))
     }
 
     /// Parse `omp list` output and extract package sources.
     pub fn list_configured_package_sources(&self) -> Result<Vec<String>, String> {
         let args = vec!["list".to_string()];
-        let output = self.run_pi_command(&args)?;
+        let output = self.run_omp_command(&args)?;
         let mut sources = Vec::new();
         for line in output.lines() {
             let trimmed = line.trim();
@@ -718,13 +714,13 @@ impl OmpManager {
 
     pub fn install_package_source(&self, source: &str) -> Result<(), String> {
         let args = vec!["install".to_string(), source.to_string()];
-        let _ = self.run_pi_command(&args)?;
+        let _ = self.run_omp_command(&args)?;
         Ok(())
     }
 
     pub fn remove_package_source(&self, source: &str) -> Result<(), String> {
         let args = vec!["remove".to_string(), source.to_string()];
-        let _ = self.run_pi_command(&args)?;
+        let _ = self.run_omp_command(&args)?;
         Ok(())
     }
 }
@@ -744,12 +740,18 @@ pub async fn wait_for_health(port: u16, timeout_secs: u64) -> Result<(), String>
 pub async fn wait_for_endpoint(port: u16, path: &str, timeout_secs: u64) -> Result<(), String> {
     let url = format!("http://localhost:{}{}", port, path);
     let deadline = std::time::Instant::now() + Duration::from_secs(timeout_secs);
+    let client = reqwest::Client::new();
+    let access_token = std::env::var("OMCOT_ACCESS_TOKEN").ok();
     loop {
         if std::time::Instant::now() > deadline {
             return Err(format!("Timed out waiting for {} on port {}", path, port));
         }
-        if let Ok(resp) = reqwest::get(&url).await {
-            if resp.status().as_u16() < 500 {
+        let mut request = client.get(&url);
+        if let Some(token) = &access_token {
+            request = request.header("x-ompcot-token", token);
+        }
+        if let Ok(resp) = request.send().await {
+            if resp.status().is_success() {
                 return Ok(());
             }
         }

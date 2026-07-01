@@ -2,31 +2,28 @@
 
 ## Product
 
-**Ompcot** is a local desktop GUI for the OMP coding agent. It is a Tauri app that bundles its own `omp` runtime — there is no separate install of `omp` to manage.
+**Ompcot** is a local desktop GUI for the OMP coding agent. It is a Tauri app that manages a system-installed `omp` runtime.
 
 ### Architecture
 
-Tauri wraps the web UI. A Rust `OmpManager` (`src-tauri/src/omp_manager.rs`) spawns one `omp --mode rpc` subprocess per workspace, each on its own port, using the embedded omp binary shipped in `src-tauri/resources/omp/` (downloaded by `scripts/fetch-omp-binary.js` from oh-my-omp releases at the version pinned in `scripts/omp-version.json`). Each workspace gets its own OS window. Workspaces are opened via the native folder picker ("Open Folder"); clicking it opens or focuses a workspace window. Multi-project, multi-agent, no terminal required.
+Tauri wraps the web UI. A Rust `OmpManager` (`src-tauri/src/omp_manager.rs`) resolves `OMP_BIN` or `omp` from the system `PATH`, then spawns one `omp --mode rpc` subprocess per active workspace/session, each on its own port. Each workspace gets its own OS window. Workspaces are opened via the native folder picker ("Open Folder"); clicking it opens or focuses a workspace window. Multi-project, multi-agent, no terminal required.
 
 ```
 Ompcot .app
   resources/
     public/                       (frontend)
-    extensions/embedded-server.mjs (HTTP + WS server, runs inside pi)
-    pi/<bun-compiled omp binary + assets>
+    extensions/embedded-server.mjs (HTTP + WS server, runs inside omp)
   Rust OmpManager
     spawn omp --mode rpc --extension embedded-server.mjs  (project A, :3001)
     spawn omp --mode rpc --extension embedded-server.mjs  (project B, :3002)
     OS Window per project  →  WebView  →  localhost:300X
-  Tauri IPC commands wired through public/tauri-bridge.js
+  WebSocket broker + native control handler manage lifecycle operations
 ```
 
-Tauri IPC commands (invoked via `window.tauriNative` in `public/tauri-bridge.js`):
-- `cmd_open_workspace(cwd)` — spawn omp for a workspace, open a window
-- `cmd_new_session(port)` — create a new session in a running omp
-- `cmd_switch_session(port, sessionPath)` — resume a historical session
-- `cmd_stop_instance(port)` — kill a omp process
-- `cmd_pick_folder()` — native folder picker
+Frontend lifecycle operations go through `public/transport.js` as
+`broker_control` messages. Rust installs the native control handler in
+`src-tauri/src/main.rs`; `cmd_retry_startup` is the only remaining direct Tauri
+IPC command.
 
 ### Goals
 
@@ -35,23 +32,24 @@ Tauri IPC commands (invoked via `window.tauriNative` in `public/tauri-bridge.js`
 - Multi-agent: spawn new agents per project; switch between sessions without leaving the app
 - Multi-task: a `omp --mode rpc` process can only drive **one active session at a time** (switching/forking inside one process *replaces* the active session — the old `.jsonl` is preserved on disk, but it stops being the live, running session). So every concurrently-running session structurally needs its own `omp` process. Ompcot handles this without spawning OS windows: both "+ New Session" (header) and "start new chat" (sidebar project tile) spawn a fresh **headless** omp for the target cwd and navigate the current window's WebView to it. The previously-attached omp process keeps running in the background (OmpManager retains it; reachable from the running-instances list / launcher / sidebar). Net effect: no new OS window, no interruption of the previously-running session, and you can still run multiple agents in parallel against the same project.
 - Visualization: streaming chat, tool-call cards, thinking blocks, token/cost tracking per session
-- Fully self-contained desktop app: zero dependency on the user's PATH / shell environment / globally installed omp
+- Use the user's installed OMP runtime so OMP upgrades do not require rebuilding Ompcot
 
 ### Constraints
 
 - Frontend: vanilla JS, no framework (`public/`)
 - Backend: Rust (Tauri) wraps + manages process lifecycle; Node.js extension (`embedded-server.ts`) implements the HTTP + WS surface the WebView talks to
-- PI integration: always via embedded `omp --mode rpc` subprocess — never re-implement PI runtime logic
+- OMP integration: always via a managed `omp --mode rpc` subprocess — never re-implement OMP runtime logic
 - Session history and working directory are isolated per project/port
-- The embedded omp version is the source of truth: `omp --version` shown in the UI comes from `OMCOT_OMP_VERSION` (set by Rust at spawn time, populated from `scripts/omp-version.json`). A user-installed pi on `$PATH` is irrelevant and never touched.
-- User extensions under `~/.omp/agent/extensions/` and `<workspace>/.omp/extensions/` are still auto-loaded by the embedded omp (embedding doesn't disable user extensions).
+- The resolved system OMP version is the source of truth: Rust runs `omp --version` and forwards it through `OMCOT_OMP_VERSION`.
+- User extensions under `~/.omp/agent/extensions/` and `<workspace>/.omp/extensions/` are auto-loaded by OMP.
+- The native WebSocket broker is loopback-only and accepts browser connections only from loopback origins.
+- Rust generates a random `OMCOT_ACCESS_TOKEN` for every app launch. All embedded `/api/*` and `/ws` requests must present it; LAN QR URLs carry it to mobile clients.
 
-### PI references
+### OMP references
 
-- RPC protocol: `/opt/homebrew/lib/node_modules/@oh-my-pi/omp-coding-agent/docs/rpc.md`
-- SDK: `/opt/homebrew/lib/node_modules/@oh-my-pi/omp-coding-agent/docs/sdk.md`
-- Session format: `/opt/homebrew/lib/node_modules/@oh-my-pi/omp-coding-agent/docs/session.md`
-- JSON mode: `/opt/homebrew/lib/node_modules/@oh-my-pi/omp-coding-agent/docs/json.md`
+- Repository: `https://github.com/can1357/oh-my-pi`
+- SDK package: `@oh-my-pi/pi-coding-agent`
+- SDK documentation: `https://github.com/can1357/oh-my-pi/blob/main/docs/sdk.md`
 
 ---
 
@@ -71,13 +69,12 @@ bun run <script>                # run package.json scripts
 ## Common commands
 
 ```bash
-bun run dev              # fetch embedded omp binary, then start tauri dev (hot reload)
+bun run dev              # start tauri dev (requires omp on PATH or OMP_BIN)
 bun run test             # vitest run + check-tauri-permissions
 bun run test:watch       # vitest in watch mode
 bun run check:rust       # cargo check + clippy + fmt (use after every Rust edit)
-bun run fetch:omp         # download the locked omp binary into src-tauri/resources/omp/
 bun run build:extensions # compile extensions/embedded-server.ts → dist/embedded-server.mjs
-bun run build            # full release build (runs prebuild: fetch:omp + build:extensions)
+bun run build            # full release build (runs prebuild: build:extensions)
 ```
 
 Single test file: `bun run vitest run public/settings-save-status.test.js`
@@ -118,13 +115,13 @@ Ompcot is a Tauri v2 app. The three main layers:
 
 **1. Rust / Tauri (`src-tauri/`)** — process lifecycle and window management.
 - `src-tauri/src/omp_manager.rs` — `OmpManager` spawns one `omp --mode rpc` subprocess per workspace, each on its own port. Manages port allocation, process lifecycle, and RPC message forwarding.
-- `src-tauri/src/main.rs` — Tauri commands wired to `OmpManager`: `cmd_open_workspace`, `cmd_new_session`, `cmd_switch_session`, `cmd_stop_instance`, `cmd_pick_folder`.
+- `src-tauri/src/main.rs` — native `broker_control` handler wired to `OmpManager`, window management, folder picker, updater, and startup.
 
 **2. Frontend (`public/`)** — vanilla JS, no framework.
 - `app.js` — main entry: workspace launcher, window setup, session nav, settings
-- `websocket-client.js` — WebSocket client for streaming chat with pi
+- `websocket-client.js` — WebSocket client for streaming chat with OMP
 - `state.js` — shared app state
-- `tauri-bridge.js` — wraps Tauri IPC (`window.tauriNative.*`)
+- `transport.js` — sends lifecycle and native operations through the WebSocket broker
 - `message-renderer.js`, `tool-card.js`, `markdown.js` — chat message rendering
 - `session-sidebar.js` — session history list
 - `file-browser.js` — lazy-loaded file tree sidebar
@@ -137,27 +134,19 @@ Ompcot is a Tauri v2 app. The three main layers:
 
 ## Key data flows
 
-- User action → `window.tauriNative.*` (tauri-bridge.js) → Tauri IPC → OmpManager (Rust) → `omp --mode rpc` subprocess
-- Chat messages → WebSocket (websocket-client.js) → embedded-server.mjs (inside pi) → omp RPC
+- User action → `transport.js` → WebSocket `broker_control` → Rust native control handler → OmpManager → `omp --mode rpc`
+- Chat messages → WebSocket (websocket-client.js) → embedded-server.mjs (inside omp) → omp RPC
+- Embedded API/WS requests → per-launch token validation → embedded-server.mjs; the frontend removes token and broker query parameters from the visible URL after persisting them in session storage.
 - Multi-session: "+ New Session" spawns a **headless** omp process (no new OS window) and navigates the current WebView to it. The old omp process keeps running.
 
-## Bumping the embedded omp version
+## OMP runtime resolution
 
-1. Edit `scripts/omp-version.json` → `version`.
-2. `bun run fetch:omp` (re-downloads the platform tarball, replaces `src-tauri/resources/omp/`).
-3. Smoke test: `./src-tauri/resources/omp/omp --version` and `bun run dev`.
-4. Commit `scripts/omp-version.json`. Do **not** commit `src-tauri/resources/omp/`; it is gitignored.
+`OmpManager` resolves the runtime in this order:
 
-## Embedded pi: how it ends up inside the .app
+1. `OMP_BIN`, when set to an existing file.
+2. `omp` (`omp.exe` on Windows) from the system `PATH`.
 
-End users never run `fetch:omp`. The flow that puts `omp` inside the shipped bundle is:
-
-1. **Pre-build hook.** `package.json` `prebuild` runs `bun run fetch:omp` before `tauri build`. Downloads the platform tarball into `src-tauri/resources/omp/` (idempotent; skipped if `.version` matches). Bun honors npm-style `pre*` / `post*` lifecycle hooks for `bun run`.
-2. **Tauri before-hooks.** `tauri.conf.json` `build.beforeBuildCommand` and `build.beforeDevCommand` BOTH run `bun run fetch:omp` first, so even invoking `tauri build` / `tauri dev` directly (no `bun run build`) still guarantees the binary is present.
-3. **Tauri bundling.** `tauri.conf.json` `bundle.resources` maps `./resources/omp` → `omp`, so the entire omp runtime tree is copied into `<App>.app/Contents/Resources/pi/` at package time.
-4. **Last-line guard (build.rs).** `src-tauri/build.rs` PANICS at compile time if `resources/omp/<bin>` is missing in a release profile. This prevents `cargo build --release` (or any IDE that bypasses bun) from silently producing a .app with no pi inside. Override only for local experiments via `OMCOT_SKIP_BIN_CHECK=1`.
-
-Net effect: there is no path that ships a Ompcot release without the embedded omp binary. End users get a self-contained app — no PATH lookups, no `bun run fetch:omp`, no manual install of omp.
+The app bundles the frontend and `embedded-server.mjs`, but not the OMP binary. Release and development environments must have OMP installed.
 
 ## Post-fix verification (Rust / Tauri)
 
@@ -165,11 +154,9 @@ After every edit under `src-tauri/` (or any Rust fix), run the lint+check script
 
 ```bash
 bun run check:rust
-# or directly
-bash scripts/check-rust.sh
 ```
 
-`scripts/check-rust.sh` runs, in order:
+`scripts/check-rust.js` runs, in order:
 
 1. `cargo check --all-targets` — type/borrow/API signature check (~1–5s).
 2. `cargo clippy --all-targets -- -D warnings` — lints, warnings as errors.
@@ -183,7 +170,17 @@ bash scripts/check-rust.sh
 
 ## Auto-updater
 
-Ompcot uses the Tauri v2 updater plugin to fetch new releases from GitHub. The runtime side lives in `public/tauri-bridge.js` + `public/app.js` (Settings → General → Updates), and the build side is wired into `.github/workflows/release.yml` via the `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secrets. See `docs/AUTO_UPDATER.md` for the one-time signing-key setup and how `latest.json` flows from CI → GitHub release → installed app.
+Ompcot includes the Tauri v2 updater plugin, but the Windows-only release
+workflow currently publishes NSIS/MSI installers without updater artifacts.
+`.github/workflows/release.yml` applies
+`src-tauri/tauri.ci-unsigned.conf.json` so an invalid updater signing secret
+cannot discard otherwise valid installers.
+
+To restore automatic updates, generate a Tauri updater key pair, update
+`plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, configure the matching
+`TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` GitHub
+Actions secrets, then remove the unsigned CI override and re-enable updater
+JSON generation in the workflow.
 
 ## Tests
 

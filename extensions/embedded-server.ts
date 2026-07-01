@@ -3,8 +3,8 @@
  *
  * Starts the HTTP + WebSocket server that the Ompcot Tauri WebView talks to.
  * This is not a user-facing "omp extension" — it ships inside the Ompcot
- * .app bundle and is loaded by the bundled `omp` binary that Ompcot spawns
- * via `--extension <bundle>/embedded-server.mjs`.
+ * .app bundle and is loaded by the managed `omp` process Ompcot spawns via
+ * `--extension <bundle>/embedded-server.mjs`.
  *
  * Responsibilities:
  * - Serve the static frontend assets (`public/`)
@@ -17,8 +17,9 @@
  * - Generate session titles from user messages
  *
  * What's intentionally NOT here anymore (vs the old mirror-server.ts):
- * - QR / pairing flow — LAN mobile access is advertised as a plain URL
- * - Basic auth — the mobile entry point is an explicit local-network dev mode
+ * - Interactive QR / pairing flow — generated LAN URLs carry a random
+ *   per-launch access token instead
+ * - Basic auth — API and WebSocket access use the host-supplied launch token
  * - `/studiostart` / `/studiostop` / `/qr` commands — server lifecycle is
  *   tied 1:1 to the omp process Ompcot spawns
  * - Cross-process instance discovery via `~/.omp/ompcot-instances/` —
@@ -34,11 +35,7 @@ import * as fs from "node:fs";
 import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-  ModelRegistry,
-} from "@oh-my-pi/omp-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ModelRegistry } from "@oh-my-pi/pi-coding-agent";
 import QRCode from "qrcode";
 import { type WebSocket, WebSocketServer } from "ws";
 import {
@@ -100,30 +97,45 @@ function buildHomeDirCandidates(): string[] {
   return candidates;
 }
 
-function resolveOmpAgentRoot(): string {
+export function resolveOmpAgentRoot(
+  homeCandidates = buildHomeDirCandidates(),
+  appData = process.env.APPDATA,
+): string {
   // Prefer whichever home candidate already has .omp/agent on disk.
-  for (const home of buildHomeDirCandidates()) {
-    const candidate = path.join(home, ".pi", "agent");
+  for (const home of homeCandidates) {
+    const candidate = path.join(home, ".omp", "agent");
     if (fs.existsSync(candidate)) return candidate;
   }
 
   // Fallback for some Windows setups where app data is relocated.
-  const appData = process.env.APPDATA;
   if (typeof appData === "string" && appData.trim()) {
     const roamingCandidate = path.join(path.resolve(appData), "omp", "agent");
     if (fs.existsSync(roamingCandidate)) return roamingCandidate;
   }
 
-  const home = buildHomeDirCandidates()[0] || "~";
-  return path.join(home, ".pi", "agent");
+  const home = homeCandidates[0] || "~";
+  return path.join(home, ".omp", "agent");
 }
 
 const OMP_AGENT_ROOT = resolveOmpAgentRoot();
+const ACCESS_TOKEN = process.env.OMCOT_ACCESS_TOKEN?.trim() || "";
 
-export const LAN_BIND_HOST = "0.0.0.0";
+// Ompcot always provides a random access token. If the extension is launched
+// directly without one, fail closed to loopback-only access.
+export const LAN_BIND_HOST = ACCESS_TOKEN ? "0.0.0.0" : "127.0.0.1";
 
 function isLoopbackHost(host: string): boolean {
-  return host === "127.0.0.1" || host === "localhost" || host === "::1";
+  const normalized = host.toLowerCase().replace(/^\[|\]$/g, "");
+  return normalized === "127.0.0.1" || normalized === "localhost" || normalized === "::1";
+}
+
+function hostNameFromAuthority(authority: string): string {
+  if (isLoopbackHost(authority)) return authority;
+  try {
+    return new URL(`http://${authority}`).hostname;
+  } catch {
+    return "";
+  }
 }
 
 function findLanHosts(): string[] {
@@ -142,14 +154,16 @@ function findLanHosts(): string[] {
   return [...hosts].sort();
 }
 
-export function buildLanAccessUrls(port: number, hosts: string[]): string[] {
-  const brokerPort = Number.parseInt(process.env.OMCOT_BROKER_PORT || "", 10);
+export function buildLanAccessUrls(
+  port: number,
+  hosts: string[],
+  accessToken = ACCESS_TOKEN,
+): string[] {
+  if (!accessToken) return [];
   return hosts.map((host) => {
     const url = new URL(`http://${host}:${port}/`);
     url.searchParams.set("mobile", "1");
-    if (Number.isFinite(brokerPort) && brokerPort > 0) {
-      url.searchParams.set("brokerWs", `ws://${host}:${brokerPort}/ui-ws`);
-    }
+    url.searchParams.set("accessToken", accessToken);
     return url.toString();
   });
 }
@@ -158,6 +172,59 @@ function buildLanUrls(port: number): string[] {
   if (isLoopbackHost(BIND_HOST)) return [];
   const hosts = BIND_HOST === "0.0.0.0" ? findLanHosts() : [BIND_HOST];
   return buildLanAccessUrls(port, hosts);
+}
+
+function tokenFromUrl(urlValue: string): string {
+  try {
+    return new URL(urlValue, "http://localhost").searchParams.get("accessToken") || "";
+  } catch {
+    return "";
+  }
+}
+
+function headerValue(
+  headers: http.IncomingHttpHeaders | Record<string, string>,
+  name: string,
+): string {
+  const value = headers[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] || "" : String(value || "");
+}
+
+export function isAuthorizedAccess(
+  expectedToken: string,
+  suppliedToken: string,
+  host = "",
+  origin = "",
+): boolean {
+  if (expectedToken) return suppliedToken === expectedToken;
+  const requestHost = hostNameFromAuthority(host);
+  if (!origin) return isLoopbackHost(requestHost);
+  try {
+    const parsed = new URL(origin);
+    return isLoopbackHost(parsed.hostname) && isLoopbackHost(requestHost);
+  } catch {
+    return false;
+  }
+}
+
+function isAuthorizedNodeRequest(req: http.IncomingMessage): boolean {
+  const supplied = headerValue(req.headers, "x-ompcot-token") || tokenFromUrl(req.url || "");
+  return isAuthorizedAccess(
+    ACCESS_TOKEN,
+    supplied,
+    headerValue(req.headers, "host"),
+    headerValue(req.headers, "origin"),
+  );
+}
+
+function isAuthorizedFetchRequest(req: Request): boolean {
+  const supplied = req.headers.get("x-ompcot-token") || tokenFromUrl(req.url);
+  return isAuthorizedAccess(
+    ACCESS_TOKEN,
+    supplied,
+    req.headers.get("host") || new URL(req.url).host,
+    req.headers.get("origin") || "",
+  );
 }
 
 function loadSettings(): { port: number } {
@@ -175,12 +242,20 @@ function loadSettings(): { port: number } {
 const SETTINGS = loadSettings();
 const PORT = SETTINGS.port;
 const BIND_HOST = LAN_BIND_HOST;
-// Forwarded by Ompcot (Rust side) from `scripts/omp-version.json`. We deliberately
-// do not call `omp --version` here: this extension always runs *inside* the pi
-// binary Ompcot spawned, so the version is known.
+// Forwarded by Ompcot after the Rust host resolves the system omp binary and
+// runs `omp --version`. The extension does not spawn another omp process.
 const EMBEDDED_OMP_VERSION = process.env.OMCOT_OMP_VERSION || "";
 
 const STATIC_DIR = process.env.OMCOT_STATIC_DIR || findPublicDir();
+
+function resolveStaticFile(urlPath: string): string | null {
+  const staticRoot = path.resolve(STATIC_DIR);
+  const candidate = path.resolve(staticRoot, `.${urlPath}`);
+  if (candidate === staticRoot || candidate.startsWith(`${staticRoot}${path.sep}`)) {
+    return candidate;
+  }
+  return null;
+}
 
 function findPublicDir(): string {
   const candidates: string[] = [];
@@ -212,7 +287,7 @@ const INSTANCES_DIR = path.join(path.dirname(OMP_AGENT_ROOT), "ompcot-instances"
 // Minimal single-process instance registry. We keep this so the frontend's
 // `/api/instances` response reflects the running workspace without needing
 // a Tauri invoke. Unlike the old mirror-server
-// which scanned the whole INSTANCES_DIR (for tmux / standalone pi
+// which scanned the whole INSTANCES_DIR (for tmux / standalone omp
 // processes), we only ever write our own entry: Ompcot's Rust side
 // manages all omp processes it spawns.
 function registerInstance(port: number, sessionFile: string, cwd: string) {
@@ -397,7 +472,7 @@ type EmbeddedServerGlobal = {
   localUrl: string;
   lanUrl: string;
   // Re-published by every extension instance on session_start so the
-  // connection handler dispatches to the new session's pi/ctx.
+  // connection handler dispatches to the new session's omp/ctx.
   handleCommand: ((ws: WebSocket, command: RpcCommand) => Promise<void>) | null;
   buildStateSnapshot: ((ctx: ExtensionContext) => Promise<unknown>) | null;
   getLatestCtx: (() => ExtensionContext | null) | null;
@@ -406,7 +481,7 @@ type EmbeddedServerGlobal = {
   // `ModelRegistry` (and its `AuthStorage`) are owned by the omp process,
   // not by any one session: `~/.omp/agent/auth.json` is shared across every
   // `new_session` / `switch_session` / `fork` and every extension reload
-  // oh-my-omp does. The auth Settings panel (`list_auth_status` /
+  // OMP does. The auth Settings panel (`list_auth_status` /
   // `set_api_key` / `remove_api_key`) only needs the registry — gating it
   // behind the per-session `latestCtx` caused "Failed to load providers"
   // whenever the user opened Settings → Authentication during the brief
@@ -417,14 +492,14 @@ type EmbeddedServerGlobal = {
   // The freshest `ExtensionAPI` (i.e. `omp`) reference, re-published on
   // every `session_start`. Command handlers MUST go through this getter
   // instead of capturing the `omp` parameter from `export default function`
-  // in their closure: oh-my-omp invalidates the old `omp` after `new_session`,
+  // in their closure: OMP invalidates the old `omp` after `new_session`,
   // `switch_session`, `fork`, and `reload`, and any session-bound call on
   // a stale `omp` (e.g. `omp.setThinkingLevel`, `omp.sendUserMessage`,
-  // `omp.setSessionName`) throws an error that oh-my-omp surfaces as an
+  // `omp.setSessionName`) throws an error that OMP surfaces as an
   // `extension_error` event — which the frontend renders as a red error
   // bubble in chat. Routing through `getApi()` guarantees we always hit
   // the current session's `omp`.
-  getAomp: (() => ExtensionAPI | null) | null;
+  getApi: (() => ExtensionAPI | null) | null;
   // Process-scoped parse caches. Live across extension reloads (which would
   // otherwise wipe per-extension `Map`s on every new_session). Without these,
   // `/api/sessions` re-reads + re-parses the JSONL header of every session
@@ -477,7 +552,7 @@ function getOrCreateGlobalState(): EmbeddedServerGlobal {
       handleCommand: null,
       buildStateSnapshot: null,
       getLatestCtx: null,
-      getAomp: null,
+      getApi: null,
       modelRegistry: null,
       sessionHeaderCache: new Map<string, SessionFileCacheEntry<unknown>>(),
       sessionMetricsCache: new Map<string, SessionFileCacheEntry<unknown>>(),
@@ -496,23 +571,23 @@ export default function (omp: ExtensionAPI) {
   // Always resolve the freshest `omp` from globalState before calling any
   // session-bound API.
   //
-  // oh-my-omp invalidates the captured `omp` after `new_session`,
+  // OMP invalidates the captured `omp` after `new_session`,
   // `switch_session`, `fork`, and `reload`. If a WS command (e.g.
   // `cycle_thinking_level`) is dispatched through a closure that captured
   // the *old* `omp` — for example because `globalState.handleCommand` was
   // re-published a tick later than expected — calling
   // `oldOMP.setThinkingLevel()` etc. throws "This extension ctx is stale
-  // after session replacement or reload". oh-my-omp surfaces that throw as
+  // after session replacement or reload". OMP surfaces that throw as
   // an `extension_error` event, which the frontend renders as a red error
   // bubble in chat (`public/app.js` `extension_error` case).
   //
-  // Routing through `currentOMP()` guarantees the call is dispatched to
+  // Routing through `currentApi()` guarantees the call is dispatched to
   // whichever extension instance most recently received `session_start`
   // (and thus owns the live, non-stale `omp` for the active session).
   // Returns `null` only during the brief window between an old instance's
   // `session_shutdown` and the new instance's `session_start`; callers
   // must treat that as "no active session".
-  function currentOMP(): ExtensionAPI | null {
+  function currentApi(): ExtensionAPI | null {
     return globalState.getApi?.() ?? null;
   }
 
@@ -675,7 +750,7 @@ export default function (omp: ExtensionAPI) {
     // this OLD extension instance is now stale. Route through the freshest
     // `omp` published on `globalState` so we never call a stale
     // `getSessionName` / `setSessionName`.
-    const a = currentOMP();
+    const a = currentApi();
     if (!a) return;
 
     const sessionName = a.getSessionName();
@@ -754,7 +829,7 @@ export default function (omp: ExtensionAPI) {
 
     // Get model info
     const model = ctx.model;
-    const aomp = currentOMP();
+    const api = currentApi();
     const thinkingLevel = api?.getThinkingLevel() ?? "off";
     const sessionName = api?.getSessionName() ?? "";
     const sessionFile = ctx.sessionManager.getSessionFile();
@@ -781,8 +856,8 @@ export default function (omp: ExtensionAPI) {
     const id = command.id;
     const ctx = latestCtx;
     // Always resolve `omp` from the global publisher rather than the
-    // closure-captured one. See `currentOMP()` for the rationale.
-    const aomp = currentOMP();
+    // closure-captured one. See `currentApi()` for the rationale.
+    const api = currentApi();
 
     const success = (cmd: string, data?: unknown) => {
       const resp: Record<string, unknown> = { type: "response", command: cmd, success: true, id };
@@ -798,9 +873,9 @@ export default function (omp: ExtensionAPI) {
     // (`sendUserMessage`, `setThinkingLevel`, `setModel`, `setSessionName`,
     // …). Returning a clean error here is cheaper than letting the call
     // throw `"This extension ctx is stale after session replacement"` and
-    // having oh-my-omp re-emit it as an `extension_error` event in chat.
-    const requireAomp = (cmd: string): ExtensionAPI | null => {
-      if (api) return aomp;
+    // having OMP re-emit it as an `extension_error` event in chat.
+    const requireApi = (cmd: string): ExtensionAPI | null => {
+      if (api) return api;
       sendTo(ws, error(cmd, "No active session"));
       return null;
     };
@@ -900,7 +975,7 @@ export default function (omp: ExtensionAPI) {
               ws,
               error(
                 "new_session",
-                "New session requires the desktop broker with this embedded omp version.",
+                "New session requires the desktop broker with this OMP version.",
               ),
             );
             break;
@@ -924,7 +999,7 @@ export default function (omp: ExtensionAPI) {
               ws,
               error(
                 "switch_session",
-                "Session switching requires the desktop broker with this embedded omp version.",
+                "Session switching requires the desktop broker with this OMP version.",
               ),
             );
             break;
@@ -1244,7 +1319,7 @@ export default function (omp: ExtensionAPI) {
             const args = command.outputPath
               ? `"${sessionFile}" "${command.outputPath}"`
               : `"${sessionFile}"`;
-            // process.execPath at runtime is the embedded omp binary, which
+            // process.execPath at runtime is the active omp executable, which
             // supports --export when invoked as a top-level CLI.
             const output = execSync(`"${process.execPath}" --export ${args}`, {
               cwd: process.cwd(),
@@ -1308,29 +1383,6 @@ export default function (omp: ExtensionAPI) {
       return;
     }
 
-    // Auto-redirect remote browsers to the full mobile URL so users don't
-    // need to manually append ?mobile=1&brokerWs=... to the LAN address.
-    const brokerPort = Number.parseInt(process.env.OMCOT_BROKER_PORT || "", 10);
-    const host = req.headers.host || "";
-    const hostName = host.split(":")[0];
-    const isLoopback = hostName === "localhost" || hostName === "127.0.0.1" || hostName === "::1";
-    const rawPath = urlPath.split("?")[0];
-    const hasParams = urlPath.includes("mobile=1");
-    if (
-      rawPath === "/" &&
-      !isLoopback &&
-      !hasParams &&
-      Number.isFinite(brokerPort) &&
-      brokerPort > 0
-    ) {
-      const redirect = new URL(`http://${host}/`);
-      redirect.searchParams.set("mobile", "1");
-      redirect.searchParams.set("brokerWs", `ws://${hostName}:${brokerPort}/ui-ws`);
-      res.writeHead(302, { Location: redirect.toString() });
-      res.end();
-      return;
-    }
-
     // Strip query params
     urlPath = urlPath.split("?")[0];
 
@@ -1338,10 +1390,8 @@ export default function (omp: ExtensionAPI) {
     if (urlPath === "/") urlPath = "/index.html";
     if (urlPath === "/cost" || urlPath === "/cost/") urlPath = "/cost.html";
 
-    const filePath = path.join(STATIC_DIR, urlPath);
-
-    // Security: prevent directory traversal
-    if (!filePath.startsWith(STATIC_DIR)) {
+    const filePath = resolveStaticFile(urlPath);
+    if (!filePath) {
       res.writeHead(403);
       res.end("Forbidden");
       return;
@@ -1371,18 +1421,13 @@ export default function (omp: ExtensionAPI) {
     res: http.ServerResponse,
     urlPath: string,
   ) {
-    urlPath = normalizeApiRoutePath(urlPath);
-
-    // CORS headers
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-    if (req.method === "OPTIONS") {
-      res.writeHead(200);
-      res.end();
+    if (!isAuthorizedNodeRequest(req)) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
       return;
     }
+
+    urlPath = normalizeApiRoutePath(urlPath);
 
     if (urlPath === "/api/health") {
       // Keep the legacy `mirrorUrl` field name in the payload — the frontend
@@ -1430,10 +1475,7 @@ export default function (omp: ExtensionAPI) {
     }
 
     if (urlPath === "/api/instances") {
-      res.writeHead(200, {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      });
+      res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ instances: getRunningInstances() }));
       return;
     }
@@ -1657,19 +1699,18 @@ export default function (omp: ExtensionAPI) {
             return;
           }
           // Open a new terminal window running omp in the selected directory.
-          // Note: this still uses the user's PATH `omp`, not the embedded one,
-          // because Ompcot's own workspace flow lives in Tauri commands;
-          // this endpoint is the legacy "open in external terminal" affordance.
+          // Ompcot's own workspace flow lives in Tauri commands; this endpoint
+          // is the legacy "open in external terminal" affordance.
           const { execSync } = require("node:child_process");
           const escaped = resolved.replace(/'/g, "'\\''");
           try {
             execSync(
-              `osascript -e 'tell app "Terminal" to do script "cd '"'"'${escaped}'"'"' && pi"'`,
+              `osascript -e 'tell app "Terminal" to do script "cd '"'"'${escaped}'"'"' && omp"'`,
             );
           } catch {
             try {
               execSync(
-                `osascript -e 'tell app "iTerm2" to create window with default profile command "cd '"'"'${escaped}'"'"' && pi"'`,
+                `osascript -e 'tell app "iTerm2" to create window with default profile command "cd '"'"'${escaped}'"'"' && omp"'`,
               );
             } catch {
               /* no terminal app available */
@@ -2390,7 +2431,7 @@ export default function (omp: ExtensionAPI) {
     ".venv",
     "env",
     ".env.local",
-    ".pi",
+    ".omp",
     "coverage",
     ".nyc_output",
     ".parcel-cache",
@@ -2596,7 +2637,7 @@ export default function (omp: ExtensionAPI) {
     globalState.handleCommand = handleCommand;
     globalState.buildStateSnapshot = buildStateSnapshot;
     globalState.getLatestCtx = () => latestCtx;
-    globalState.getAomp = () => omp;
+    globalState.getApi = () => omp;
 
     // Re-register the instance entry with the *current* session file so
     // `/api/instances` reports the right session.
@@ -2771,11 +2812,14 @@ export default function (omp: ExtensionAPI) {
       async function bunFetchHandler(req: Request, server: unknown): Promise<Response | undefined> {
         const url = new URL(req.url);
         if (url.pathname === "/ws") {
+          if (!isAuthorizedFetchRequest(req)) {
+            return new Response("Unauthorized", { status: 401 });
+          }
           if ((server as { upgrade: (req: Request) => boolean }).upgrade(req)) return undefined;
           return new Response("WebSocket upgrade failed", { status: 400 });
         }
         if (!url.pathname.startsWith("/api/")) {
-          return serveStaticAssetBun(url, req);
+          return serveStaticAssetBun(url);
         }
         return runNodeStyleHandler(req);
       }
@@ -2784,36 +2828,14 @@ export default function (omp: ExtensionAPI) {
       // (pretty `/` and `/cost` paths, directory traversal guard, 404 on
       // missing files) but reads via `Bun.file` so large assets stream
       // straight from disk without going through our buffering adapter.
-      async function serveStaticAssetBun(url: URL, req: Request): Promise<Response> {
+      async function serveStaticAssetBun(url: URL): Promise<Response> {
         let urlPath = url.pathname;
-
-        // Auto-redirect remote browsers to the full mobile URL.
-        const brokerPort = Number.parseInt(process.env.OMCOT_BROKER_PORT || "", 10);
-        const host = req.headers.get("host") || url.host;
-        const hostName = host.split(":")[0];
-        const isLoopback =
-          hostName === "localhost" || hostName === "127.0.0.1" || hostName === "::1";
-        if (
-          urlPath === "/" &&
-          !isLoopback &&
-          !url.searchParams.has("mobile") &&
-          Number.isFinite(brokerPort) &&
-          brokerPort > 0
-        ) {
-          const redirect = new URL(`http://${host}/`);
-          redirect.searchParams.set("mobile", "1");
-          redirect.searchParams.set("brokerWs", `ws://${hostName}:${brokerPort}/ui-ws`);
-          return Response.redirect(redirect.toString(), 302);
-        }
 
         if (urlPath === "/") urlPath = "/index.html";
         if (urlPath === "/cost" || urlPath === "/cost/") urlPath = "/cost.html";
 
-        const filePath = path.join(STATIC_DIR, urlPath);
-        // Guard against directory-traversal. We do this with the resolved
-        // filesystem path rather than the URL path so symlink shenanigans
-        // can't escape STATIC_DIR either.
-        if (!filePath.startsWith(STATIC_DIR)) {
+        const filePath = resolveStaticFile(urlPath);
+        if (!filePath) {
           return new Response("Forbidden", { status: 403 });
         }
 
@@ -2847,11 +2869,13 @@ export default function (omp: ExtensionAPI) {
     globalState.wss = wss;
 
     server.on("upgrade", (request, socket, head) => {
-      if (request.url === "/ws") {
+      const pathname = new URL(request.url || "/", "http://localhost").pathname;
+      if (pathname === "/ws" && isAuthorizedNodeRequest(request)) {
         wss.handleUpgrade(request, socket, head, (ws) => {
           wss.emit("connection", ws, request);
         });
       } else {
+        socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
         socket.destroy();
       }
     });
@@ -3080,7 +3104,7 @@ export default function (omp: ExtensionAPI) {
       globalState.handleCommand = null;
       globalState.buildStateSnapshot = null;
       globalState.getLatestCtx = null;
-      globalState.getAomp = null;
+      globalState.getApi = null;
     }
     console.log("[Embedded] Session shutdown (server stays up)");
   });

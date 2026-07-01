@@ -191,6 +191,16 @@ describe("withBrokerWs", () => {
     );
   });
 
+  it("propagates the launch token across workspace ports", () => {
+    const transport = {
+      brokerWsUrl: () => "ws://127.0.0.1:47999/broker",
+      accessToken: () => "launch-secret",
+    };
+    expect(withBrokerWs("http://localhost:47826/", transport)).toBe(
+      "http://localhost:47826/?brokerWs=ws%3A%2F%2F127.0.0.1%3A47999%2Fbroker&accessToken=launch-secret",
+    );
+  });
+
   it("returns the url unchanged when no broker url is available", () => {
     expect(withBrokerWs("http://localhost:47826/", {})).toBe("http://localhost:47826/");
     expect(withBrokerWs("http://localhost:47826/", undefined)).toBe("http://localhost:47826/");

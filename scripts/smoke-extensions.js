@@ -30,6 +30,7 @@ const http = require("node:http");
 const ROOT = path.resolve(__dirname, "..");
 const BUNDLE = path.join(ROOT, "extensions", "dist", "embedded-server.mjs");
 const PORT = 39101 + Math.floor(Math.random() * 100);
+const ACCESS_TOKEN = "ompcot-extension-smoke-token";
 
 function fail(msg) {
   console.error(`[smoke-extensions] FAIL: ${msg}`);
@@ -50,7 +51,7 @@ function checkOMPAvailable() {
 
 function get(url, timeoutMs = 2000) {
   return new Promise((resolve, reject) => {
-    const req = http.get(url, (res) => {
+    const req = http.get(url, { headers: { "X-Ompcot-Token": ACCESS_TOKEN } }, (res) => {
       const chunks = [];
       res.on("data", (c) => chunks.push(c));
       res.on("end", () => {
@@ -85,22 +86,30 @@ async function main() {
   }
   info(`bundle: ${BUNDLE} (${(fs.statSync(BUNDLE).size / 1024).toFixed(1)} KB)`);
 
-  const piVersion = checkOMPAvailable();
-  if (!piVersion) {
-    info("omp not found in PATH; skipping smoke test (this is OK in environments without pi).");
+  const ompVersion = checkOMPAvailable();
+  if (!ompVersion) {
+    info("omp not found in PATH; skipping smoke test.");
     process.exit(0);
   }
-  info(`omp available: ${piVersion}`);
+  info(`omp available: ${ompVersion}`);
 
   // Use a tmpdir as cwd so jiti cannot "rescue" the bundle by finding the
   // repo's node_modules/ up-tree. This is the strictest possible lookup
   // environment, matching what an installed .app sees on a fresh machine.
-  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "pi-smoke-"));
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "omp-smoke-"));
   info(`spawning omp from sandbox cwd: ${sandbox}`);
 
   const child = spawn("omp", ["--extension", BUNDLE, "--mode", "rpc"], {
     cwd: sandbox,
-    env: { ...process.env, OMCOT_PORT: String(PORT) },
+    env: {
+      ...process.env,
+      // OMP exits before loading extensions when no model provider is
+      // configured. The smoke test never sends a prompt, so a placeholder key
+      // is sufficient and keeps the check independent of developer login state.
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY || "ompcot-smoke-test",
+      OMCOT_PORT: String(PORT),
+      OMCOT_ACCESS_TOKEN: ACCESS_TOKEN,
+    },
     // omp --mode rpc treats stdin closing as a shutdown signal, so we keep
     // stdin piped (and never write to it) for the lifetime of the test.
     stdio: ["pipe", "pipe", "pipe"],
@@ -111,7 +120,7 @@ async function main() {
     const s = d.toString();
     stderrBuf += s;
     if (process.env.SMOKE_VERBOSE) {
-      process.stderr.write(`[pi-stderr] ${s}`);
+      process.stderr.write(`[omp-stderr] ${s}`);
     }
   });
   child.on("error", (err) => {
@@ -146,7 +155,7 @@ async function main() {
   }
 
   if (ok) {
-    info("PASS: bundle is self-contained and serves /api/sessions");
+    info("PASS: extension bundle is self-contained and serves /api/sessions");
   }
 }
 

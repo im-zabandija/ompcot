@@ -14,7 +14,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use tauri::image::Image;
-use tauri::{AppHandle, Manager, State, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
+use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_dialog::MessageDialogKind;
 
@@ -138,7 +140,7 @@ async fn open_workspace_core(
     }
     if open_window {
         if let Some(app) = app {
-            open_workspace_window(app, port, &broker.url())?;
+            open_workspace_window(app, port, &broker.url(), broker.access_token())?;
         } else {
             log::warn!(
                 "[ompcot] open_workspace requested a window but no AppHandle is available (port {})",
@@ -248,7 +250,12 @@ fn list_installed_apps_core() -> Vec<AppTarget> {
     let candidates: [(&str, &str, &[&str], &str); 6] = [
         ("vscode", "VS Code", &["Visual Studio Code", "Code"], "code"),
         ("cursor", "Cursor", &["Cursor"], "cursor"),
-        ("webstorm", "WebStorm", &["WebStorm", "WebStorm EAP"], "webstorm"),
+        (
+            "webstorm",
+            "WebStorm",
+            &["WebStorm", "WebStorm EAP"],
+            "webstorm",
+        ),
         ("zed", "Zed", &["Zed"], "zed"),
         ("terminal", "Terminal", &["Terminal", "iTerm", "Warp"], ""),
         ("ghostty", "Ghostty", &["Ghostty"], ""),
@@ -430,12 +437,18 @@ fn encode_query_value(value: &str) -> String {
     percent_encoding::utf8_percent_encode(value, percent_encoding::NON_ALPHANUMERIC).to_string()
 }
 
-fn open_workspace_window(app: &AppHandle, port: u16, broker_ws_url: &str) -> Result<(), String> {
+fn open_workspace_window(
+    app: &AppHandle,
+    port: u16,
+    broker_ws_url: &str,
+    access_token: &str,
+) -> Result<(), String> {
     let label = format!("workspace-{}", port);
     let url = format!(
-        "http://localhost:{}?brokerWs={}",
+        "http://localhost:{}?brokerWs={}&accessToken={}",
         port,
-        encode_query_value(broker_ws_url)
+        encode_query_value(broker_ws_url),
+        encode_query_value(access_token)
     );
     let icon = Image::from_bytes(include_bytes!("../icons/32x32.png"))
         .map_err(|e| format!("Failed to load window icon: {}", e))?;
@@ -658,7 +671,7 @@ fn find_latest_session_boot_target() -> Option<(String, String)> {
 async fn cmd_retry_startup(
     manager: State<'_, OmpManagerState>,
     broker: State<'_, BrokerWsState>,
-) -> Result<u16, String> {
+) -> Result<Value, String> {
     let home_cwd = dirs::home_dir()
         .unwrap_or_default()
         .to_string_lossy()
@@ -678,7 +691,11 @@ async fn cmd_retry_startup(
         broker.unregister_port(initial_port);
         return Err(e);
     }
-    Ok(initial_port)
+    Ok(serde_json::json!({
+        "port": initial_port,
+        "accessToken": broker.access_token(),
+        "brokerWs": broker.url(),
+    }))
 }
 
 // ─── Auto-updater cores ─────────────────────────────────────────────────────
@@ -876,11 +893,11 @@ fn install_control_handler(broker: &Arc<BrokerWs>, manager: Arc<OmpManager>, app
                         open_devtools_core(port, &app)?;
                         Ok(Value::Null)
                     }
-                    "list_pi_packages" => {
+                    "list_omp_packages" | "list_pi_packages" => {
                         let sources = manager.list_configured_package_sources()?;
                         Ok(serde_json::to_value(sources).unwrap_or(Value::Null))
                     }
-                    "install_pi_package" => {
+                    "install_omp_package" | "install_pi_package" => {
                         let source = arg_str("source").unwrap_or_default();
                         if source.trim().is_empty() {
                             return Err("Package source cannot be empty".to_string());
@@ -888,7 +905,7 @@ fn install_control_handler(broker: &Arc<BrokerWs>, manager: Arc<OmpManager>, app
                         manager.install_package_source(source.trim())?;
                         Ok(Value::Null)
                     }
-                    "remove_pi_package" => {
+                    "remove_omp_package" | "remove_pi_package" => {
                         let source = arg_str("source").unwrap_or_default();
                         if source.trim().is_empty() {
                             return Err("Package source cannot be empty".to_string());
@@ -919,7 +936,7 @@ fn main() {
     // that all child processes (omp binary, npm, git, …) see the same tools
     // as a normal terminal session.
     if let Err(err) = fix_path_env::fix() {
-        eprintln!("[picot] failed to sync PATH from login shell: {err}");
+        eprintln!("[ompcot] failed to sync PATH from login shell: {err}");
     }
 
     tauri::Builder::default()
@@ -942,6 +959,7 @@ fn main() {
             let manager = Arc::new(OmpManager::new(static_dir));
             let broker = Arc::new(BrokerWs::start().expect("failed to start broker websocket"));
             std::env::set_var("OMCOT_BROKER_PORT", broker.port().to_string());
+            std::env::set_var("OMCOT_ACCESS_TOKEN", broker.access_token());
             install_control_handler(&broker, manager.clone(), app.handle().clone());
 
             let home_cwd = dirs::home_dir()
@@ -969,8 +987,8 @@ fn main() {
             // reuse a port that is already in use, even if "something omp-shaped"
             // is listening on it, because:
             //
-            //   1. We can't drive that process: `cmd_new_session` /
-            //      `cmd_switch_session` write to *our* `OmpManager.processes`
+            //   1. We can't drive that process: the new/switch session control
+            //      handlers write to *our* `OmpManager.processes`
             //      map. A omp we didn't spawn (e.g. left over from an installed
             //      Ompcot still running, or a previous `bun run dev` whose
             //      Rust side crashed without taking its children with it) is
@@ -1006,7 +1024,7 @@ fn main() {
                     );
                     app.dialog()
                         .message(format!(
-                            "Ompcot could not start the omp runtime.\n\n{}\n\nMake sure omp is installed (brew install omp) and on your PATH.",
+                            "Ompcot could not start the omp runtime.\n\n{}\n\nInstall omp from https://omp.sh or make sure it is on your PATH.",
                             err
                         ))
                         .title("Ompcot startup failed")
@@ -1031,7 +1049,12 @@ fn main() {
                             broker.unregister_port(initial_port);
                         }
                     } else if let Some(broker) = app_handle.try_state::<BrokerWsState>() {
-                        if let Err(e) = open_workspace_window(&app_handle, initial_port, &broker.url()) {
+                        if let Err(e) = open_workspace_window(
+                            &app_handle,
+                            initial_port,
+                            &broker.url(),
+                            broker.access_token(),
+                        ) {
                             log::error!("Failed to open window: {}", e);
                         }
                     } else {

@@ -4,7 +4,7 @@
 
 本地桌面 GUI，专为 [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi) 编程 Agent 打造。无需云端，无需账号，完全在本机运行。
 
-Ompcot 启动时自动查找系统上已安装的 `omp`，无需将其打包进 .app。更新 omp（`brew upgrade omp`）后 Ompcot 自动使用最新版本。
+Ompcot 启动时自动查找系统上已安装的 `omp`，无需将其打包进 .app。升级 omp 后，Ompcot 会自动使用最新版本。
 
 > **Fork 自 [Picot](https://github.com/shixin-guo/picot)**（Picot 又是 Tau 的 fork），适配 OMP 替代 Pi。
 
@@ -12,12 +12,12 @@ Ompcot 启动时自动查找系统上已安装的 `omp`，无需将其打包进 
 
 ## 安装
 
-[从 GitHub Releases 下载](https://github.com/zephyrq-z/ompcot/releases)
+[从 GitHub Releases 下载](https://github.com/kyle-kw/ompcot/releases)
 
-**前提条件：** 需要系统上已安装 `omp`。推荐通过 Homebrew 安装：
+**前提条件：** 需要系统上已安装 `omp`。请使用 [omp.sh](https://omp.sh) 提供的平台安装器，或者通过 Bun 安装：
 
 ```bash
-brew install omp
+bun install -g @oh-my-pi/pi-coding-agent
 ```
 
 ### macOS 未签名提示
@@ -70,8 +70,11 @@ Ompcot 为 OMP 提供完整的可视化界面。打开任意项目文件夹，�
 
 ### 📱 移动端 & 局域网访问
 
-- **局域网二维码** — 扫码即可在同网络的任意设备上访问 Ompcot
+- **局域网二维码** — 扫码即可在同网络的任意设备上访问 Ompcot；二维码 URL
+  包含每次启动时随机生成的访问令牌
 - 移动端 URL 优化处理，支持 PWA 安装（iOS/Android 可添加到主屏幕）
+- 原生控制 broker 仅监听回环地址；局域网客户端只能访问二维码所指向的、
+  受令牌保护的 OMP 会话端点
 
 ### 📦 包管理器
 
@@ -113,9 +116,9 @@ Ompcot 为 OMP 提供完整的可视化界面。打开任意项目文件夹，�
 
 ## 集成的 OMP 能力
 
-Ompcot 不重新实现 Agent 逻辑——它内嵌 OMP 并通过原生 UI 暴露其运行时能力。
+Ompcot 不重新实现 Agent 逻辑——它管理 OMP 子进程，并通过原生 UI 暴露其运行时能力。
 
-- **系统 omp 运行时** — 运行时通过 PATH 查找 omp，`brew upgrade omp` 自动生效
+- **系统 omp 运行时** — 运行时通过 `OMP_BIN` 或 `PATH` 查找 omp，升级后自动生效
 - **流式 RPC 桥接** — 逐 Token 输出、工具调用事件和思考块实时渲染
 - **会话生命周期 API** — 创建、切换、恢复会话，完整的按项目历史
 - **WebSocket Broker** — 多个 UI 客户端可同时连接同一个 omp 进程
@@ -153,19 +156,19 @@ Ompcot 启动时通过 PATH 查找 `omp` 二进制，然后以 `omp --mode rpc -
 
 ## 使用方法
 
-1. 确保已安装 `omp`：`brew install omp`
+1. 确保已安装 `omp` 并位于 `PATH`，或设置 `OMP_BIN`
 2. 启动 **Ompcot**
 3. 点击项目气泡或选择一个文件夹
 4. 开始对话 — omp Agent 会自动启动
 
-通过任意工作区内的 `omp /login` 提供模型凭证，或直接写入 `~/.omp/agent/auth.json`。Ompcot 本身不管理凭证。
+可在 Ompcot 设置中配置模型凭证，也可以使用 `omp /login` 或直接写入 `~/.omp/agent/auth.json`。
 
 ---
 
 ## 从源码构建
 
 ```bash
-git clone https://github.com/zephyrq-z/ompcot.git
+git clone https://github.com/kyle-kw/ompcot.git
 cd ompcot
 bun install --frozen-lockfile
 bun run dev      # 启动 tauri dev 热重载
@@ -189,8 +192,8 @@ bun run check:rust   # cargo check + clippy + fmt（快速，无需完整构建�
 
 Ompcot 是 [Picot](https://github.com/shixin-guo/picot)（Picot 又是 Tau 的 fork）的 fork，适配 OMP。主要改动：
 
-- **Pi → OMP 迁移** — 所有二进制引用、包名、路径、环境变量已更新
-- **运行时 PATH 查找** — 使用系统安装的 omp，`brew upgrade omp` 即可更新，无需重建 .app
+- **Pi → OMP 迁移** — 运行时引用、路径和环境变量均使用 OMP
+- **系统 OMP 运行时** — 通过 `OMP_BIN` 或 `PATH` 查找 omp，升级 OMP 后无需重建 Ompcot
 - **OMP SDK 包** — `@oh-my-pi/pi-coding-agent` 及相关包
 
 ---

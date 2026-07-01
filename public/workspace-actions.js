@@ -29,6 +29,8 @@
 // across the navigation boundary via sessionStorage; the new page boots
 // straight into it (see index.html bootstrap script).
 
+import { appendAccessToken } from "./access-control.js";
+
 // Append the broker WS URL to a navigation target so the freshly-loaded
 // page (on a *different* origin/port) can reach the shared broker. Without
 // this the new page can't recover the broker URL: it isn't in the URL, and
@@ -38,14 +40,20 @@
 // (open_workspace_window) which already appends ?brokerWs=.
 export function withBrokerWs(url, transport) {
   let brokerUrl = "";
+  let accessToken = "";
   try {
     brokerUrl = transport?.brokerWsUrl?.() || "";
+    accessToken = transport?.accessToken?.() || "";
   } catch {
     brokerUrl = "";
+    accessToken = "";
   }
-  if (!brokerUrl) return url;
-  const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}brokerWs=${encodeURIComponent(brokerUrl)}`;
+  let result = url;
+  if (brokerUrl) {
+    const separator = result.includes("?") ? "&" : "?";
+    result = `${result}${separator}brokerWs=${encodeURIComponent(brokerUrl)}`;
+  }
+  return appendAccessToken(result, accessToken);
 }
 
 export function buildWorkspaceUrl(port, env = globalThis.window || globalThis) {

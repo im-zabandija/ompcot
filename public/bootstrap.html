@@ -64,8 +64,8 @@
 <body>
   <main class="card">
     <h1>Ompcot could not start</h1>
-    <p>The embedded <code>omp</code> runtime that ships with Ompcot failed to launch.</p>
-    <p>This usually means the installation is incomplete or corrupted. Reinstalling Ompcot normally fixes it. Click <b>Retry startup</b> after reinstalling or rebooting.</p>
+    <p>The system <code>omp</code> runtime could not be started.</p>
+    <p>Verify that OMP is installed and available on <code>PATH</code>, then click <b>Retry startup</b>.</p>
     <div id="startup-error" class="error"></div>
     <div class="actions">
       <button id="retry-btn" type="button">Retry startup</button>
@@ -89,10 +89,14 @@
         return;
       }
       retryBtn.disabled = true;
-      hint.textContent = 'Starting Pi runtime...';
+      hint.textContent = 'Starting OMP runtime...';
       try {
-        const port = await invoke('cmd_retry_startup');
-        window.location.href = `http://localhost:${port}`;
+        const result = await invoke('cmd_retry_startup');
+        const params = new URLSearchParams({
+          accessToken: result.accessToken,
+          brokerWs: result.brokerWs,
+        });
+        window.location.href = `http://localhost:${result.port}?${params}`;
       } catch (error) {
         hint.textContent = String(error?.message || error || 'Startup failed');
         retryBtn.disabled = false;

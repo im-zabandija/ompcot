@@ -14,7 +14,7 @@ cd "$ROOT_DIR"
 # Mirror the `prebuild` lifecycle hook. The release script intentionally
 # calls `tauri build` directly (not `bun run build`) so the lifecycle hook
 # does NOT fire automatically. Reproduce it here so a release never ships
-# with a stale or missing embedded omp binary / extension bundle.
+# with a stale or missing extension bundle.
 echo "Building extensions bundle..."
 bun run "$ROOT_DIR/scripts/build-extensions.js"
 

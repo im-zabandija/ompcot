@@ -52,6 +52,19 @@ describe("resolveWebSocketUrl", () => {
       }),
     ).toBe("wss://studio.local/ws");
   });
+
+  test("protects the page-local websocket with the launch token", () => {
+    expect(
+      resolveWebSocketUrl({
+        location: {
+          protocol: "http:",
+          host: "192.168.1.20:47821",
+          search: "?mobile=1&accessToken=launch-secret",
+        },
+        sessionStorage: fakeSessionStorage(),
+      }),
+    ).toBe("ws://192.168.1.20:47821/ws?accessToken=launch-secret");
+  });
 });
 
 describe("WebSocketClient control commands", () => {

@@ -2,6 +2,7 @@
  * Main App - Ties everything together
  */
 
+import { installAuthenticatedFetch, stripSensitiveConnectionParams } from "./access-control.js";
 import { setupContextViz } from "./app-context-viz.js";
 import { setupSettingsEditors } from "./app-settings-editors.js";
 import { setupSettingsToggles } from "./app-settings-toggles.js";
@@ -34,6 +35,8 @@ import {
   startInWindowNewSession,
   startNewProjectChat,
 } from "./workspace-actions.js";
+
+installAuthenticatedFetch(window);
 
 const fetchInstances = async () => {
   try {
@@ -140,6 +143,7 @@ function dismissBootSwapOverlayWhenReady() {
 
 // Initialize components
 const wsUrl = resolveWebSocketUrl(window);
+stripSensitiveConnectionParams(window);
 const wsClient = new WebSocketClient(wsUrl);
 // Unified control transport: every process/window lifecycle + native op goes
 // through the broker WebSocket (broker_control). No Tauri IPC hooks — the
@@ -1935,7 +1939,7 @@ async function resetUiForNewSession() {
   updateMirrorInputState();
   updateUI();
 
-  // Mark that the next assistant turn should refresh the sidebar, since pi
+  // Mark that the next assistant turn should refresh the sidebar, since OMP
   // doesn't persist a brand-new session to disk until the first message round-trip.
   pendingNewSessionRefresh = true;
 

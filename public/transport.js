@@ -14,6 +14,7 @@
  * ops reject server-side. The UI is identical across environments.
  */
 
+import { resolveAccessToken } from "./access-control.js";
 import { resolveBrokerWsUrl } from "./websocket-client.js";
 
 // Long/interactive ops must not be killed by the default 30s control timeout:
@@ -106,15 +107,15 @@ export class WsTransport {
   }
 
   listOMPPackages() {
-    return this._control("list_pi_packages", {});
+    return this._control("list_omp_packages", {});
   }
 
   installOMPPackage(source) {
-    return this._control("install_pi_package", { source }, { timeoutMs: PACKAGE_TIMEOUT_MS });
+    return this._control("install_omp_package", { source }, { timeoutMs: PACKAGE_TIMEOUT_MS });
   }
 
   removeOMPPackage(source) {
-    return this._control("remove_pi_package", { source }, { timeoutMs: PACKAGE_TIMEOUT_MS });
+    return this._control("remove_omp_package", { source }, { timeoutMs: PACKAGE_TIMEOUT_MS });
   }
 
   // ── Native-only ops (need an OS host; reject when capabilities.native=false) ─
@@ -171,6 +172,10 @@ export class WsTransport {
 
   brokerWsUrl() {
     return resolveBrokerWsUrl(this.env);
+  }
+
+  accessToken() {
+    return resolveAccessToken(this.env);
   }
 }
 

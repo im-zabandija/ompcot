@@ -59,6 +59,27 @@ describe("WsTransport", () => {
     );
   });
 
+  test("package operations use OMP control command names", async () => {
+    const ws = fakeWsClient();
+    const transport = createTransport({ wsClient: ws, env: {} });
+
+    await transport.listOMPPackages();
+    await transport.installOMPPackage("npm:example");
+    await transport.removeOMPPackage("npm:example");
+
+    expect(ws.sendControl).toHaveBeenCalledWith("list_omp_packages", {}, {});
+    expect(ws.sendControl).toHaveBeenCalledWith(
+      "install_omp_package",
+      { source: "npm:example" },
+      { timeoutMs: 120000 },
+    );
+    expect(ws.sendControl).toHaveBeenCalledWith(
+      "remove_omp_package",
+      { source: "npm:example" },
+      { timeoutMs: 120000 },
+    );
+  });
+
   test("capabilities reflect the underlying ws client", () => {
     const transport = new WsTransport(fakeWsClient({ native: false }), {});
     expect(transport.capabilities.native).toBe(false);
@@ -79,15 +100,19 @@ describe("WsTransport", () => {
     );
   });
 
-  test("currentPort + brokerWsUrl derive from the environment", () => {
+  test("currentPort, brokerWsUrl, and accessToken derive from the environment", () => {
     const env = {
-      location: { port: "48010", search: "?brokerWs=ws://x/ui-ws" },
+      location: {
+        port: "48010",
+        search: "?brokerWs=ws://x/ui-ws&accessToken=launch-secret",
+      },
       sessionStorage: { getItem: () => null, setItem: () => {} },
     };
     const transport = new WsTransport(fakeWsClient(), env);
 
     expect(transport.currentPort()).toBe(48010);
     expect(transport.brokerWsUrl()).toBe("ws://x/ui-ws");
+    expect(transport.accessToken()).toBe("launch-secret");
   });
 
   test("relaunchApp swallows the disconnect that follows a host restart", async () => {

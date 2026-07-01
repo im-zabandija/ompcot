@@ -113,13 +113,13 @@ body {
   transition: all var(--duration) var(--ease);
 }
 
-.tau-icon {
+.ompcot-icon {
   width: 24px;
   height: 24px;
   border-radius: var(--radius-sm);
 }
 
-.tau-icon-welcome {
+.ompcot-icon-welcome {
   width: 64px;
   height: 64px;
   border-radius: var(--radius);
@@ -5290,7 +5290,7 @@ body.hide-thinking .thinking-block {
 /* ═══════════════════════════════════════════════════════
    Instance-swap overlay
    ───────────────────────────────────────────────────────
-   Shown over the whole window while we spawn a new pi
+   Shown over the whole window while we spawn a new omp process
    process and navigate this WebView to the new port.
    Without it the user sees a hard white flash because
    `window.location.href = ...` is a full-page navigation.

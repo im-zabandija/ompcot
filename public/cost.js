@@ -1,4 +1,8 @@
+import { installAuthenticatedFetch, stripSensitiveConnectionParams } from "./access-control.js";
 import { renderCostInfobar } from "./cost-infobar.js";
+
+installAuthenticatedFetch(window);
+stripSensitiveConnectionParams(window);
 
 const scopeSelect = document.getElementById("scope-select");
 let currentRange = "30d";
