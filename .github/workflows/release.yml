@@ -25,8 +25,11 @@ jobs:
           # 24.04 for GTK/WebKit bundles in CI.
           - os: ubuntu-22.04
           - os: ubuntu-24.04-arm
+          # Windows installers for Intel/AMD and ARM machines.
           - os: windows-2022
+            rust_target: x86_64-pc-windows-msvc
           - os: windows-11-arm
+            rust_target: aarch64-pc-windows-msvc
 
     runs-on: ${{ matrix.os }}
 
@@ -130,8 +133,8 @@ jobs:
           # `https://github.com/.../releases/latest/download/latest.json`.
           updaterJsonPreferNsis: true
 
-      - name: Build Tauri app and publish assets
-        if: runner.os != 'Linux'
+      - name: Build Tauri app (macOS) and publish assets
+        if: runner.os == 'macOS'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -162,3 +165,20 @@ jobs:
           # `https://github.com/.../releases/latest/download/latest.json`.
           updaterJsonPreferNsis: true
 
+      - name: Build Tauri app (Windows NSIS + MSI) and publish assets
+        if: runner.os == 'Windows'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Ompcot ${{ github.ref_name }}"
+          releaseBody: |
+            Automated release for `${{ github.ref_name }}`.
+            Download the installer for your platform from the assets below.
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          args: --target ${{ matrix.rust_target }} --bundles nsis,msi
+          updaterJsonPreferNsis: true
