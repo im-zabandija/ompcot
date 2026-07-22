@@ -6,7 +6,7 @@ A local desktop GUI for the [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi
 
 Ompcot uses the `omp` runtime installed on your system. It resolves `OMP_BIN` first and then `omp` from `PATH`, so upgrading OMP does not require rebuilding the app.
 
-> **Forked from [Picot](https://github.com/shixin-guo/picot)** (which was a fork of Tau), adapted for OMP instead of Pi. This repo continues development from [kyle-kw/ompcot](https://github.com/kyle-kw/ompcot) as a personal, actively-maintained fork.
+> Adapted from [Picot](https://github.com/shixin-guo/picot) (Pi-based, itself a fork of Tau) for OMP instead of Pi — see [Fork history](#fork-history) for the full chain. This repo is a personal, actively-maintained continuation.
 
 ---
 
