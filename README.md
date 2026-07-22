@@ -200,7 +200,7 @@ bun run check:rust   # cargo check + clippy + fmt (fast; no full build needed)
 
 ## Fork history
 
-Ompcot's lineage: Tau → [Picot](https://github.com/shixin-guo/picot) (Pi-based) → [kyle-kw/ompcot](https://github.com/kyle-kw/ompcot) (migrated to OMP) → **this repo** (personal continuation, actively maintained). Key changes along the way:
+Ompcot's lineage: [Tau](https://github.com/deflating/tau) → [Picot](https://github.com/shixin-guo/picot) (Shixin Guo, still actively developed) → [zephyrq-z/ompcot](https://github.com/zephyrq-z/ompcot) (Pi → OMP migration) → [kyle-kw/ompcot](https://github.com/kyle-kw/ompcot) (Windows release fix) → **this repo** (personal continuation, actively maintained). Key changes along the way:
 
 - **Pi → OMP migration** — runtime references, paths, and environment variables use OMP
 - **System OMP runtime** — resolves `OMP_BIN` or `omp` from `PATH`; OMP upgrades take effect without rebuilding Ompcot
