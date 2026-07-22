@@ -1,3 +1,5 @@
+import { getVoiceLocale } from "./themes.js";
+
 export function setupVoiceInput({ micBtn, messageInput }) {
   if (!micBtn || !messageInput) return;
 
@@ -9,7 +11,10 @@ export function setupVoiceInput({ micBtn, messageInput }) {
     recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-AU";
+    // Locale: user override (cross-port cookie) → OS locale → en-US fallback.
+    const resolveLocale = () =>
+      getVoiceLocale() || navigator.language || navigator.languages?.[0] || "en-US";
+    recognition.lang = resolveLocale();
 
     let finalTranscript = "";
     let interimTranscript = "";
@@ -48,6 +53,7 @@ export function setupVoiceInput({ micBtn, messageInput }) {
       finalTranscript = messageInput.value;
       interimTranscript = "";
       isRecording = true;
+      recognition.lang = resolveLocale();
       micBtn.classList.add("recording");
       micBtn.title = "Stop recording";
       recognition.start();

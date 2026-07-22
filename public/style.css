@@ -42,7 +42,7 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-size: 15px;
+  font-size: var(--font-size-base, 15px);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2418,6 +2418,17 @@ body {
 .settings-value-btn:hover {
   background: var(--bg-glass-hover);
   border-color: var(--border-hover);
+}
+
+.settings-value-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.settings-btn-group {
+  display: inline-flex;
+  gap: 6px;
 }
 
 .settings-static-value {
@@ -5047,6 +5058,15 @@ body.hide-thinking .thinking-block {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Forced reduced motion — user toggle in Settings, independent of the OS.
+   Same mechanism as the media query above, but driven by data-motion. */
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
 }
 
 @media (prefers-reduced-transparency: reduce) {

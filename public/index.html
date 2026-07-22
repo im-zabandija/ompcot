@@ -246,6 +246,37 @@
           <div class="settings-section">
             <div class="settings-section-title">Appearance</div>
             <div class="theme-grid" id="theme-grid"></div>
+            <div class="settings-row">
+              <span class="settings-label">Accent color</span>
+              <span class="settings-btn-group">
+                <input type="color" id="setting-accent-color" value="#000000" />
+                <button class="settings-value-btn" id="setting-accent-reset">Reset</button>
+              </span>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Font size</span>
+              <span class="settings-btn-group" id="setting-font-size">
+                <button class="settings-value-btn" data-font-size="small">S</button>
+                <button class="settings-value-btn" data-font-size="medium">M</button>
+                <button class="settings-value-btn" data-font-size="large">L</button>
+              </span>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Compact density</span>
+              <button class="settings-toggle" id="setting-density-toggle"></button>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Sidebar width</span>
+              <input type="range" id="setting-sidebar-width" min="220" max="360" step="1" />
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Motion</span>
+              <span class="settings-btn-group" id="setting-motion">
+                <button class="settings-value-btn" data-motion="auto">Auto</button>
+                <button class="settings-value-btn" data-motion="reduced">Reducido</button>
+                <button class="settings-value-btn" data-motion="full">Completo</button>
+              </span>
+            </div>
           </div>
           <div class="settings-section">
             <div class="settings-section-title">Agent</div>
@@ -263,6 +294,26 @@
             <div class="settings-row">
               <span class="settings-label">Show thinking</span>
               <button class="settings-toggle on" id="toggle-show-thinking"></button>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label settings-label-stack">
+                <span class="settings-label-main">Voice input locale</span>
+                <span class="settings-label-sub">Speech recognition language</span>
+              </span>
+              <select class="settings-value-btn" id="setting-voice-locale">
+                <option value="">System default</option>
+                <option value="en-US">English (US)</option>
+                <option value="en-GB">English (UK)</option>
+                <option value="en-AU">English (AU)</option>
+                <option value="es-ES">Español (España)</option>
+                <option value="es-419">Español (Latinoamérica)</option>
+                <option value="pt-BR">Português (Brasil)</option>
+                <option value="fr-FR">Français</option>
+                <option value="de-DE">Deutsch</option>
+                <option value="it-IT">Italiano</option>
+                <option value="ja-JP">Japanese</option>
+                <option value="zh-CN">Chinese (Simplified)</option>
+              </select>
             </div>
           </div>
           <div class="settings-section" id="setting-updater-section">

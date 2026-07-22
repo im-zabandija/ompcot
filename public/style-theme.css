@@ -317,3 +317,16 @@
 
   --success: #2a8a52;
 }
+
+/* ─── Density: compact (opt-in) ─── */
+:root[data-density="compact"] .message {
+  gap: 2px;
+}
+
+:root[data-density="compact"] .session-item {
+  padding: 4px 6px;
+}
+
+:root[data-density="compact"] .tool-card-header {
+  padding: 4px 8px;
+}

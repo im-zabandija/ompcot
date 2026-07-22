@@ -17,8 +17,12 @@ use tauri::image::Image;
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::menu::MenuBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_dialog::MessageDialogKind;
+use tauri_plugin_notification::NotificationExt;
 
 type OmpManagerState = Arc<OmpManager>;
 type BrokerWsState = Arc<BrokerWs>;
@@ -508,6 +512,124 @@ fn open_bootstrap_window(app: &AppHandle, startup_error: &str) -> Result<(), Str
     Ok(())
 }
 
+// ─── Tray icon + global shortcut helpers ──────────────────────────────────────
+
+/// The default toggle shortcut (5.6). `CmdOrCtrl+Shift+O` maps to SUPER on
+/// macOS and CONTROL elsewhere, mirroring Tauri's `CmdOrCtrl` convention.
+#[cfg(target_os = "macos")]
+const TOGGLE_MODIFIERS: Modifiers = Modifiers::SUPER.union(Modifiers::SHIFT);
+#[cfg(not(target_os = "macos"))]
+const TOGGLE_MODIFIERS: Modifiers = Modifiers::CONTROL.union(Modifiers::SHIFT);
+
+fn toggle_shortcut() -> Shortcut {
+    Shortcut::new(Some(TOGGLE_MODIFIERS), Code::KeyO)
+}
+
+/// Focus the first existing app window, or spawn a fresh workspace window in
+/// the user's home directory when none exist. Shared by the tray icon
+/// left-click, the "Nueva ventana" tray item (5.5), and the global shortcut
+/// (5.6) — the same focus-or-create behaviour the single-instance handler uses.
+fn focus_or_open_main_window(app: &AppHandle) {
+    if let Some(w) = app.webview_windows().values().next() {
+        let _ = w.set_focus();
+        return;
+    }
+    open_new_workspace_window(app);
+}
+
+/// Spawn a new workspace window rooted at the user's home directory by calling
+/// the same async `open_workspace_core` the frontend uses. Runs on the async
+/// runtime because tray/shortcut callbacks are synchronous.
+fn open_new_workspace_window(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let (manager, broker) =
+            match (app.try_state::<OmpManagerState>(), app.try_state::<BrokerWsState>()) {
+                (Some(m), Some(b)) => (m.inner().clone(), b.inner().clone()),
+                _ => return,
+            };
+        let home = dirs::home_dir()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        if let Err(e) =
+            open_workspace_core(&home, None, false, true, true, false, &manager, &broker, Some(&app))
+                .await
+        {
+            log::error!("[ompcot] tray/shortcut failed to open workspace: {}", e);
+        }
+    });
+}
+
+/// Build the tray menu: one entry per live omp instance (dynamic), then the two
+/// fixed actions "Nueva ventana" and "Salir". Rebuilt via `rebuild_tray_menu`
+/// whenever the live-instance set changes.
+fn build_tray_menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    let ports = app
+        .try_state::<OmpManagerState>()
+        .map(|m| m.list_live_ports())
+        .unwrap_or_default();
+    let mut builder = MenuBuilder::new(app);
+    if ports.is_empty() {
+        builder = builder.text("instances-none", "Sin instancias activas");
+    } else {
+        for port in ports {
+            builder = builder.text(format!("instance-{port}"), format!("Instancia :{port}"));
+        }
+    }
+    builder
+        .separator()
+        .text("tray-new-window", "Nueva ventana")
+        .text("tray-quit", "Salir")
+        .build()
+}
+
+/// Rebuild + reinstall the tray menu after the live-instance set changes.
+/// Called at the same points where `broker.register_session`/`unregister_port`
+/// are invoked.
+fn rebuild_tray_menu(app: &AppHandle) {
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        match build_tray_menu(app) {
+            Ok(menu) => {
+                if let Err(e) = tray.set_menu(Some(menu)) {
+                    log::warn!("[ompcot] failed to update tray menu: {}", e);
+                }
+            }
+            Err(e) => log::warn!("[ompcot] failed to build tray menu: {}", e),
+        }
+    }
+}
+
+/// Create the tray icon (5.5). Left-click focuses/creates the main window;
+/// menu clicks route to the instance list + fixed actions.
+fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
+    let menu = build_tray_menu(app)?;
+    let mut builder = TrayIconBuilder::with_id("main-tray")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "tray-new-window" => open_new_workspace_window(app),
+            "tray-quit" => app.exit(0),
+            id if id.starts_with("instance-") => focus_or_open_main_window(app),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                focus_or_open_main_window(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+    builder.build(app)?;
+    Ok(())
+}
+
 fn canonical_if_exists(dir: PathBuf) -> Option<PathBuf> {
     if dir.join("index.html").exists() {
         Some(fs::canonicalize(&dir).unwrap_or(dir))
@@ -917,6 +1039,17 @@ fn install_control_handler(broker: &Arc<BrokerWs>, manager: Arc<OmpManager>, app
                     "download_and_install_update" => {
                         download_and_install_update_core(&app, progress).await
                     }
+                    "show_notification" => {
+                        let title = arg_str("title").ok_or("title is required")?;
+                        let body = arg_str("body").ok_or("body is required")?;
+                        app.notification()
+                            .builder()
+                            .title(title)
+                            .body(body)
+                            .show()
+                            .map_err(|e| e.to_string())?;
+                        Ok(Value::Null)
+                    }
                     "relaunch_app" => app.restart(),
                     other => Err(format!("Unknown control command: {other}")),
                 }
@@ -940,6 +1073,16 @@ fn main() {
     }
 
     tauri::Builder::default()
+        // MUST be the first plugin registered — the tauri-plugin-single-instance
+        // docs require this ordering; registering it after other plugins is not
+        // guaranteed to work. When a second Ompcot process is launched while one
+        // is already running, this handler focuses the existing window instead
+        // of spawning a duplicate omp process tree.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.webview_windows().values().next() {
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
@@ -954,7 +1097,41 @@ fn main() {
                 .level_for("hyper", log::LevelFilter::Warn)
                 .build(),
         )
+        .plugin(tauri_plugin_notification::init())
+        // Global shortcut (5.6). The handler focuses/creates the main window on
+        // press. NOTE: registration (in .setup below) can fail silently if
+        // another application has already claimed the shortcut at the OS level —
+        // a documented limitation of tauri-plugin-global-shortcut with no
+        // reasonable fallback, so we log and continue.
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        focus_or_open_main_window(app);
+                    }
+                })
+                .build(),
+        )
         .setup(|app| {
+            // Restore/save each window's size + position across launches.
+            // MUST be registered before ANY window is created (open_workspace_window
+            // / open_bootstrap_window below) — the plugin only hooks windows built
+            // after it is loaded.
+            //
+            // Label caveat: state is keyed by window label. Workspace windows use
+            // `workspace-<port>` (see open_workspace_window). Since tauri-plugin-
+            // single-instance (5.1) guarantees only one Ompcot process runs at a
+            // time, `OmpManager::next_port()` deterministically returns 47821 at
+            // every boot in the common single-workspace case, so the label
+            // `workspace-47821` is stable and geometry restore works. Additional
+            // multi-workspace windows get distinct ports (47822+) and their
+            // geometry only restores when the same port is reused between boots
+            // — accepted as a known limitation instead of forcing a stable label
+            // that would collide with the port-encoded label lookups in
+            // open_devtools_core and the on_window_event cleanup handler.
+            app.handle()
+                .plugin(tauri_plugin_window_state::Builder::default().build())?;
+
             let static_dir = find_static_dir(app);
             let manager = Arc::new(OmpManager::new(static_dir));
             let broker = Arc::new(BrokerWs::start().expect("failed to start broker websocket"));
@@ -1036,8 +1213,26 @@ fn main() {
             app.manage(manager.clone());
             app.manage(broker.clone());
 
+            // Tray icon (5.5) — built after OmpManager is managed so its menu
+            // can enumerate live instances. Left-click focuses/creates the main
+            // window; the menu lists live instances + "Nueva ventana"/"Salir".
+            if let Err(e) = setup_tray(app.handle()) {
+                log::warn!("[ompcot] failed to create tray icon: {}", e);
+            }
+            // Global shortcut (5.6): CmdOrCtrl+Shift+O focuses/creates the main
+            // window. Registration may fail silently if another app already owns
+            // the combo (see the plugin comment above) — log and carry on, no
+            // fallback is meaningful at this layer.
+            if let Err(e) = app.global_shortcut().register(toggle_shortcut()) {
+                log::warn!(
+                    "[ompcot] global shortcut registration failed (another app may own it): {}",
+                    e
+                );
+            }
+
             if startup_ok {
                 broker.register_session(initial_port, session_path.as_deref().unwrap_or(""));
+                rebuild_tray_menu(app.handle());
                 let app_handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
                     if let Err(e) = wait_for_omp_health(initial_port, 30).await {
@@ -1047,6 +1242,7 @@ fn main() {
                         // dead port every 750ms.
                         if let Some(broker) = app_handle.try_state::<BrokerWsState>() {
                             broker.unregister_port(initial_port);
+                            rebuild_tray_menu(&app_handle);
                         }
                     } else if let Some(broker) = app_handle.try_state::<BrokerWsState>() {
                         if let Err(e) = open_workspace_window(
@@ -1076,6 +1272,7 @@ fn main() {
                         }
                         if let Some(broker) = window.try_state::<BrokerWsState>() {
                             broker.unregister_port(port);
+                            rebuild_tray_menu(window.app_handle());
                         }
                     }
                 }

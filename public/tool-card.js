@@ -25,6 +25,11 @@ export class ToolCardRenderer {
       (args.oldText || args.old_text) &&
       (args.newText || args.new_text);
 
+    const hasCommand = typeof args?.command === "string" && args.command.length > 0;
+    const rerunBtnHtml = hasCommand
+      ? '<button class="tool-action-btn rerun-btn" title="Re-run in composer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>'
+      : "";
+
     card.innerHTML = `
       <div class="tool-card-header" onclick="this.parentElement.querySelector('.tool-card-body').classList.toggle('expanded'); this.querySelector('.tool-card-chevron').classList.toggle('expanded')">
         <div class="tool-header-left">
@@ -33,6 +38,7 @@ export class ToolCardRenderer {
           ${argsPreview ? `<span class="tool-args-preview">${this.escapeHtml(argsPreview)}</span>` : ""}
         </div>
         <div class="tool-header-right">
+          ${rerunBtnHtml}
           <button class="tool-action-btn copy-output-btn" title="Copy output" onclick="event.stopPropagation(); var t=this.closest('.tool-card').querySelector('.tool-output'); if(!t||!t.textContent.trim())return; var s=t.textContent,b=this; (navigator.clipboard?navigator.clipboard.writeText(s):new Promise(function(r){var a=document.createElement('textarea');a.value=s;a.style.cssText='position:fixed;left:-9999px';document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);r()})).then(function(){b.classList.add('copied');setTimeout(function(){b.classList.remove('copied')},1500)})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
           <div class="tool-status ${status}">${status}</div>
         </div>
@@ -50,6 +56,14 @@ export class ToolCardRenderer {
       const diffEl = this.renderDiff(args.oldText || args.old_text, args.newText || args.new_text);
       const body = card.querySelector(".tool-card-body");
       body.insertBefore(diffEl, body.firstChild);
+    }
+
+    if (hasCommand) {
+      const rerunBtn = card.querySelector(".rerun-btn");
+      rerunBtn?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.rerunInComposer(args.command);
+      });
     }
 
     this.container.appendChild(card);
@@ -159,6 +173,20 @@ export class ToolCardRenderer {
     const headerRight = document.createElement("div");
     headerRight.className = "tool-header-right";
 
+    const hasCommand = typeof args?.command === "string" && args.command.length > 0;
+    if (hasCommand) {
+      const rerunBtn = document.createElement("button");
+      rerunBtn.className = "tool-action-btn rerun-btn";
+      rerunBtn.title = "Re-run in composer";
+      rerunBtn.innerHTML =
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>';
+      rerunBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.rerunInComposer(args.command);
+      });
+      headerRight.appendChild(rerunBtn);
+    }
+
     const copyBtn = document.createElement("button");
     copyBtn.className = "tool-action-btn copy-output-btn";
     copyBtn.title = "Copy output";
@@ -258,6 +286,16 @@ export class ToolCardRenderer {
     if (outputElement && result) {
       outputElement.textContent = this.formatResult(result);
     }
+  }
+
+  /** Populate the composer with a Re-run prompt for the given command and focus it. No auto-send. */
+  rerunInComposer(command) {
+    const input = document.getElementById("message-input");
+    if (!input) return;
+    input.value = `Re-run: \`${command}\``;
+    input.focus();
+    // Trigger input event so composer's autoresize/state listeners react.
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   /** Compact preview for the header line */

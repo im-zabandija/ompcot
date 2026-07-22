@@ -634,6 +634,15 @@ impl OmpManager {
         port
     }
 
+    /// Sorted list of ports with a live tracked omp process. Used by the tray
+    /// menu (main.rs) to list running instances.
+    pub fn list_live_ports(&self) -> Vec<u16> {
+        let lock = self.processes.lock().unwrap();
+        let mut ports: Vec<u16> = lock.keys().copied().collect();
+        ports.sort_unstable();
+        ports
+    }
+
     /// Run `omp <args...>` with the resolved system binary and return stdout.
     /// Used by Settings UI package management operations (install/remove/list).
     pub fn run_omp_command(&self, args: &[String]) -> Result<String, String> {

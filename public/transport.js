@@ -140,6 +140,10 @@ export class WsTransport {
     return this._control("open_devtools", { port: port ?? currentPort(this.env) });
   }
 
+  showNotification({ title, body }) {
+    return this._control("show_notification", { title, body });
+  }
+
   // ── Auto-updater ────────────────────────────────────────────────────────────
 
   checkForUpdate() {

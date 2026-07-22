@@ -79,6 +79,52 @@ bun run build            # full release build (runs prebuild: build:extensions)
 
 Single test file: `bun run vitest run public/settings-save-status.test.js`
 
+## Known dev-environment issues (Linux / sandboxed or GPU-less hosts)
+
+`bun run dev` can fail with two infra issues unrelated to app code, both seen
+running Ompcot inside a container/sandbox that shares `$DISPLAY` with the host
+but has no real GPU passthrough:
+
+1. **Extension fails to load: `Cannot find package 'dijkstrajs'`.** In debug
+   builds `OmpManager` prefers the raw `extensions/embedded-server.ts` source
+   (loaded by omp's own TS loader) over the bundled `.mjs` — see
+   `resolve_embedded_extension_path` in `src-tauri/src/omp_manager.rs`. That
+   loader can fail to resolve `dijkstrajs` (a transitive dep of `qrcode`, used
+   for the LAN QR feature) even though it's present in `node_modules`. The omp
+   subprocess then dies and Ompcot times out waiting for `/api/health`.
+   Workaround: bundle the extension and force that path via the env var that
+   `resolve_embedded_extension_path` checks first:
+   ```bash
+   bun run build:extensions
+   OMCOT_EXTENSION="$(pwd)/extensions/dist/embedded-server.mjs" bun run dev
+   ```
+2. **WebKitGTK crashes in a loop** (`WebKit encountered an internal error`,
+   `WebLoaderStrategy.cpp`) when the webview tries to render — typical of
+   VMs/containers without a real DMABUF/EGL-capable compositor. Fix: set
+   before launching:
+   ```bash
+   WEBKIT_DISABLE_DMABUF_RENDERER=1
+   ```
+   (`WEBKIT_DISABLE_COMPOSITING_MODE=1` and `LIBGL_ALWAYS_SOFTWARE=1` are
+   the usual companions if that alone isn't enough.)
+
+Combined recipe that boots Ompcot end-to-end on such a host:
+```bash
+cd ~/Projects/ompcot
+bun run build:extensions
+OMCOT_EXTENSION="$(pwd)/extensions/dist/embedded-server.mjs" \
+WEBKIT_DISABLE_DMABUF_RENDERER=1 \
+bun run dev
+```
+
+**Rust toolchain on Fedora (no `rustup`):** this repo's `cargo`/`rustc` can
+come from `dnf` instead of `rustup`, in which case `rustup component add
+clippy` doesn't exist. Install clippy with `sudo dnf install clippy` (package
+`clippy.x86_64`) — **not** `cargo install clippy` (that resolves to an unrelated
+placeholder crate on crates.io, not the real linter). `cargo fmt`/`rustfmt` may
+likewise be absent; per `bun run check:rust` above this is advisory-only and
+does not block the script.
+
 ## Linting & Formatting
 
 This project uses [Biome](https://biomejs.dev/) for JS/TS linting and formatting.
@@ -113,20 +159,44 @@ The frontend (`public/`) is vanilla JS with **no framework**. Keep it modular:
 
 Ompcot is a Tauri v2 app. The three main layers:
 
-**1. Rust / Tauri (`src-tauri/`)** — process lifecycle and window management.
+**1. Rust / Tauri (`src-tauri/`)** — process lifecycle, window management, and OS integration.
 - `src-tauri/src/omp_manager.rs` — `OmpManager` spawns one `omp --mode rpc` subprocess per workspace, each on its own port. Manages port allocation, process lifecycle, and RPC message forwarding.
-- `src-tauri/src/main.rs` — native `broker_control` handler wired to `OmpManager`, window management, folder picker, updater, and startup.
+- `src-tauri/src/main.rs` — native `broker_control` handler wired to `OmpManager`, window management, folder picker, updater, startup, tray icon (dynamic menu of live instances), and global shortcut (`CmdOrCtrl+Shift+O` focuses/opens the main window).
+- Tauri plugins beyond the defaults (dialog/fs/shell/updater/process/log): `single-instance` (must stay first in the plugin chain), `window-state` (registered first in `.setup()`, before any window is created), `notification` (`show_notification` broker command, mirrored by `transport.showNotification()`), `tray-icon` (core feature, not a plugin — enabled via the `tauri` dep's `features` array), `global-shortcut`.
 
-**2. Frontend (`public/`)** — vanilla JS, no framework.
-- `app.js` — main entry: workspace launcher, window setup, session nav, settings
-- `websocket-client.js` — WebSocket client for streaming chat with OMP
-- `state.js` — shared app state
-- `transport.js` — sends lifecycle and native operations through the WebSocket broker
-- `message-renderer.js`, `tool-card.js`, `markdown.js` — chat message rendering
-- `session-sidebar.js` — session history list
-- `file-browser.js` — lazy-loaded file tree sidebar
-- `dialogs.js`, `workspace-actions.js` — modal dialogs and workspace actions
-- `themes.js` — theme switching (6 built-in themes)
+**2. Frontend (`public/`)** — vanilla JS, no framework. `app.js` is the
+orchestrator (~1180L): bootstrap, instance construction, the `setupXxx()`
+calls below in order, high-level WebSocket listeners, and the `Initialize`
+sequence at the end. Each concern beyond that lives in its own module,
+following the factory pattern (`setupXxx({ ...deps }) → { ...exports }`,
+see `app-workspace-header.js` for a documented example of the pattern,
+including how to thread mutable app.js state through getters/setters):
+- `app-swap-overlay.js` — full-page transition overlay during instance swaps.
+- `app-workspace-header.js` — workspace/git-branch header pills + "open in app" menu.
+- `app-settings-panel.js` — Settings panel open/close/tabs, theme grid, Appearance controls (accent/font/density/sidebar-width/motion), updater hookup.
+- `app-command-palette.js` — command palette (`Ctrl/Cmd+K`), RPC command helpers, session stats.
+- `app-model-picker.js` — model dropdown + thinking-level cycling.
+- `app-keyboard-shortcuts.js` — global keyboard shortcut bindings.
+- `app-composer.js` — textarea autoresize, image attach/paste/drop, message queue, `sendMessage`, abort.
+- `app-lan-qr.js` — LAN QR sharing modal.
+- `app-package-browser.js` — community package browse/search/install.
+- `app-rpc-events.js` — `handleRPCEvent` and all `handleAgentStart/End`, `handleMessage*`, `handleToolExecution*` handlers; native notification on agent-end when unfocused.
+- `app-session-routing.js` — session selection, mirror-mode sync, live-instance polling (`pollInstances`, gated by `poll-gating.js`), session history rendering.
+- `websocket-client.js` — WebSocket client for streaming chat with OMP.
+- `state.js` — shared app state.
+- `transport.js` — sends lifecycle and native operations through the WebSocket broker (includes `showNotification`, `openInApp`, `listInstalledApps`).
+- `message-renderer.js`, `tool-card.js`, `markdown.js` — chat message rendering; `tool-card.js` has a real LCS diff viewer and copy/expand/re-run actions on tool cards.
+- `session-sidebar.js` — session history list.
+- `file-browser.js` — lazy-loaded file tree sidebar.
+- `dialogs.js`, `workspace-actions.js` — modal dialogs and workspace actions.
+- `themes.js` — 6 built-in themes + user overrides (accent color, font size, density, sidebar width, motion preference), all persisted in cross-port cookies.
+- `poll-gating.js` — pure `shouldPoll(hasFocus, msSinceLastPoll)` used by the polling ticker in `app-session-routing.js`.
+
+**When adding a new frontend feature**, extend the closest existing module by
+concern (e.g. a new Settings control → `app-settings-panel.js`; a new agent
+event handler → `app-rpc-events.js`) rather than adding to `app.js`. Only
+create a new `app-*.js` module when the feature doesn't fit any existing one
+(see Module Design above for the ~50-line threshold).
 
 **3. Embedded server (`extensions/`)** — TypeScript compiled to `dist/embedded-server.mjs`.
 - Runs **inside** the `omp --mode rpc` process as a omp extension
