@@ -1,6 +1,6 @@
 # Ompcot
 
-[English](./README.md) | **中文**
+[Español](./README.md) | [English](./README.en.md) | **中文**
 
 本地桌面 GUI，专为 [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi) 编程 Agent 打造。无需云端，无需账号，完全在本机运行。
 
