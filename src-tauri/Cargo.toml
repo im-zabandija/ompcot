@@ -1,6 +1,6 @@
 [package]
 name = "ompcot"
-version = "0.4.0"
+version = "0.5.0"
 description = "Omp Agent Desktop - session manager for omp coding agent"
 authors = ["ZephyrQ"]
 edition = "2021"
@@ -13,13 +13,17 @@ path = "src/main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["image-png", "devtools", "macos-private-api"] }
+tauri = { version = "2", features = ["image-png", "devtools", "macos-private-api", "tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-log = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }

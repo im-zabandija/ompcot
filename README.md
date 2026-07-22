@@ -6,13 +6,13 @@ A local desktop GUI for the [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi
 
 Ompcot uses the `omp` runtime installed on your system. It resolves `OMP_BIN` first and then `omp` from `PATH`, so upgrading OMP does not require rebuilding the app.
 
-> **Forked from [Picot](https://github.com/shixin-guo/picot)** (which was a fork of Tau), adapted for OMP instead of Pi.
+> **Forked from [Picot](https://github.com/shixin-guo/picot)** (which was a fork of Tau), adapted for OMP instead of Pi. This repo continues development from [kyle-kw/ompcot](https://github.com/kyle-kw/ompcot) as a personal, actively-maintained fork.
 
 ---
 
 ## Install
 
-[Download from GitHub Releases](https://github.com/kyle-kw/ompcot/releases)
+[Download from GitHub Releases](https://github.com/im-zabandija/ompcot/releases)
 
 Install OMP before starting Ompcot. Use the installer for your platform from [omp.sh](https://omp.sh), or install the SDK package with Bun:
 
@@ -90,6 +90,9 @@ Ompcot gives you a full visual interface for OMP. Open any project folder, start
 ### 🎨 Themes & Appearance
 
 - Six built-in themes: **Dusk**, Dawn, Midnight, Clean, Terracotta, Sage
+- **Custom accent color** — pick any hex color, applied on top of any theme
+- **Font size, density, and sidebar width** — all adjustable and persisted
+- **Motion control** — force reduced/full animations independent of OS settings
 - Frosted-glass header and input bar (`backdrop-filter: blur`)
 - Native macOS title bar overlay integration
 - **Window dragging** from the header area — feels like a native app
@@ -110,7 +113,16 @@ Ompcot gives you a full visual interface for OMP. Open any project folder, start
 - Model picker with search/filter and keyboard support
 - Thinking level toggle (off / low / medium / high)
 - Auto and manual **context compaction** with status display
-- Push notification toggle
+- Voice input locale override (independent of OS language)
+- Native OS notifications when the agent finishes while unfocused
+
+### 🖥️ OS Integration
+
+- **System tray icon** with a live menu of running instances
+- **Global shortcut** (`Cmd/Ctrl+Shift+O`) to focus or open Ompcot from anywhere
+- **Single instance** — relaunching focuses the existing window instead of spawning a duplicate
+- Window size/position persisted across restarts
+- **Quick actions on tool cards** — copy output, expand/collapse all, and re-run bash commands straight from the composer
 
 ---
 
@@ -168,7 +180,7 @@ Provide model credentials in Ompcot Settings, via `omp /login`, or by writing `~
 ## Build from source
 
 ```bash
-git clone https://github.com/kyle-kw/ompcot.git
+git clone https://github.com/im-zabandija/ompcot.git
 cd ompcot
 bun install --frozen-lockfile
 bun run dev         # start tauri dev with hot reload
@@ -186,13 +198,22 @@ After any changes under `src-tauri/`:
 bun run check:rust   # cargo check + clippy + fmt (fast; no full build needed)
 ```
 
-## Upstream
+## Fork history
 
-Ompcot is a fork of [Picot](https://github.com/shixin-guo/picot) (which was a fork of Tau), adapted for OMP. Key changes:
+Ompcot's lineage: Tau → [Picot](https://github.com/shixin-guo/picot) (Pi-based) → [kyle-kw/ompcot](https://github.com/kyle-kw/ompcot) (migrated to OMP) → **this repo** (personal continuation, actively maintained). Key changes along the way:
 
 - **Pi → OMP migration** — runtime references, paths, and environment variables use OMP
 - **System OMP runtime** — resolves `OMP_BIN` or `omp` from `PATH`; OMP upgrades take effect without rebuilding Ompcot
 - **OMP SDK packages** — `@oh-my-pi/pi-coding-agent` and related packages
+
+### 0.5.0
+
+- `app.js` split from a 3656-line monolith into 11 focused modules under `public/app-*.js`
+- Interactive architecture map: `docs/architecture-map.html`
+- Visual customization: accent color, font size, density, sidebar width, motion preference
+- Native OS integration: single-instance, window-state persistence, native notifications, system tray, global shortcut (`Cmd/Ctrl+Shift+O`)
+- Quick actions on tool cards: copy output, expand/collapse all, re-run bash commands
+- Idle-aware polling (6x less network traffic while unfocused)
 
 ---
 

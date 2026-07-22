@@ -12,7 +12,7 @@ Ompcot 启动时自动查找系统上已安装的 `omp`，无需将其打包进 
 
 ## 安装
 
-[从 GitHub Releases 下载](https://github.com/kyle-kw/ompcot/releases)
+[从 GitHub Releases 下载](https://github.com/im-zabandija/ompcot/releases)
 
 **前提条件：** 需要系统上已安装 `omp`。请使用 [omp.sh](https://omp.sh) 提供的平台安装器，或者通过 Bun 安装：
 
@@ -168,7 +168,7 @@ Ompcot 启动时通过 PATH 查找 `omp` 二进制，然后以 `omp --mode rpc -
 ## 从源码构建
 
 ```bash
-git clone https://github.com/kyle-kw/ompcot.git
+git clone https://github.com/im-zabandija/ompcot.git
 cd ompcot
 bun install --frozen-lockfile
 bun run dev      # 启动 tauri dev 热重载
