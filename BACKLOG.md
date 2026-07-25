@@ -32,11 +32,6 @@ Una idea por ítem, dentro de la categoría que más se parezca. Formato:
 
 <!-- Algo que está roto o se comporta distinto a lo esperado -->
 
-- [ ] [P1] Al cambiar de sección/proyecto quedan datos de la sección anterior
-      El directorio mostrado arriba a la derecha a veces corresponde a la
-      sección previa, no a la que estoy viendo ahora — parece estado que no
-      se resetea al cambiar de sección.
-
 ## ✨ Funcionalidades nuevas
 
 <!-- Algo que hoy no existe y querés que se pueda hacer -->
@@ -50,11 +45,6 @@ Una idea por ítem, dentro de la categoría que más se parezca. Formato:
       Reemplazar/complementar el roadmap heredado del fork (en inglés) por
       uno que refleje nuestros requisitos, pedidos e ideas, para poder ver
       qué sigue y con qué urgencia.
-- [ ] [P1] Repositorio propio en GitHub + apuntar el auto-update ahí
-      Esto es un fork de un fork; el chequeo de actualización actual apunta
-      al primer fork (que no recibe updates). Crear nuestro repo propio y
-      que las llamadas de actualización apunten a ese. Mantener el nombre
-      "Ompcot" (renombrar todo el código sería mucho quilombo).
 - [ ] [P3] Vigilar el repositorio original (upstream) por cambios relevantes
       Además de nuestro repo, tener algo que avise si el proyecto original
       tuvo cambios importantes que convenga traer al nuestro, o hacia dónde
@@ -130,3 +120,28 @@ Una idea por ítem, dentro de la categoría que más se parezca. Formato:
 ## ✅ Hecho
 
 <!-- Acá voy moviendo lo tildado arriba, con fecha, para no perder el historial -->
+
+### 2026-07-25
+
+- [x] **[P1] Al cambiar de sección/proyecto quedan datos de la sección anterior.**
+      Causa raíz: al elegir una sesión de otro proyecto sin proceso vivo, se
+      reusaba el proceso omp del proyecto anterior con un switch in-place, y omp
+      no re-rootea el proceso en el switch — el directorio (y las tools del
+      agente) quedaban apuntando al proyecto viejo. Ahora una selección
+      cross-proyecto abre la sesión en un proceso omp dedicado rooteado en su
+      propio proyecto, y la pill del header muestra el path del proyecto
+      seleccionado al instante (sin flicker con el poll). El switch dentro del
+      mismo proyecto sigue siendo in-place, barato como siempre.
+
+### 2026-07-22
+
+- [x] **Repositorio propio en GitHub + apuntar el auto-update ahí.**
+      Repo nuevo público en `github.com/im-zabandija/ompcot`, historia completa
+      del fork preservada (no un squash). Remote `origin` apunta ahí; el fork
+      original queda como remote `upstream` (para el ítem pendiente de
+      "vigilar upstream"). `package.json`, `Cargo.toml`, `tauri.conf.json`
+      (los 3 lugares donde vive el número de versión) y el endpoint del
+      auto-updater actualizados a 0.5.0 + la URL nueva. README actualizado
+      (historia del fork + changelog 0.5.0) en inglés y chino. Se debatió
+      nombre propio vs. mantener "Ompcot" — se mantiene, cero renombres de
+      código/paths/identifiers.

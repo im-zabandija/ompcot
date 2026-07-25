@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { findPortForSession, getWorkspacePathForPort } from "./session-routing.js";
+import {
+  findPortForSession,
+  getWorkspacePathForPort,
+  isCrossProjectSelection,
+} from "./session-routing.js";
 
 describe("session routing helpers", () => {
   const instances = [
@@ -13,5 +17,23 @@ describe("session routing helpers", () => {
 
   test("resolves workspace path from the active omp process port", () => {
     expect(getWorkspacePathForPort(instances, 47822)).toBe("/tmp/b");
+  });
+});
+
+describe("isCrossProjectSelection", () => {
+  test("true when the selected session belongs to another project", () => {
+    expect(isCrossProjectSelection("/tmp/b", "/tmp/a")).toBe(true);
+  });
+
+  test("false for the same project (cheap in-place switch)", () => {
+    expect(isCrossProjectSelection("/tmp/a", "/tmp/a")).toBe(false);
+  });
+
+  test("false when the selected project is unknown (never force a spawn)", () => {
+    expect(isCrossProjectSelection("", "/tmp/a")).toBe(false);
+  });
+
+  test("false when the current workspace is unknown (bootstrap)", () => {
+    expect(isCrossProjectSelection("/tmp/b", "")).toBe(false);
   });
 });

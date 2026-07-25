@@ -1,6 +1,6 @@
 import { anchorHistoryToBottom } from "./history-scroll-anchor.js";
 import { shouldPoll } from "./poll-gating.js";
-import { findPortForSession } from "./session-routing.js";
+import { findPortForSession, isCrossProjectSelection } from "./session-routing.js";
 
 /**
  * Session selection, mirror-mode sync, and live-instance polling.
@@ -87,13 +87,26 @@ export function setupSessionRouting({
       setPendingSessionSwitchPath(null);
     }
     sidebar.setActive(session.filePath);
+    const workspacePathBeforeSelect = getCurrentWorkspacePath();
+    const selectedProjectPath = typeof project?.path === "string" ? project.path : "";
     const liveInstances = getLiveInstances();
     const targetLiveInstance = liveInstances.find(
       (instance) => instance.sessionFile === session.filePath,
     );
     let foregroundPort = findPortForSession(liveInstances, session.filePath, getForegroundPort());
     setForegroundPort(foregroundPort);
-    syncWorkspaceIndicatorFromInstances();
+    // Paint the pill with the selected session's project immediately, in every
+    // case (live, non-live, same/cross project). No flicker from the 5s poll:
+    // once the dedicated spawn/switch below registers a process with the right
+    // cwd, syncWorkspaceIndicatorFromInstances() resolves the same value; while
+    // the new port is not yet in liveInstances the lookup returns "" and falls
+    // back to this seeded foregroundWorkspacePath.
+    if (selectedProjectPath) {
+      setForegroundWorkspacePath(selectedProjectPath);
+      updateWorkspaceIndicator(selectedProjectPath);
+    } else {
+      syncWorkspaceIndicatorFromInstances();
+    }
     if (session.filePath) {
       wsClient.setRoutingContext({
         workspaceId: `workspace:${project?.path || getCurrentWorkspacePath() || "unknown"}`,
@@ -140,48 +153,69 @@ export function setupSessionRouting({
         return;
       }
 
-      if (wasStreaming) {
-        if (transport.spawnSessionProcess) {
-          let targetPort = null;
-          try {
-            const cwd = getCurrentWorkspacePath();
-            targetPort = await transport.spawnSessionProcess(session.filePath, cwd);
-          } catch (e) {
-            console.error(
-              "[App] Failed to spawn session process, falling back to deferred switch:",
-              e,
-            );
-          }
-          if (targetPort != null) {
-            logSessionRoute("select:spawned-dedicated", {
-              selectedSession: session.filePath,
-              targetPort,
-            });
-            foregroundPort = targetPort;
-            setForegroundPort(foregroundPort);
-            portSessionMap.set(targetPort, session.filePath);
-            wsClient.setRoutingContext({
-              sessionId: session.filePath,
-              sourcePort: foregroundPort,
-            });
-            syncWorkspaceIndicatorFromInstances();
-            pollInstances().catch(() => {});
-            wsClient.send({ type: "mirror_sync_request" });
-            if (isMobile()) {
-              sidebarEl.classList.add("collapsed");
-              sidebarOverlay.classList.remove("visible");
-            }
-            return;
-          }
+      const isCrossProject = isCrossProjectSelection(
+        selectedProjectPath,
+        workspacePathBeforeSelect,
+      );
+
+      // A dedicated process is needed for two distinct reasons: streaming (the
+      // current process is busy) or a cross-project pick (in-place switch_session
+      // would not re-root the process). Both spawn a process rooted in the
+      // selected session's project.
+      if ((wasStreaming || isCrossProject) && transport.spawnSessionProcess) {
+        let targetPort = null;
+        try {
+          targetPort = await transport.spawnSessionProcess(
+            session.filePath,
+            selectedProjectPath || workspacePathBeforeSelect,
+          );
+        } catch (e) {
+          console.error("[App] Failed to spawn session process, falling back:", e);
         }
+        if (targetPort != null) {
+          logSessionRoute("select:spawned-dedicated", {
+            selectedSession: session.filePath,
+            targetPort,
+          });
+          foregroundPort = targetPort;
+          setForegroundPort(foregroundPort);
+          portSessionMap.set(targetPort, session.filePath);
+          wsClient.setRoutingContext({
+            sessionId: session.filePath,
+            sourcePort: foregroundPort,
+          });
+          syncWorkspaceIndicatorFromInstances();
+          pollInstances().catch(() => {});
+          wsClient.send({ type: "mirror_sync_request" });
+          if (isMobile()) {
+            sidebarEl.classList.add("collapsed");
+            sidebarOverlay.classList.remove("visible");
+          }
+          return;
+        }
+      }
+
+      if (wasStreaming && !isCrossProject) {
         // Fallback: defer the switch until the current agent run ends.
-        // This preserves the old safe behavior when spawn is unavailable or fails.
+        // This preserves the old safe behavior when spawn is unavailable or
+        // fails. Only valid same-project: deferring an in-place switch to
+        // another project would reproduce the stale-cwd bug.
         setPendingSessionSwitchPath(session.filePath);
         updateUI();
         if (isMobile()) {
           sidebarEl.classList.add("collapsed");
           sidebarOverlay.classList.remove("visible");
         }
+        return;
+      }
+
+      if (isCrossProject) {
+        // Without a dedicated process there is no safe in-place option into
+        // another project: switch_session would run B's session with tools
+        // rooted in A.
+        messageRenderer.renderError(
+          `Failed to open session in its workspace: ${selectedProjectPath}`,
+        );
         return;
       }
 
