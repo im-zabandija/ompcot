@@ -206,6 +206,16 @@ Ompcot's lineage: [Tau](https://github.com/deflating/tau) → [Picot](https://gi
 - **System OMP runtime** — resolves `OMP_BIN` or `omp` from `PATH`; OMP upgrades take effect without rebuilding Ompcot
 - **OMP SDK packages** — `@oh-my-pi/pi-coding-agent` and related packages
 
+### Unreleased
+
+- Sidebar sessions: delete (with confirmation) and sort by recent / oldest / name
+- Redesigned session list: clearer visual hierarchy, tighter rows, and a first-message preview on the active session
+- Fixed session-title parsing: the server looked for a shape OMP no longer writes, so no session ever showed its real name
+- "Open folder" opened nothing under Wayland: the dialog now goes through the desktop portal and is anchored to the app window
+- OMP runtime update check, installable from Settings → Updates
+- Composer: slash-command menu, thinking-level dropdown, and a plan mode that restricts tools to read-only
+- Official OMP logo, which doubles as the new-session button
+
 ### 0.5.0
 
 - `app.js` split from a 3656-line monolith into 11 focused modules under `public/app-*.js`

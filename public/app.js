@@ -21,6 +21,7 @@ import { DialogHandler } from "./dialogs.js";
 import { FileBrowser } from "./file-browser.js";
 import { setupMessagesInsets } from "./layout-insets.js";
 import { MessageRenderer } from "./message-renderer.js";
+import { openAbandonedCleanup, refreshCleanupPill } from "./session-cleanup.js";
 import { SessionSidebar } from "./session-sidebar.js";
 import { setupSidebarSearchControl } from "./sidebar-search-control.js";
 import { StateManager } from "./state.js";
@@ -88,11 +89,26 @@ const toolCardRenderer = new ToolCardRenderer(document.getElementById("messages"
 const dialogHandler = new DialogHandler(document.getElementById("dialog-container"), wsClient);
 
 // Session sidebar
+const cleanupPillEl = document.getElementById("sidebar-cleanup-btn");
 const sidebar = new SessionSidebar(
   document.getElementById("session-list"),
   handleSessionSelect,
   handleNewProjectChat,
-  { onOpenProject: () => handleOpenFolder() },
+  {
+    onOpenProject: () => handleOpenFolder(),
+    onProjectsRendered: (projects) => {
+      const missing = projects.filter((p) => p.missing);
+      refreshCleanupPill({
+        pillEl: cleanupPillEl,
+        missingProjects: missing,
+        onOpen: () =>
+          openAbandonedCleanup({
+            missingProjects: missing,
+            onDeleted: () => sidebar.loadSessions(),
+          }),
+      });
+    },
+  },
 );
 
 // UI elements

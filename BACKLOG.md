@@ -96,6 +96,9 @@ Una idea por ítem, dentro de la categoría que más se parezca. Formato:
       Visualmente no combina con la app. Reemplazar por controles custom
       (minimizar/maximizar/cerrar) que aparezcan al pasar el mouse por esa
       zona, en vez de la barra nativa fija.
+- [ ] Paneles responsivos
+      Que los paneles (barra lateral, chat, etc.) se adapten bien al tamaño de
+      la ventana en lugar de quedar fijos o cortados.
 
 ## ⚡ Optimización / Rendimiento
 
@@ -120,6 +123,65 @@ Una idea por ítem, dentro de la categoría que más se parezca. Formato:
 ## ✅ Hecho
 
 <!-- Acá voy moviendo lo tildado arriba, con fecha, para no perder el historial -->
+
+### 2026-07-26
+
+- [x] **Eliminar sesiones desde la barra lateral.**
+      Click derecho (o el botón `⋯`) sobre una sesión abre el menú contextual
+      —que ya existía en el código pero nunca se había cableado— con Archivar y
+      Eliminar. Confirmación previa con un modal genérico nuevo
+      (`confirm-modal.js`). La sesión activa y las que están streameando no se
+      pueden borrar: es el archivo que omp está escribiendo en ese momento.
+- [x] **Ordenar las sesiones en la barra lateral.**
+      Recientes / Más viejas / Nombre A→Z, persistido en localStorage. Empezó
+      siendo un `<select>` nativo y terminó como botón de ícono con dropdown,
+      igual que los de modelo y thinking: el select era ancho, desentonaba, y
+      encima aplastaba al buscador hasta hacerlo desbordar sobre los botones de
+      al lado, que le robaban los clicks al de "abrir carpeta".
+- [x] **Ordenar el desorden de la barra lateral de sesiones.**
+      Causa raíz de que se viera tosco: el nombre del proyecto y el título de
+      la sesión tenían el mismo tamaño (14px), así que nada guiaba la vista. Y
+      peor: **ninguna sesión mostraba su título real**. Los tres parsers del
+      servidor buscaban entradas `{"type":"session_info","name":…}`, un formato
+      que omp ya no escribe (0 coincidencias en disco); el título real vive en
+      `{"type":"title","title":…}`. Por eso las 219 sesiones se listaban por su
+      primer mensaje truncado. Ahora la lógica está en un solo helper
+      (`sessionTitleFromEntry`) con tests, el proyecto pasó a separador discreto
+      (11px, mayúsculas, tenue), la sesión es la protagonista (13px), las filas
+      bajaron de 38px a 30px, y la sesión activa despliega el primer mensaje.
+- [x] **Cambiar el icono de Pi por el de OMP.**
+      El SVG oficial, tomado de `omp.sh/favicon.svg` en vez de redibujarlo:
+      π con gradiente `#ed4abf → #9b4dff → #5ad8e6` sobre badge `#0f0a14`.
+      Actualizados `logo.svg`, `logo-dark.svg`, `favicon.svg` y los 7 PNG
+      derivados. De paso el logo dejó de ser decorativo: ahora es el botón de
+      nueva sesión, y en hover se atenúa y muestra un `+`.
+- [x] **"Abrir carpeta" no hacía nada.**
+      Tres bugs encadenados, cada uno tapando al siguiente. (1)
+      `tauri-plugin-dialog` trae `default = ["gtk3"]`, y con ese backend rfd
+      maneja GTK3 directo: bajo Wayland el chooser nunca mapea ventana y el
+      picker resuelve "cancelado" — se cambió a `xdg-portal`, la misma vía que
+      usan zenity y el resto de las apps GTK. (2) Sin pasarle la ventana padre,
+      el portal no sabía a qué ventana pertenecía el diálogo y el compositor lo
+      abría en el otro monitor: se agregó `set_parent`. (3) El buscador del
+      header desbordaba sobre el botón y se comía el click.
+- [x] **Aviso de actualización del runtime OMP.**
+      Distinto del auto-updater de Ompcot: este mira el runtime `omp`
+      (`omp update --check`) al arrancar, muestra una pill en el sidebar cuando
+      hay versión nueva y una fila en Settings → Updates para instalarla con
+      `omp update --force`.
+- [x] **Menú de slash commands y selector de thinking.**
+      Autocompletado al tipear `/` en el composer (lista curada de los comandos
+      nativos), y el control de thinking pasó de botón que cicla a dropdown con
+      los 7 niveles canónicos.
+- [x] **Modo plan desde la GUI.**
+      Ojo con este: el plan mode **nativo** de omp no es alcanzable desde una
+      extensión en 17.1.3 — `/plan` sólo lo maneja el `InteractiveMode` de la
+      TUI, y la `ExtensionAPI` no expone `get/setPlanModeState` (verificado
+      contra el binario). El botón anterior mandaba el texto `/plan` como
+      mensaje, que el modelo leía como una pregunta. Se reemplazó por un plan
+      mode propio: restringe las tools activas a sólo lectura (`read`, `glob`,
+      `grep`, `web_search`, `todo`, `ask`) y restaura las previas al salir. El
+      botón refleja el estado real por RPC, no optimista.
 
 ### 2026-07-25
 

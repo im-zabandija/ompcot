@@ -14,3 +14,7 @@ omp-session-*.html
 
 # Personal scratch/draft notes — see BACKLOG.md for the structured version
 Ompcot - Ideas
+
+# Local dev launcher — hardcodes an absolute $HOME path, so it is per-machine
+# (run-dev.sh itself is portable and IS tracked)
+ompcot-dev.desktop
