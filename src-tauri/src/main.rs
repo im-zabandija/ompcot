@@ -433,6 +433,41 @@ fn open_external_core(url: &str) -> Result<(), String> {
         })
 }
 
+/// Read an image from the OS clipboard as base64. Linux-only fallback:
+/// WebKitGTK never delivers image/* to the DOM `paste` event (WebKit
+/// bug #218519), while Windows/macOS webviews do — there the DOM path in
+/// app-composer.js handles it and this returns Null.
+// ponytail: assumes wl-paste (Wayland) or xclip (X11) on PATH; if absent,
+// Linux image paste is a no-op. Upgrade path: tauri-plugin-clipboard.
+#[cfg(target_os = "linux")]
+fn read_clipboard_image_core() -> Value {
+    use base64::Engine as _;
+    let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some();
+    for mime in ["image/png", "image/jpeg"] {
+        let output = if wayland {
+            std::process::Command::new("wl-paste")
+                .args(["--type", mime])
+                .output()
+        } else {
+            std::process::Command::new("xclip")
+                .args(["-selection", "clipboard", "-t", mime, "-o"])
+                .output()
+        };
+        if let Ok(out) = output {
+            if out.status.success() && !out.stdout.is_empty() {
+                let data = base64::engine::general_purpose::STANDARD.encode(&out.stdout);
+                return serde_json::json!({ "data": data, "mimeType": mime });
+            }
+        }
+    }
+    Value::Null
+}
+
+#[cfg(not(target_os = "linux"))]
+fn read_clipboard_image_core() -> Value {
+    Value::Null
+}
+
 // ─── Window helpers ───────────────────────────────────────────────────────────
 
 fn encode_query_value(value: &str) -> String {
@@ -1010,6 +1045,7 @@ fn install_control_handler(broker: &Arc<BrokerWs>, manager: Arc<OmpManager>, app
                         open_external_core(&url)?;
                         Ok(Value::Null)
                     }
+                    "read_clipboard_image" => Ok(read_clipboard_image_core()),
                     "open_devtools" => {
                         let port = resolve_control_port(arg_u16("port"), &broker)?;
                         open_devtools_core(port, &app)?;

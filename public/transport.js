@@ -144,6 +144,10 @@ export class WsTransport {
     return this._control("show_notification", { title, body });
   }
 
+  readClipboardImage() {
+    return this._control("read_clipboard_image", {});
+  }
+
   // ── Auto-updater ────────────────────────────────────────────────────────────
 
   checkForUpdate() {

@@ -2030,12 +2030,18 @@ export default function (omp: ExtensionAPI) {
             const inferredPath =
               Array.from(cwdCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || decodedPath;
 
-            return { path: inferredPath, dirName, sessions };
+            return {
+              path: inferredPath,
+              dirName,
+              sessions,
+              missing: !fs.existsSync(inferredPath),
+            };
           },
         )
       ).filter(
         // biome-ignore lint/suspicious/noExplicitAny: dynamic session-list entries
-        (p): p is { path: string; dirName: string; sessions: any[] } => p !== null,
+        (p): p is { path: string; dirName: string; sessions: any[]; missing: boolean } =>
+          p !== null,
       );
 
       projects.sort((a, b) => {
