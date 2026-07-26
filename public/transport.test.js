@@ -51,7 +51,9 @@ describe("WsTransport", () => {
     await transport.pickFolder();
     await transport.openExternal("https://example.com");
 
-    expect(ws.sendControl).toHaveBeenCalledWith("pick_folder", {}, { timeoutMs: 0 });
+    // Generous but finite: an unopenable picker must not strand the caller
+    // forever, which leaves the "Open folder" button disabled until reload.
+    expect(ws.sendControl).toHaveBeenCalledWith("pick_folder", {}, { timeoutMs: 300000 });
     expect(ws.sendControl).toHaveBeenCalledWith(
       "open_external",
       { url: "https://example.com" },

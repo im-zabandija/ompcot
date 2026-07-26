@@ -186,10 +186,19 @@ async fn spawn_session_process_core(
     Ok(port)
 }
 
-/// Native folder picker dialog
+/// Native folder picker dialog.
+///
+/// The chooser is anchored to the app window on purpose: without a parent
+/// handle the desktop portal has no idea which window it belongs to, so a
+/// multi-monitor compositor is free to place it on another output/workspace
+/// entirely — it opens, but the user never sees it and the button looks dead.
 async fn pick_folder_core(app: &AppHandle) -> Option<String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
-    app.dialog().file().pick_folder(move |path| {
+    let mut builder = app.dialog().file();
+    if let Some(parent) = app.webview_windows().values().next() {
+        builder = builder.set_parent(parent);
+    }
+    builder.pick_folder(move |path| {
         let result = path.map(|p| match p {
             tauri_plugin_fs::FilePath::Path(pb) => pb.to_string_lossy().into_owned(),
             tauri_plugin_fs::FilePath::Url(url) => url.to_string(),

@@ -14,7 +14,12 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["image-png", "devtools", "macos-private-api", "tray-icon"] }
-tauri-plugin-dialog = "2"
+# The plugin defaults to `gtk3`, which makes rfd drive GTK3 directly. Under
+# Wayland compositors that chooser never maps a window and the picker resolves
+# to "cancelled", so "Open folder" silently does nothing. `xdg-portal` routes
+# through xdg-desktop-portal instead (the same path zenity/GTK apps take) and
+# is a no-op on macOS/Windows, which use their native backends.
+tauri-plugin-dialog = { version = "2", default-features = false, features = ["xdg-portal"] }
 tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"

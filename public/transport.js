@@ -22,6 +22,7 @@ import { resolveBrokerWsUrl } from "./websocket-client.js";
 const NO_TIMEOUT = 0;
 const SPAWN_TIMEOUT_MS = 60000;
 const PACKAGE_TIMEOUT_MS = 120000;
+const PICK_FOLDER_TIMEOUT_MS = 300000;
 
 function currentPort(env = globalThis.window || globalThis) {
   const port = Number.parseInt(env?.location?.port, 10);
@@ -120,8 +121,11 @@ export class WsTransport {
 
   // ── Native-only ops (need an OS host; reject when capabilities.native=false) ─
 
+  // Waits on a human, so no short timeout — but never forever: a picker that
+  // fails to open would otherwise leave "Open folder" disabled until the
+  // window is reloaded, which reads to the user as a dead button.
   pickFolder() {
-    return this._control("pick_folder", {}, { timeoutMs: NO_TIMEOUT });
+    return this._control("pick_folder", {}, { timeoutMs: PICK_FOLDER_TIMEOUT_MS });
   }
 
   listInstalledApps() {
