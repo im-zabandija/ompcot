@@ -99,6 +99,14 @@ export class WsTransport {
     return this._control("get_omp_version", {});
   }
 
+  checkOmpUpdate() {
+    return this._control("check_omp_update", {}, { timeoutMs: SPAWN_TIMEOUT_MS });
+  }
+
+  updateOmp() {
+    return this._control("update_omp", {}, { timeoutMs: NO_TIMEOUT });
+  }
+
   getAppVersion() {
     return this._control("get_app_version", {});
   }

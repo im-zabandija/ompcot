@@ -1042,21 +1042,22 @@ const { loadBrowsePackages } = setupPackageBrowser({
 // Theme / Settings + Auto-updater (app-settings-panel.js)
 // ═══════════════════════════════════════
 
-const { openSettings, closeSettings, selectSettingsTab, initUpdaterUI } = setupSettingsPanel({
-  settingsPanel,
-  messagesContainer,
-  transport,
-  nativeAvailable,
-  rpcCommand,
-  formatThinkingLevelLabel,
-  getCurrentThinkingLevel,
-  setCurrentThinkingLevel,
-  updateThinkingBtn,
-  fetchModelInfo,
-  updateUI,
-  loadBrowsePackages,
-  refreshLanUrl,
-});
+const { openSettings, closeSettings, selectSettingsTab, initUpdaterUI, initOmpUpdaterUI } =
+  setupSettingsPanel({
+    settingsPanel,
+    messagesContainer,
+    transport,
+    nativeAvailable,
+    rpcCommand,
+    formatThinkingLevelLabel,
+    getCurrentThinkingLevel,
+    setCurrentThinkingLevel,
+    updateThinkingBtn,
+    fetchModelInfo,
+    updateUI,
+    loadBrowsePackages,
+    refreshLanUrl,
+  });
 
 setupKeyboardShortcuts({
   state,
@@ -1083,6 +1084,9 @@ wsClient.addEventListener("capabilities", () => {
   refreshHeaderOpenAppButton();
   void loadHeaderOpenApps();
   void initUpdaterUI();
+  // Re-run the OMP update check too: the startup check may have raced a slow
+  // WS boot and silently failed, leaving an available update with no pill.
+  void initOmpUpdaterUI();
 });
 
 setupContextViz({

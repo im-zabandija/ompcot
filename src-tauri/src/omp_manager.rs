@@ -4,7 +4,7 @@ use std::io::Write;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
 #[cfg(target_os = "windows")]
@@ -31,34 +31,39 @@ struct EmbeddedExtensionResolution {
     source: &'static str,
 }
 
+/// Resolve the omp binary path: a custom `OMP_BIN` env override (only when it
+/// exists on disk) or the first `omp` / `omp.exe` found on PATH.
+pub fn resolve_omp_bin() -> Option<PathBuf> {
+    let bin_name = if cfg!(target_os = "windows") {
+        "omp.exe"
+    } else {
+        "omp"
+    };
+    // Match the spawn path's validation: trimmed value, must be a file.
+    std::env::var("OMP_BIN")
+        .ok()
+        .map(|s| PathBuf::from(s.trim()))
+        .filter(|p| p.is_file())
+        .or_else(|| which::which(bin_name).ok())
+}
+
 /// Resolve the system omp version by running `omp --version`.
 /// Result is cached lazily on first call.
 pub fn locked_omp_version() -> &'static str {
-    static CACHED: OnceLock<String> = OnceLock::new();
-    CACHED.get_or_init(|| {
-        let bin_name = if cfg!(target_os = "windows") {
-            "omp.exe"
-        } else {
-            "omp"
-        };
-        let bin = std::env::var("OMP_BIN")
-            .ok()
-            .map(PathBuf::from)
-            .or_else(|| which::which(bin_name).ok());
-        match bin {
-            Some(bin) => match Command::new(&bin).arg("--version").output() {
-                Ok(output) => {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    stdout.trim().to_string()
-                }
-                Err(e) => {
-                    log::warn!("[ompcot] failed to run omp --version: {}", e);
-                    "unknown".to_string()
-                }
-            },
-            None => "unknown (omp not found on PATH)".to_string(),
-        }
-    })
+    static CACHED: LazyLock<String> = LazyLock::new(|| match resolve_omp_bin() {
+        Some(bin) => match Command::new(&bin).arg("--version").output() {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                stdout.trim().to_string()
+            }
+            Err(e) => {
+                log::warn!("[ompcot] failed to run omp --version: {}", e);
+                "unknown".to_string()
+            }
+        },
+        None => "unknown (omp not found on PATH)".to_string(),
+    });
+    CACHED.as_str()
 }
 
 #[cfg(target_os = "windows")]

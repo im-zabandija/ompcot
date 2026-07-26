@@ -89,6 +89,12 @@
           <button class="sidebar-update-pill hidden" id="sidebar-update-btn" title="Update available" aria-label="Open updates in settings">
             Update
           </button>
+          <button class="sidebar-update-pill hidden" id="sidebar-omp-update-btn" title="OMP update available" aria-label="Open OMP update in settings">
+            OMP update
+          </button>
+          <button class="sidebar-cleanup-pill hidden" id="sidebar-cleanup-btn" title="Limpiar sesiones abandonadas" aria-label="Limpiar sesiones abandonadas">
+            Limpiar
+          </button>
         </div>
       </div>
     </div>
@@ -321,6 +327,14 @@
             <div class="settings-row" id="setting-omp-version">
               <span class="settings-label">OMP version</span>
               <span class="settings-static-value" id="setting-omp-version-value">Loading...</span>
+            </div>
+            <div class="settings-row" id="setting-omp-update-row">
+              <span class="settings-label">OMP runtime</span>
+              <button class="settings-value-btn" id="btn-omp-update">Check for update</button>
+            </div>
+            <div class="settings-row" id="setting-omp-update-status-row" hidden>
+              <span class="settings-label">Status</span>
+              <span class="settings-static-value" id="setting-omp-update-status"></span>
             </div>
             <div class="settings-row">
               <span class="settings-label">Ompcot version</span>

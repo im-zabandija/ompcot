@@ -5,7 +5,8 @@ mod omp_manager;
 
 use broker_ws::BrokerWs;
 use omp_manager::{
-    locked_omp_version, wait_for_endpoint, wait_for_health as wait_for_omp_health, OmpManager,
+    locked_omp_version, resolve_omp_bin, wait_for_endpoint, wait_for_health as wait_for_omp_health,
+    OmpManager,
 };
 use serde_json::Value;
 use std::fs::{self, File};
@@ -1033,6 +1034,48 @@ fn install_control_handler(broker: &Arc<BrokerWs>, manager: Arc<OmpManager>, app
                         Ok(Value::from(port))
                     }
                     "get_omp_version" => Ok(Value::from(locked_omp_version())),
+                    "check_omp_update" => {
+                        use std::process::Command;
+                        let bin = resolve_omp_bin().ok_or("omp binary not found")?;
+                        let out = tokio::task::spawn_blocking(move || {
+                            Command::new(&bin).args(["update", "--check"]).output()
+                        })
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .map_err(|e| e.to_string())?;
+                        let combined = format!(
+                            "{}{}",
+                            String::from_utf8_lossy(&out.stdout),
+                            String::from_utf8_lossy(&out.stderr)
+                        );
+                        let up_to_date = combined.to_lowercase().contains("up to date");
+                        let update_available = out.status.success() && !up_to_date;
+                        Ok(serde_json::json!({
+                            "success": out.status.success(),
+                            "updateAvailable": update_available,
+                            "currentVersion": locked_omp_version(),
+                            "output": combined.trim(),
+                        }))
+                    }
+                    "update_omp" => {
+                        use std::process::Command;
+                        let bin = resolve_omp_bin().ok_or("omp binary not found")?;
+                        let out = tokio::task::spawn_blocking(move || {
+                            Command::new(&bin).args(["update", "--force"]).output()
+                        })
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .map_err(|e| e.to_string())?;
+                        let combined = format!(
+                            "{}{}",
+                            String::from_utf8_lossy(&out.stdout),
+                            String::from_utf8_lossy(&out.stderr)
+                        );
+                        Ok(serde_json::json!({
+                            "success": out.status.success(),
+                            "output": combined.trim(),
+                        }))
+                    }
                     "get_app_version" => Ok(Value::from(env!("CARGO_PKG_VERSION"))),
                     "is_dev" => Ok(Value::from(cfg!(debug_assertions))),
                     "pick_folder" => Ok(match pick_folder_core(&app).await {

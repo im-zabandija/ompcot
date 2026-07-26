@@ -1,3 +1,4 @@
+import { createOmpUpdater } from "./app-omp-updater.js";
 import { setupSettingsEditors } from "./app-settings-editors.js";
 import { setupSettingsToggles } from "./app-settings-toggles.js";
 import { createAppUpdater } from "./app-updater.js";
@@ -34,8 +35,8 @@ import {
  * `settingsPanel` is owned by app.js because other sections (keyboard
  * shortcuts, model picker) also check its visibility. The thinking level
  * is owned by the model-picker section, so it's threaded through as
- * getter/setter. Returns `initUpdaterUI` so app.js can re-init the
- * updater UI when broker capabilities arrive.
+ * getter/setter. Returns `initUpdaterUI`/`initOmpUpdaterUI` so app.js can
+ * re-init the updater UIs when broker capabilities arrive.
  */
 export function setupSettingsPanel({
   settingsPanel,
@@ -153,6 +154,19 @@ export function setupSettingsPanel({
     },
   });
   void updater.initUpdaterUI();
+  const ompUpdater = createOmpUpdater({
+    transport,
+    checkBtn: document.getElementById("btn-omp-update"),
+    statusRow: document.getElementById("setting-omp-update-status-row"),
+    statusEl: document.getElementById("setting-omp-update-status"),
+    sidebarPill: document.getElementById("sidebar-omp-update-btn"),
+    onOpenSettings: async () => {
+      await openSettings();
+      selectSettingsTab("general");
+      document.getElementById("btn-omp-update")?.focus();
+    },
+  });
+  void ompUpdater.initOmpUpdaterUI();
 
   function buildThemeGrid() {
     themeGrid.innerHTML = "";
@@ -344,5 +358,6 @@ export function setupSettingsPanel({
     closeSettings,
     selectSettingsTab,
     initUpdaterUI: () => updater.initUpdaterUI(),
+    initOmpUpdaterUI: () => ompUpdater.initOmpUpdaterUI(),
   };
 }
