@@ -206,7 +206,7 @@ Ompcot's lineage: [Tau](https://github.com/deflating/tau) → [Picot](https://gi
 - **System OMP runtime** — resolves `OMP_BIN` or `omp` from `PATH`; OMP upgrades take effect without rebuilding Ompcot
 - **OMP SDK packages** — `@oh-my-pi/pi-coding-agent` and related packages
 
-### Unreleased
+### 0.5.1
 
 - Sidebar sessions: delete (with confirmation) and sort by recent / oldest / name
 - Redesigned session list: clearer visual hierarchy, tighter rows, and a first-message preview on the active session

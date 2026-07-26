@@ -206,7 +206,7 @@ Linaje de Ompcot: [Tau](https://github.com/deflating/tau) → [Picot](https://gi
 - **Runtime OMP del sistema** — resuelve `OMP_BIN` u `omp` desde `PATH`; las actualizaciones de OMP tienen efecto sin recompilar Ompcot
 - **Paquetes del SDK de OMP** — `@oh-my-pi/pi-coding-agent` y paquetes relacionados
 
-### Sin publicar
+### 0.5.1
 
 - Sesiones en la barra lateral: eliminar (con confirmación) y ordenar por recientes / más viejas / nombre
 - Rediseño del listado de sesiones: jerarquía visual clara, filas más compactas y preview del primer mensaje en la sesión activa
