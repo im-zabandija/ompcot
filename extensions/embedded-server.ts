@@ -343,6 +343,25 @@ export function normalizeApiRoutePath(urlPath: string): string {
   return urlPath.split("?")[0] || "/";
 }
 
+// omp writes the session title as `{"type":"title","title":"…"}`; the line is
+// re-padded in place on every rename, so a title entry can appear more than
+// once and the last non-empty one wins. `session_info`/`name` is a legacy
+// shape kept only as a fallback for older session files.
+export function sessionTitleFromEntry(entry: {
+  type?: string;
+  title?: string;
+  name?: string;
+}): string | null {
+  if (entry.type === "title" && typeof entry.title === "string") {
+    const t = entry.title.trim();
+    return t ? t : null;
+  }
+  if (entry.type === "session_info" && entry.name) {
+    return entry.name;
+  }
+  return null;
+}
+
 export function resolveGitBranchCwd({
   foregroundPort,
   fallbackCwd,
@@ -2137,8 +2156,9 @@ export default function (omp: ExtensionAPI) {
           continue;
         }
 
-        if (entry.type === "session_info" && entry.name) {
-          data.title = entry.name;
+        const parsedTitle = sessionTitleFromEntry(entry);
+        if (parsedTitle) {
+          data.title = parsedTitle;
           continue;
         }
 
@@ -2373,8 +2393,13 @@ export default function (omp: ExtensionAPI) {
       try {
         const entry = JSON.parse(line);
         if (entry.type === "session") header = entry;
-        else if (entry.type === "session_info" && entry.name) sessionName = entry.name;
-        else if (entry.type === "message" && entry.message?.role === "user") {
+        // omp writes the session title as `{"type":"title","title":"…"}` (the
+        // line is re-padded in place on every rename, so it stays near the top).
+        // `session_info` is a legacy shape kept only for older session files.
+        else if (entry.type === "title" || entry.type === "session_info") {
+          const t = sessionTitleFromEntry(entry);
+          if (t) sessionName = t;
+        } else if (entry.type === "message" && entry.message?.role === "user") {
           userMessageCount++;
           if (!firstMessage) {
             const content = entry.message.content;
@@ -2545,8 +2570,9 @@ export default function (omp: ExtensionAPI) {
                     sessionWorkspace = entry.cwd;
                   }
                 }
-                if (entry.type === "session_info" && entry.name) {
-                  sessionName = entry.name;
+                if (entry.type === "title" || entry.type === "session_info") {
+                  const t = sessionTitleFromEntry(entry);
+                  if (t) sessionName = t;
                 }
                 if (entry.type === "message") {
                   const content = entry.message?.content;
