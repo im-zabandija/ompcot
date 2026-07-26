@@ -13,6 +13,7 @@ import { setupPackageBrowser } from "./app-package-browser.js";
 import { setupRpcEvents } from "./app-rpc-events.js";
 import { setupSessionRouting } from "./app-session-routing.js";
 import { setupSettingsPanel } from "./app-settings-panel.js";
+import { setupSlashMenu } from "./app-slash-menu.js";
 import { setupSwapOverlay } from "./app-swap-overlay.js";
 import { setupVoiceInput } from "./app-voice-input.js";
 import { setupWorkspaceHeader } from "./app-workspace-header.js";
@@ -311,6 +312,8 @@ wsClient.addEventListener("connected", () => {
   updateConnectionStatus("connected");
   // Fetch model context window size for token % display
   setTimeout(fetchContextWindow, 1000);
+  // Sync the plan-mode button with the extension's real state
+  void syncPlanMode();
 });
 
 wsClient.addEventListener("disconnected", () => {
@@ -388,6 +391,9 @@ wsClient.addEventListener("mirrorSync", (e) => {
 // value right now even though the real implementation isn't ready yet.
 let pollInstancesImpl = () => Promise.resolve();
 const pollInstances = (...args) => pollInstancesImpl(...args);
+// Same forward-reference for the composer's plan-mode indicator: assigned
+// once `setupComposer()` returns, called from the `plan_mode_changed` event.
+let setPlanModeIndicatorImpl = () => {};
 
 const { handleRPCEvent, resetStreamingState } = setupRpcEvents({
   state,
@@ -442,6 +448,7 @@ const { handleRPCEvent, resetStreamingState } = setupRpcEvents({
     unreadCount++;
     document.title = `(${unreadCount}) ● ${title}`;
   },
+  onPlanModeChanged: (enabled) => setPlanModeIndicatorImpl(enabled),
 });
 
 // ═══════════════════════════════════════
@@ -489,23 +496,36 @@ const {
 // Composer (app-composer.js) — input, images, send, queue, abort
 // ═══════════════════════════════════════
 
-const { clearMessageQueue, flushQueue, escapeHtml, getInFlightPrompt, deleteInFlightPrompt } =
-  setupComposer({
-    state,
-    wsClient,
-    sidebar,
-    messageRenderer,
-    messageInput,
-    composerCard,
-    chatForm,
-    abortBtn,
-    currentOnboardingState,
-    abortCurrentRun,
-    pollInstances,
-    setLastSentMessage: (msg) => {
-      lastSentMessage = msg;
-    },
-  });
+const {
+  clearMessageQueue,
+  flushQueue,
+  escapeHtml,
+  getInFlightPrompt,
+  deleteInFlightPrompt,
+  setPlanModeIndicator,
+  syncPlanMode,
+} = setupComposer({
+  transport,
+  state,
+  wsClient,
+  sidebar,
+  messageRenderer,
+  messageInput,
+  composerCard,
+  chatForm,
+  abortBtn,
+  currentOnboardingState,
+  abortCurrentRun,
+  pollInstances,
+  setLastSentMessage: (msg) => {
+    lastSentMessage = msg;
+  },
+  rpcCommand,
+});
+setPlanModeIndicatorImpl = setPlanModeIndicator;
+
+// Slash-command autocomplete (app-slash-menu.js) — "/" prefix menu above the composer
+setupSlashMenu({ messageInput });
 
 // ═══════════════════════════════════════
 // Sidebar

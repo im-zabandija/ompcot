@@ -190,6 +190,9 @@
                 <button type="button" class="input-icon-btn" id="command-btn" title="Commands" aria-label="Open commands" tabindex="-1">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>
                 </button>
+                <button type="button" class="input-icon-btn plan-toggle-btn" id="plan-toggle-btn" title="Plan mode (toggle)" aria-pressed="false" tabindex="-1">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                </button>
                 <input type="file" id="image-input" accept="image/*" multiple style="display:none" />
               </div>
               <div class="composer-toolbar-right">
@@ -200,7 +203,13 @@
                   </button>
                   <div class="model-dropdown-menu hidden" id="model-dropdown-menu"></div>
                 </div>
-                <button type="button" class="thinking-tag off" id="thinking-btn" title="Thinking effort controls reasoning depth. Click to cycle." aria-label="Thinking effort: off. Click to cycle reasoning depth." tabindex="-1">Think off</button>
+                <div class="thinking-dropdown" id="thinking-dropdown">
+                  <button type="button" class="thinking-dropdown-btn thinking-tag off" id="thinking-btn" title="Thinking effort" aria-label="Thinking effort" tabindex="-1">
+                    <span id="thinking-dropdown-label">Think off</span>
+                    <svg class="model-dropdown-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <div class="thinking-dropdown-menu hidden" id="thinking-dropdown-menu"></div>
+                </div>
                 <button type="button" class="input-mic-btn" id="mic-btn" title="Voice input" tabindex="-1">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
                 </button>

@@ -58,6 +58,7 @@ export function setupRpcEvents({
   setLastInputTokens,
   setLastUsage,
   bumpUnread,
+  onPlanModeChanged,
 }) {
   let currentStreamingElement = null;
   let currentStreamingText = "";
@@ -147,6 +148,11 @@ export function setupRpcEvents({
         break;
       case "extension_error":
         messageRenderer.renderError(`Extension error: ${event.error}`);
+        break;
+      case "plan_mode_changed":
+        // Extension broadcast: another client toggled plan mode — sync the
+        // composer button with the real state.
+        onPlanModeChanged(Boolean(event.enabled));
         break;
       case "session_name":
         // Auto-title: update sidebar with new session name

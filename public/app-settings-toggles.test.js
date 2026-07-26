@@ -5,15 +5,17 @@ import { describe, expect, test, vi } from "vitest";
 import { setupSettingsToggles } from "./app-settings-toggles.js";
 
 describe("thinking effort cycle controls", () => {
-  test("labels the composer thinking control clearly while keeping button cycling", () => {
+  test("labels the composer thinking control clearly as a dropdown", () => {
     const html = readFileSync(join(process.cwd(), "public/index.html"), "utf8");
     const dom = new JSDOM(html);
     const { document } = dom.window;
     const thinkingBtn = document.querySelector("#thinking-btn");
 
     expect(thinkingBtn.tagName).toBe("BUTTON");
-    expect(thinkingBtn.textContent).toBe("Think off");
-    expect(thinkingBtn.getAttribute("title")).toContain("Click to cycle");
+    expect(thinkingBtn.querySelector("#thinking-dropdown-label")?.textContent).toBe("Think off");
+    expect(document.querySelector("#thinking-dropdown-menu")?.classList.contains("hidden")).toBe(
+      true,
+    );
   });
 
   test("describes thinking effort in Settings without changing it to a dropdown", () => {

@@ -732,14 +732,33 @@ export default function (omp: ExtensionAPI) {
   let turnCount = 0;
   let titleSet = false;
   let userMessages: string[] = [];
+  // ponytail: NOT omp's native plan mode — this only restricts active tools to a
+  // read-only allowlist at the extension level. It does not engage the `plan`
+  // model nor inject the planning prompt. Upgrade path: omp exposing
+  // setPlanModeState on the ExtensionAPI (currently internal-only).
+  const PLAN_MODE_READONLY_TOOLS = ["read", "glob", "grep", "web_search", "todo", "ask"];
+  let planModeEnabled = false;
+  let planModePreviousTools: string[] | null = null;
 
   omp.on("session_start", async (_event, ctx) => {
     rememberCtx(ctx);
     turnCount = 0;
     titleSet = false;
+    planModeEnabled = false;
+    planModePreviousTools = null;
     userMessages = [];
     // Update instance registry with new session file
     updateInstanceSession(ctx.sessionManager.getSessionFile() || "");
+  });
+
+  // A session switch re-attaches this process to a different session whose tools
+  // are its own, so the captured "previous tools" no longer apply: drop the flag
+  // instead of leaving the toggle lit over an unrestricted session.
+  omp.on("session_switch", async (_event, ctx) => {
+    rememberCtx(ctx);
+    planModeEnabled = false;
+    planModePreviousTools = null;
+    broadcast({ type: "event", event: { type: "plan_mode_changed", enabled: false } });
   });
 
   omp.on("turn_start", async (_event, _ctx) => {
@@ -1239,7 +1258,7 @@ export default function (omp: ExtensionAPI) {
         case "cycle_thinking_level": {
           const a = requireApi("cycle_thinking_level");
           if (!a) break;
-          const levels = ["off", "minimal", "low", "medium", "high"];
+          const levels = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
           const current = a.getThinkingLevel();
           const idx = levels.indexOf(current);
           const next = levels[(idx + 1) % levels.length];
@@ -1253,6 +1272,61 @@ export default function (omp: ExtensionAPI) {
           if (!a) break;
           a.setThinkingLevel(command.level as Parameters<typeof a.setThinkingLevel>[0]);
           sendTo(ws, success("set_thinking_level"));
+          break;
+        }
+
+        // ─── Plan mode (extension-level tool restriction; not omp native) ───
+        case "get_plan_mode": {
+          sendTo(ws, success("get_plan_mode", { enabled: planModeEnabled }));
+          break;
+        }
+
+        case "set_plan_mode": {
+          const a = requireApi("set_plan_mode");
+          if (!a) break;
+          const enabled = Boolean(command.enabled);
+          if (enabled === planModeEnabled) {
+            sendTo(
+              ws,
+              success("set_plan_mode", {
+                enabled: planModeEnabled,
+                activeTools: a.getActiveTools(),
+              }),
+            );
+            break;
+          }
+          try {
+            let activeTools: string[];
+            if (enabled) {
+              // Capture current tools BEFORE mutating so a failure leaves
+              // planModePreviousTools untouched (state stays as it was).
+              const prev = a.getActiveTools();
+              const allTools = a.getAllTools();
+              activeTools = PLAN_MODE_READONLY_TOOLS.filter((t) => allTools.includes(t));
+              // Refuse rather than hand the agent an empty toolset: if none of the
+              // allowlist survives, this omp build names its tools differently.
+              if (activeTools.length === 0) {
+                throw new Error("no read-only tools available in this omp build");
+              }
+              await a.setActiveTools(activeTools);
+              planModePreviousTools = prev;
+            } else {
+              activeTools = planModePreviousTools ?? a.getActiveTools();
+              if (planModePreviousTools) {
+                await a.setActiveTools(planModePreviousTools);
+              }
+              planModePreviousTools = null;
+            }
+            planModeEnabled = enabled;
+            sendTo(ws, success("set_plan_mode", { enabled: planModeEnabled, activeTools }));
+            broadcast({
+              type: "event",
+              event: { type: "plan_mode_changed", enabled: planModeEnabled },
+            });
+          } catch (e: unknown) {
+            // Leave planModeEnabled / planModePreviousTools as they were.
+            sendTo(ws, error("set_plan_mode", errMessage(e)));
+          }
           break;
         }
 

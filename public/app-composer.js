@@ -11,6 +11,13 @@
  * already reuse the exact same helper — the alternative would be
  * duplicating it, and there's no dedicated string-utils module today.
  */
+export function base64ToFile(data, mimeType) {
+  const bin = atob(data);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new File([bytes], "pasted-image", { type: mimeType || "image/png" });
+}
+
 export function setupComposer({
   state,
   wsClient,
@@ -24,6 +31,8 @@ export function setupComposer({
   abortCurrentRun,
   pollInstances,
   setLastSentMessage,
+  transport,
+  rpcCommand,
 }) {
   chatForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -53,6 +62,8 @@ export function setupComposer({
   const imageInput = document.getElementById("image-input");
   const imagePreviews = document.getElementById("image-previews");
   let pendingImages = []; // Array of { data: base64, mimeType: string }
+  let lastDomImagePasteAt = 0;
+  let lastTextPasteAt = 0;
 
   // Max dimension — resize images larger than this to reduce token cost & avoid API limits
   const MAX_IMAGE_DIM = 2048;
@@ -133,12 +144,40 @@ export function setupComposer({
 
   // Paste images
   messageInput.addEventListener("paste", (e) => {
+    const cd = e.clipboardData;
+    // A text paste means the user wants text, not a stale clipboard image, so
+    // record it; the native fallback below bows out when it fires right after.
+    // ponytail: some Linux clipboard managers keep an old image "offered" even
+    // after you copy text — this stops that stale image from auto-attaching.
+    if (cd?.getData?.("text/plain")) lastTextPasteAt = Date.now();
     const files = [];
-    for (const item of e.clipboardData.items) {
+    for (const item of cd?.items || []) {
       if (!item.type.startsWith("image/")) continue;
       files.push(item.getAsFile());
     }
-    if (files.length) addImageFiles(files);
+    if (files.length) {
+      lastDomImagePasteAt = Date.now();
+      addImageFiles(files);
+    }
+  });
+
+  // WebKitGTK (Linux) doesn't deliver clipboard images to the DOM paste
+  // event; read them from the OS clipboard natively instead. On
+  // Windows/macOS the DOM `paste` handler above already attached the image,
+  // and read_clipboard_image_core returns null there, so this is a no-op.
+  messageInput.addEventListener("keydown", async (e) => {
+    const isPaste = (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "v" || e.key === "V");
+    if (!isPaste) return;
+    if (!transport?.capabilities?.native) return;
+    try {
+      const img = await transport.readClipboardImage();
+      if (!img?.data) return;
+      if (Date.now() - lastDomImagePasteAt < 500) return; // DOM paste already handled it
+      if (Date.now() - lastTextPasteAt < 500) return; // user pasted text, not an image
+      addImageFiles([base64ToFile(img.data, img.mimeType)]);
+    } catch (err) {
+      console.error("[Ompcot] Native clipboard image read failed:", err);
+    }
   });
 
   function renderImagePreviews() {
@@ -280,6 +319,38 @@ export function setupComposer({
     }
   }
 
+  // Plan-mode toggle — Ompcot's own plan mode in the extension, driven over
+  // RPC (restricts active tools to a read-only allowlist). The visual state
+  // ALWAYS comes from the server response or the `plan_mode_changed`
+  // broadcast, never from an optimistic local flip.
+  const planToggleBtn = document.getElementById("plan-toggle-btn");
+  planToggleBtn.title = "Plan mode: restrict tools to read-only";
+  let planModeOn = false;
+  let planModeInFlight = false;
+
+  function setPlanModeIndicator(enabled) {
+    planModeOn = enabled;
+    planToggleBtn.classList.toggle("active", enabled);
+    planToggleBtn.setAttribute("aria-pressed", String(enabled));
+  }
+
+  async function syncPlanMode() {
+    const resp = await rpcCommand({ type: "get_plan_mode" });
+    if (resp?.success) setPlanModeIndicator(Boolean(resp.data?.enabled));
+  }
+
+  planToggleBtn.addEventListener("click", async () => {
+    if (planModeInFlight) return;
+    if (!currentOnboardingState().canQuery || state.isStreaming) return;
+    planModeInFlight = true;
+    try {
+      const resp = await rpcCommand({ type: "set_plan_mode", enabled: !planModeOn });
+      if (resp?.success) setPlanModeIndicator(Boolean(resp.data?.enabled));
+    } finally {
+      planModeInFlight = false;
+    }
+  });
+
   abortBtn.addEventListener("click", () => {
     abortCurrentRun();
   });
@@ -290,5 +361,7 @@ export function setupComposer({
     escapeHtml,
     getInFlightPrompt: (requestId) => inFlightPrompts.get(requestId),
     deleteInFlightPrompt: (requestId) => inFlightPrompts.delete(requestId),
+    setPlanModeIndicator,
+    syncPlanMode,
   };
 }

@@ -1,7 +1,12 @@
 import { getOnboardingState } from "./onboarding-state.js";
 
 /**
- * Model picker (dropdown + search) and thinking-level cycle button.
+ * Canonical thinking levels (from RPC `get_state`).
+ */
+const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+
+/**
+ * Model picker (dropdown + search) and thinking-level dropdown.
  *
  * Owns `currentModelId`, `currentThinkingLevel`, and the list of
  * `availableModels` because it's the only writer during normal
@@ -32,6 +37,9 @@ export function setupModelPicker({
   const modelDropdownLabel = document.getElementById("model-dropdown-label");
   const modelDropdownMenu = document.getElementById("model-dropdown-menu");
   const thinkingBtn = document.getElementById("thinking-btn");
+  const thinkingDropdown = document.getElementById("thinking-dropdown");
+  const thinkingDropdownLabel = document.getElementById("thinking-dropdown-label");
+  const thinkingDropdownMenu = document.getElementById("thinking-dropdown-menu");
 
   let currentModelId = "";
   let availableModels = [];
@@ -46,12 +54,9 @@ export function setupModelPicker({
     return `Think ${level || "off"}`;
   }
   function updateThinkingBtn() {
-    thinkingBtn.textContent = formatCompactThinkingLevelLabel(currentThinkingLevel);
-    thinkingBtn.title = "Thinking effort controls reasoning depth. Click to cycle.";
-    thinkingBtn.setAttribute(
-      "aria-label",
-      `Thinking effort: ${currentThinkingLevel}. Click to cycle reasoning depth.`,
-    );
+    thinkingDropdownLabel.textContent = formatCompactThinkingLevelLabel(currentThinkingLevel);
+    thinkingBtn.title = "Thinking effort controls reasoning depth.";
+    thinkingBtn.setAttribute("aria-label", `Thinking effort: ${currentThinkingLevel}.`);
     thinkingBtn.classList.toggle("off", currentThinkingLevel === "off");
   }
 
@@ -246,19 +251,58 @@ export function setupModelPicker({
 
   modelDropdownBtn.addEventListener("click", toggleModelDropdown);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   document.addEventListener("click", (e) => {
     if (!modelDropdown.contains(e.target)) {
       closeModelDropdown();
     }
+    if (!thinkingDropdown.contains(e.target)) {
+      closeThinkingDropdown();
+    }
   });
 
-  // Thinking level button — cycles through levels
-  thinkingBtn.addEventListener("click", async () => {
-    const data = await rpcCommand({ type: "cycle_thinking_level" }, "Cycling thinking...");
-    if (data?.success && data.data?.level) {
-      currentThinkingLevel = data.data.level;
-      updateThinkingBtn();
+  // Thinking level dropdown — one row per level, current highlighted
+  function renderThinkingMenu() {
+    thinkingDropdownMenu.innerHTML = "";
+    THINKING_LEVELS.forEach((level) => {
+      const el = document.createElement("div");
+      el.className = `thinking-dropdown-item${level === currentThinkingLevel ? " active" : ""}`;
+      el.textContent = level;
+      el.addEventListener("click", async () => {
+        if (level !== currentThinkingLevel) {
+          const data = await rpcCommand(
+            { type: "set_thinking_level", level },
+            "Setting thinking...",
+          );
+          if (data?.success) {
+            // set_thinking_level returns { success: true } with no payload —
+            // adopt the clicked level optimistically.
+            currentThinkingLevel = level;
+            updateThinkingBtn();
+          }
+        }
+        closeThinkingDropdown();
+      });
+      thinkingDropdownMenu.appendChild(el);
+    });
+  }
+
+  function openThinkingDropdown() {
+    renderThinkingMenu();
+    thinkingDropdownMenu.classList.remove("hidden");
+    thinkingDropdown.classList.add("open");
+  }
+
+  function closeThinkingDropdown() {
+    thinkingDropdownMenu.classList.add("hidden");
+    thinkingDropdown.classList.remove("open");
+  }
+
+  thinkingBtn.addEventListener("click", () => {
+    if (thinkingDropdownMenu.classList.contains("hidden")) {
+      openThinkingDropdown();
+    } else {
+      closeThinkingDropdown();
     }
   });
 
@@ -274,6 +318,7 @@ export function setupModelPicker({
     getCurrentThinkingLevel: () => currentThinkingLevel,
     setCurrentThinkingLevel: (level) => {
       currentThinkingLevel = level;
+      updateThinkingBtn();
     },
     setCurrentModelId: (id) => {
       currentModelId = id;
