@@ -568,6 +568,108 @@ refreshSessionsBtn.addEventListener("click", () => {
   });
 });
 
+// Sort dropdown: an icon button + popup, matching the model/thinking pattern.
+// Rebuilt on every open so the active row always reflects the stored mode.
+const sortDropdown = document.getElementById("session-sort-dropdown");
+const sortBtn = document.getElementById("session-sort-btn");
+const sortMenu = document.getElementById("session-sort-menu");
+if (sortDropdown && sortBtn && sortMenu) {
+  const SORT_MODES = [
+    { value: "recent", label: "Recientes" },
+    { value: "oldest", label: "Más viejas" },
+    { value: "name", label: "Nombre A→Z" },
+  ];
+  // The OS tooltip from `title` is a native window in WebKitGTK, so it paints
+  // over the popup regardless of z-index. Pull it while the menu is open and
+  // put it back on close; `aria-label` keeps the accessible name either way.
+  const sortBtnTitle = sortBtn.getAttribute("title") || "";
+  const closeSortMenu = () => {
+    sortMenu.classList.add("hidden");
+    sortBtn.setAttribute("aria-expanded", "false");
+    if (sortBtnTitle) sortBtn.setAttribute("title", sortBtnTitle);
+  };
+  const renderSortMenu = () => {
+    sortMenu.replaceChildren();
+    for (const mode of SORT_MODES) {
+      const row = document.createElement("div");
+      row.className = "sort-dropdown-item";
+      row.setAttribute("role", "option");
+      row.tabIndex = 0;
+      const isActive = mode.value === sidebar.sortMode;
+      row.classList.toggle("active", isActive);
+      row.setAttribute("aria-selected", String(isActive));
+      row.textContent = mode.label;
+      const pick = () => {
+        sidebar.setSortMode(mode.value);
+        closeSortMenu();
+        sortBtn.focus();
+      };
+      row.addEventListener("click", pick);
+      row.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          pick();
+        }
+      });
+      sortMenu.appendChild(row);
+    }
+  };
+  // Keep the popup inside the sidebar: it opens rightwards, and if that runs
+  // past the edge we shift it left by exactly the overflow. Covers both the
+  // one-row header (button on the right) and the wrapped one (button on the
+  // left), at any sidebar width.
+  const placeSortMenu = () => {
+    sortMenu.style.left = "0px";
+    const edge = 8;
+    const bounds = sidebarEl.getBoundingClientRect();
+    const box = sortMenu.getBoundingClientRect();
+    const overRight = box.right - (bounds.right - edge);
+    if (overRight > 0) {
+      const shifted = box.left - overRight;
+      const clamped = Math.max(bounds.left + edge, shifted);
+      sortMenu.style.left = `${clamped - box.left}px`;
+    }
+  };
+  sortBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = sortMenu.classList.contains("hidden");
+    if (willOpen) {
+      renderSortMenu();
+      sortBtn.removeAttribute("title");
+    } else if (sortBtnTitle) {
+      sortBtn.setAttribute("title", sortBtnTitle);
+    }
+    sortMenu.classList.toggle("hidden", !willOpen);
+    sortBtn.setAttribute("aria-expanded", String(willOpen));
+    if (willOpen) placeSortMenu();
+    // Keyboard opens (Enter/Space) report no pointer coords; land on the
+    // current option so arrows work straight away.
+    if (willOpen && e.detail === 0) {
+      sortMenu.querySelector(".sort-dropdown-item.active")?.focus();
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!sortDropdown.contains(e.target)) closeSortMenu();
+  });
+  sortMenu.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      closeSortMenu();
+      sortBtn.focus();
+      return;
+    }
+    // role="listbox" implies arrow navigation — the native <select> this
+    // replaced had it for free, so keep parity.
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const rows = [...sortMenu.children];
+    const at = rows.indexOf(document.activeElement);
+    const step = e.key === "ArrowDown" ? 1 : -1;
+    const next = at < 0 ? 0 : (at + step + rows.length) % rows.length;
+    rows[next]?.focus();
+  });
+}
+
 // Swipe from left edge to open sidebar on mobile
 (function initSwipeGesture() {
   let touchStartX = 0;

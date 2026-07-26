@@ -207,6 +207,50 @@ body {
   -webkit-app-region: no-drag;
 }
 
+/* Sort control: an icon button like its neighbours, with the same popup
+   language as the model/thinking dropdowns. A native <select> here was both
+   out of place and wide enough to crush the search input next to it. */
+.sort-dropdown {
+  position: relative;
+  -webkit-app-region: no-drag;
+}
+
+.sort-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  /* Opens rightwards from the button; app.js nudges it back when that would
+     run past the sidebar edge (the header wraps on narrow sidebars, which
+     leaves the button hard against the left side). */
+  left: 0;
+  min-width: 150px;
+  background: var(--bg-solid);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  z-index: 1001;
+  animation: dropdownIn 0.15s var(--ease);
+}
+
+.sort-dropdown-item {
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--duration) var(--ease);
+}
+
+.sort-dropdown-item:hover {
+  background: var(--bg-glass-hover);
+}
+
+.sort-dropdown-item.active {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+
 .icon-btn,
 .new-session-btn {
   width: 28px;
@@ -328,6 +372,27 @@ body {
 
 .sidebar-update-pill[data-tone="error"] {
   background: #ff453a;
+}
+
+.sidebar-cleanup-pill {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  background: #ff9f0a;
+  color: #fff;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  margin-right: 4px;
+}
+
+.sidebar-cleanup-pill:hover {
+  filter: brightness(0.95);
+}
+
+.sidebar-cleanup-pill:active {
+  opacity: 0.8;
 }
 
 .session-list::-webkit-scrollbar {
@@ -592,6 +657,114 @@ body {
   transition: all var(--duration) var(--ease);
 }
 
+.cleanup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1102;
+  padding: 20px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.cleanup-dialog {
+  width: min(460px, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--bg-frosted);
+  backdrop-filter: blur(var(--blur-heavy)) saturate(1.5);
+  -webkit-backdrop-filter: blur(var(--blur-heavy)) saturate(1.5);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), var(--shadow-inset);
+  padding: 24px;
+  animation: sidebarConfirmIn 0.18s var(--ease);
+}
+
+.cleanup-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.cleanup-subtitle {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 12px;
+}
+
+.cleanup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.cleanup-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.cleanup-row:hover {
+  background: var(--bg-hover);
+}
+
+.cleanup-row-name {
+  flex: 1;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cleanup-row-count {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.cleanup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cleanup-actions button {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: all var(--duration) var(--ease);
+}
+
+.cleanup-cancel {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.cleanup-delete {
+  background: #ff453a;
+  color: #fff;
+}
+
+.cleanup-confirm {
+  background: var(--accent);
+  color: #fff;
+}
+
+.cleanup-delete[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .sidebar-confirm-actions button:hover {
   filter: brightness(1.08);
 }
@@ -741,6 +914,42 @@ body {
   background: var(--bg-glass-hover);
 }
 
+.session-more-btn {
+  position: absolute;
+  top: 0;
+  right: 20px;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--duration) var(--ease),
+    visibility var(--duration) var(--ease);
+}
+
+.session-item:hover .session-more-btn {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.session-more-btn:hover {
+  background: var(--bg-glass-hover);
+}
+
 .session-tag {
   font-size: 10px;
   padding: 1px 5px;
@@ -779,6 +988,14 @@ body {
 
 .context-menu-item:hover {
   background: rgba(255, 255, 255, 0.06);
+}
+
+.context-menu-item--danger {
+  color: #ff453a;
+}
+
+.context-menu-item--danger:hover {
+  background: rgba(255, 69, 58, 0.12);
 }
 
 .context-menu-icon {

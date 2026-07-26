@@ -2,6 +2,8 @@
  * Session Sidebar - Lists sessions grouped by project, handles switching
  */
 
+import { confirmModal } from "./confirm-modal.js";
+
 export class SessionSidebar {
   constructor(container, onSessionSelect, onNewChat, options = {}) {
     this.projectSessionInitialLimit = 5;
@@ -10,6 +12,7 @@ export class SessionSidebar {
     this.onSessionSelect = onSessionSelect;
     this.onNewChat = onNewChat;
     this.onOpenProject = options.onOpenProject || null;
+    this.onProjectsRendered = options.onProjectsRendered || null;
     this.activeSessionFile = null;
     this.projects = [];
     this.collapsedProjects = new Set();
@@ -19,6 +22,7 @@ export class SessionSidebar {
     this.archived = JSON.parse(localStorage.getItem("ompcot-archived") || "[]");
     this.archivedCollapsed = localStorage.getItem("ompcot-archived-collapsed") !== "false";
     this.unread = new Set(JSON.parse(localStorage.getItem("ompcot-unread") || "[]"));
+    this.sortMode = localStorage.getItem("ompcot-session-sort") || "recent";
     this.streamingFiles = new Set();
     this.projectVisibleSessionCounts = new Map();
     this.contextMenu = null;
@@ -55,6 +59,26 @@ export class SessionSidebar {
 
   saveUnread() {
     localStorage.setItem("ompcot-unread", JSON.stringify(Array.from(this.unread)));
+  }
+
+  setSortMode(mode) {
+    this.sortMode = mode;
+    localStorage.setItem("ompcot-session-sort", mode);
+    this.render();
+  }
+
+  sortSessions(sessions) {
+    const key = (s) => s.name || s.firstMessage || "Empty session";
+    const ts = (s) => {
+      const t = s.timestamp ? new Date(s.timestamp).getTime() : s.ctime || 0;
+      return Number.isFinite(t) ? t : s.ctime || 0;
+    };
+    const arr = [...sessions];
+    if (this.sortMode === "oldest") arr.sort((a, b) => ts(a) - ts(b));
+    else if (this.sortMode === "name")
+      arr.sort((a, b) => key(a).localeCompare(key(b), undefined, { sensitivity: "base" }));
+    else arr.sort((a, b) => ts(b) - ts(a)); // recent (matches current server order)
+    return arr;
   }
 
   isUnread(filePath) {
@@ -453,11 +477,17 @@ export class SessionSidebar {
         label: isArchived ? "Unarchive" : "Archive",
         action: () => this.toggleArchived(session.filePath),
       },
+      {
+        icon: "🗑️",
+        label: "Delete",
+        danger: true,
+        action: () => this.deleteSession(session),
+      },
     ];
-
     for (const item of items) {
       const row = document.createElement("div");
       row.className = "context-menu-item";
+      if (item.danger) row.classList.add("context-menu-item--danger");
       row.innerHTML = `<span class="context-menu-icon">${item.icon}</span>${item.label}`;
       row.addEventListener("click", (ev) => {
         ev.stopPropagation();
@@ -478,6 +508,54 @@ export class SessionSidebar {
     menu.style.top = `${y}px`;
 
     this.contextMenu = menu;
+  }
+
+  async deleteSession(session) {
+    // Can't delete the live/running session's file out from under omp.
+    if (session.filePath === this.activeSessionFile || this.streamingFiles.has(session.filePath)) {
+      return;
+    }
+    const title = session.name || session.firstMessage || "Empty session";
+    const ok = await confirmModal({
+      title: "Delete session",
+      message: `Delete "${title}"? This permanently removes its .jsonl file.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await (
+        await fetch("/api/sessions/delete-batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filePaths: [session.filePath] }),
+        })
+      ).json();
+      if (res?.deleted >= 1) {
+        // drop stale local state so the file path can't linger in fav/archive/unread
+        this.favourites = this.favourites.filter((p) => p !== session.filePath);
+        this.saveFavourites();
+        this.archived = this.archived.filter((p) => p !== session.filePath);
+        this.saveArchived();
+        this.unread.delete(session.filePath);
+        this.saveUnread();
+        await this.loadSessions();
+      } else {
+        await confirmModal({
+          title: "Delete failed",
+          message: "Could not delete that session file.",
+          confirmLabel: "OK",
+          cancelLabel: "Close",
+        });
+      }
+    } catch {
+      await confirmModal({
+        title: "Delete failed",
+        message: "Could not delete that session file.",
+        confirmLabel: "OK",
+        cancelLabel: "Close",
+      });
+    }
   }
 
   closeContextMenu() {
@@ -572,6 +650,16 @@ export class SessionSidebar {
 
     const title = session.name || session.firstMessage || "Empty session";
     const time = this.formatTime(session.timestamp);
+    const hasPreview =
+      !!session.name && !!session.firstMessage && session.firstMessage !== session.name;
+    const previewText = hasPreview
+      ? session.firstMessage.length > 120
+        ? `${session.firstMessage.slice(0, 120)}…`
+        : session.firstMessage
+      : "";
+    const previewHtml = hasPreview
+      ? `<div class="session-preview">${this.escapeHtml(previewText)}</div>`
+      : "";
     const tmuxTag = session.tmux ? '<span class="session-tag tmux-tag">tmux</span>' : "";
     const favIcon = this.isFavourite(session.filePath)
       ? '<span class="session-fav-icon">★</span>'
@@ -586,6 +674,9 @@ export class SessionSidebar {
       </svg>
     `;
 
+    const moreButtonHtml = showArchiveButton
+      ? '<button class="session-more-btn" tabindex="-1" title="More" aria-label="More actions">⋯</button>'
+      : "";
     const archiveButtonHtml = showArchiveButton
       ? `<button class="session-archive-btn" title="${archiveBtnLabel}" aria-label="${archiveBtnLabel}">${archiveBtnIcon}</button>`
       : "";
@@ -597,12 +688,24 @@ export class SessionSidebar {
         ${tmuxTag}
         <span class="session-action-slot">
           <span class="session-time">${time}</span>
+          ${moreButtonHtml}
           ${archiveButtonHtml}
         </span>
       </div>
+      ${previewHtml}
     `;
 
     item.addEventListener("click", () => this.onSessionSelect(session, project));
+    item.addEventListener("contextmenu", (e) => this.showContextMenu(e, session, project, item));
+    const moreBtn = item.querySelector(".session-more-btn");
+    if (moreBtn) {
+      moreBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.showContextMenu(e, session, project, item);
+      });
+    }
+
     const archiveBtn = item.querySelector(".session-archive-btn");
     if (archiveBtn) {
       archiveBtn.addEventListener("click", (e) => {
@@ -677,6 +780,9 @@ export class SessionSidebar {
   }
 
   render() {
+    // Fires on every render (incl. the empty-state early return below) so the
+    // cleanup pill stays in sync whether or not orphans exist.
+    this.onProjectsRendered?.(this.projects);
     if (this.projects.length === 0) {
       this.renderEmptyState();
       return;
@@ -688,6 +794,7 @@ export class SessionSidebar {
     const favSessions = [];
     const archivedSessions = [];
     for (const project of this.projects) {
+      if (project.missing) continue;
       for (const session of project.sessions) {
         if (this.isArchived(session.filePath)) {
           archivedSessions.push({ session, project });
@@ -719,8 +826,9 @@ export class SessionSidebar {
 
     // Regular project groups
     for (const project of this.projects) {
-      const visibleSessions = project.sessions.filter(
-        (session) => !this.isArchived(session.filePath),
+      if (project.missing) continue;
+      const visibleSessions = this.sortSessions(
+        project.sessions.filter((session) => !this.isArchived(session.filePath)),
       );
       if (visibleSessions.length === 0) continue;
 
