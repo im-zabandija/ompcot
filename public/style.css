@@ -83,6 +83,11 @@ body {
 .sidebar-header {
   display: flex;
   align-items: center;
+  /* Wrap instead of squeezing: with the sort select in the row there is not
+     always width for logo + search + actions, and a search input crushed below
+     its intrinsic width overflows on top of the action buttons and steals
+     their clicks. */
+  flex-wrap: wrap;
   gap: 8px;
   padding: 12px 12px;
   -webkit-app-region: drag;
@@ -104,12 +109,19 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   width: 30px;
   height: 26px;
+  border: none;
+  background: none;
+  margin: 0;
+  padding: 0;
   border-radius: var(--radius-md);
   text-decoration: none;
   font-size: 13px;
   color: var(--text-dim);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
   transition: all var(--duration) var(--ease);
 }
 
@@ -117,6 +129,29 @@ body {
   width: 24px;
   height: 24px;
   border-radius: var(--radius-sm);
+  transition: opacity var(--duration) var(--ease);
+}
+
+.logo-new-session-plus {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease);
+}
+
+/* Hover/focus swaps the logo for a "+": these must come after the base rules
+   above, otherwise the lower-specificity base would win the cascade. */
+.mode-link:hover .ompcot-icon,
+.mode-link:focus-visible .ompcot-icon {
+  opacity: 0.25;
+}
+
+.mode-link:hover .logo-new-session-plus,
+.mode-link:focus-visible .logo-new-session-plus {
+  opacity: 1;
 }
 
 .ompcot-icon-welcome {
@@ -142,13 +177,21 @@ body {
 /* Sidebar search */
 .sidebar-search-wrap {
   position: relative;
-  flex: 1;
-  min-width: 0;
+  /* Sized so logo + search + the three 28px actions fit one row at the default
+     272px sidebar; the basis doubles as the wrap trigger, so a narrower sidebar
+     drops the actions to their own row instead of overflowing over them. */
+  flex: 1 1 104px;
+  min-width: 104px;
+  box-sizing: border-box;
 }
 
 .sidebar-search-input {
   width: 100%;
   min-width: 0;
+  /* Without border-box the horizontal padding is added ON TOP of width:100%,
+     so the input renders wider than its wrapper and overlaps the buttons next
+     to it — which then swallow the clicks meant for them. */
+  box-sizing: border-box;
   padding: 6px 30px 6px 10px;
   background: var(--bg-glass);
   border: 1px solid var(--border);
@@ -502,12 +545,12 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--accent-text);
-  text-transform: none;
-  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   cursor: pointer;
   user-select: none;
   transition: all var(--duration) var(--ease);
@@ -544,7 +587,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
 }
 
 .project-new-chat-btn {
@@ -816,7 +858,7 @@ body {
 .session-item {
   display: flex;
   flex-direction: column;
-  padding: 8px 8px;
+  padding: 6px 8px;
   cursor: pointer;
   border-radius: 10px;
   transition:
@@ -846,10 +888,31 @@ body {
   gap: 6px;
 }
 
+.session-preview {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition:
+    max-height var(--duration) var(--ease),
+    opacity var(--duration) var(--ease);
+}
+
+.session-item:hover .session-preview,
+.session-item.active .session-preview {
+  max-height: 20px;
+  opacity: 1;
+}
+
 .session-action-slot {
   position: relative;
-  width: 64px;
-  height: 22px;
+  width: 44px;
+  height: 18px;
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -857,11 +920,15 @@ body {
 .session-time {
   position: absolute;
   inset: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  font-size: 12px;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: right;
+  line-height: 18px;
+  font-size: 10px;
   color: var(--text-dim);
+  opacity: 0.75;
   transition: opacity var(--duration) var(--ease);
 }
 
@@ -870,8 +937,8 @@ body {
   top: 0;
   right: 0;
   display: inline-flex;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border: none;
   border-radius: var(--radius-sm);
@@ -891,8 +958,8 @@ body {
 }
 
 .session-archive-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   stroke: currentColor;
   fill: none;
   stroke-width: 1.8;
@@ -1054,7 +1121,7 @@ body {
 }
 
 .session-title {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -1808,6 +1875,57 @@ body {
 .thinking-tag:hover {
   background: var(--bg-glass-hover);
   border-color: var(--border-hover);
+}
+
+/* Thinking dropdown — mirrors model-dropdown */
+.thinking-dropdown {
+  position: relative;
+}
+
+.thinking-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.thinking-dropdown.open .model-dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+.thinking-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 140px;
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-solid);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  z-index: 1001;
+  animation: dropdownIn 0.15s var(--ease);
+}
+
+.thinking-dropdown-item {
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-family: "SF Mono", "Menlo", "Monaco", monospace;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.thinking-dropdown-item:hover {
+  background: var(--bg-glass-hover);
+}
+
+.thinking-dropdown-item.active {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
 }
 
 /* Status */
@@ -4301,7 +4419,8 @@ body.hide-thinking .thinking-block {
 }
 
 /* Menus anchored in the composer open upward, right-aligned */
-.composer-toolbar .model-dropdown-menu {
+.composer-toolbar .model-dropdown-menu,
+.composer-toolbar .thinking-dropdown-menu {
   top: auto;
   bottom: calc(100% + 6px);
   left: auto;
@@ -4342,6 +4461,55 @@ body.hide-thinking .thinking-block {
 
 .input-icon-btn:active {
   opacity: 0.7;
+}
+
+.plan-toggle-btn.active {
+  color: var(--accent-text);
+  background: var(--accent-subtle);
+}
+
+/* Slash-command autocomplete menu — floats above the composer card */
+.slash-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 8px;
+  min-width: 320px;
+  max-width: min(480px, calc(100% - 16px));
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-solid);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  z-index: 1001;
+  animation: dropdownInUp 0.15s var(--ease);
+}
+
+.slash-menu-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-family: "SF Mono", "Menlo", "Monaco", monospace;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.slash-menu-item.selected {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+
+.slash-menu-item-desc {
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #message-input {
@@ -5189,8 +5357,10 @@ body.hide-thinking .thinking-block {
     background: color-mix(in srgb, var(--text-primary) 11%, transparent);
   }
 
+  /* Keeps the desktop hierarchy (title 13 / project 11) — only the padding
+     stays roomier here, since on mobile the row is a touch target. */
   .session-title {
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.3;
     white-space: nowrap;
     display: block;
@@ -5209,9 +5379,9 @@ body.hide-thinking .thinking-block {
   }
 
   .project-header {
-    font-size: 12px;
-    padding: 6px 10px;
-    margin-top: 10px;
+    font-size: 11px;
+    padding: 5px 10px;
+    margin-top: 8px;
   }
 
   .project-count {

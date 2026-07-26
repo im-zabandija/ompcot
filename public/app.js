@@ -1248,9 +1248,13 @@ if (isMobile()) {
   });
 }
 
-// Make the Ompcot icon in sidebar switch back to chat
-document.querySelector(".mode-link:first-child")?.addEventListener("click", () => {
+// The Ompcot icon in the sidebar doubles as the "new session" button and
+// still needs to close settings when clicked from that view.
+document.getElementById("logo-new-session-btn")?.addEventListener("click", () => {
   closeSettings();
+  newSession().catch((err) => {
+    messageRenderer.renderError(`Failed to start new session: ${err}`);
+  });
 });
 
 // ═══════════════════════════════════════
