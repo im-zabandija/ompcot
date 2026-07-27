@@ -121,3 +121,37 @@ echo
 echo "Release pushed successfully:"
 echo "  branch: $CURRENT_BRANCH"
 echo "  tag:    $TAG"
+echo
+
+REMOTE_URL="$(git remote get-url origin)"
+REPO_SLUG="$(echo "$REMOTE_URL" | sed -E 's#.*[:/]([^/]+/[^/]+?)(\.git)?$#\1#')"
+
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  echo "Verifying the Release workflow actually triggered on $TAG..."
+  TRIGGERED=""
+  for _ in 1 2 3 4 5 6; do
+    sleep 5
+    if gh run list --repo "$REPO_SLUG" --json headBranch,event --jq \
+         ".[] | select(.headBranch == \"$TAG\" and .event == \"push\")" 2>/dev/null | grep -q .; then
+      TRIGGERED=1
+      break
+    fi
+  done
+  if [[ -n "$TRIGGERED" ]]; then
+    echo "  Release workflow started for $TAG."
+  else
+    echo "  WARNING: no workflow run appeared for the $TAG push after 30s."
+    echo "  Forks have Actions disabled until the first run is triggered"
+    echo "  manually (banner in the Actions tab, or an API dispatch)."
+    echo "  Dispatching one now..."
+    if gh workflow run Release --repo "$REPO_SLUG" --ref "$TAG" >/dev/null 2>&1; then
+      echo "  Dispatched: https://github.com/$REPO_SLUG/actions"
+    else
+      echo "  Could not dispatch automatically. Trigger it by hand:"
+      echo "    gh workflow run Release --repo $REPO_SLUG --ref $TAG"
+    fi
+  fi
+else
+  echo "(gh CLI not available/authenticated - check the Actions tab manually:"
+  echo " https://github.com/$REPO_SLUG/actions)"
+fi
