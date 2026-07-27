@@ -82,6 +82,9 @@ if (updated === cargo) {
 writeFileSync(cargoPath, updated);
 EOF
 
+echo "Formatting bumped JSON files..."
+bunx biome format --write src-tauri/tauri.conf.json package.json
+
 echo "Regenerating bun.lock..."
 bun install --lockfile-only
 
