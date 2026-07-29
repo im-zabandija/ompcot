@@ -11,11 +11,21 @@
  * already reuse the exact same helper — the alternative would be
  * duplicating it, and there's no dedicated string-utils module today.
  */
+
+import { getFileIcon } from "./file-browser.js";
+
 export function base64ToFile(data, mimeType) {
   const bin = atob(data);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new File([bytes], "pasted-image", { type: mimeType || "image/png" });
+}
+
+/** El texto final del prompt: el mensaje y, debajo, una ruta por línea. */
+export function composePromptText(message, paths) {
+  if (!paths?.length) return message;
+  const list = paths.join("\n");
+  return message ? `${message}\n\n${list}` : list;
 }
 
 export function setupComposer({
@@ -62,6 +72,8 @@ export function setupComposer({
   const imageInput = document.getElementById("image-input");
   const imagePreviews = document.getElementById("image-previews");
   let pendingImages = []; // Array of { data: base64, mimeType: string }
+  const fileChipsEl = document.getElementById("file-chips");
+  let pendingFiles = []; // [{ path, isDirectory }]
   let lastDomImagePasteAt = 0;
   let lastTextPasteAt = 0;
 
@@ -192,7 +204,7 @@ export function setupComposer({
       el.className = "image-preview";
       el.innerHTML = `
         <img src="data:${img.mimeType};base64,${img.data}" />
-        <button class="image-preview-remove" data-index="${i}">✕</button>
+        <button type="button" class="image-preview-remove" data-index="${i}">✕</button>
       `;
       el.querySelector(".image-preview-remove").addEventListener("click", () => {
         pendingImages.splice(i, 1);
@@ -201,6 +213,92 @@ export function setupComposer({
       imagePreviews.appendChild(el);
     });
   }
+
+  function addFilePaths(entries) {
+    for (const entry of entries) {
+      if (!entry?.path) continue;
+      if (pendingFiles.some((f) => f.path === entry.path)) continue; // dedupe
+      pendingFiles.push(entry);
+    }
+    renderFileChips();
+  }
+
+  function renderFileChips() {
+    fileChipsEl.innerHTML = "";
+    if (pendingFiles.length === 0) {
+      fileChipsEl.classList.add("hidden");
+      return;
+    }
+    fileChipsEl.classList.remove("hidden");
+    pendingFiles.forEach((f, i) => {
+      const el = document.createElement("div");
+      el.className = "file-chip";
+      const name = f.path.split("/").pop();
+      // Nombre y ruta salen del sistema de archivos: nunca por innerHTML.
+      // textContent/title escapan también las comillas, cosa que un
+      // escapeHtml basado en innerHTML no hace dentro de un atributo.
+      el.innerHTML =
+        '<span class="file-chip-icon"></span><span class="file-chip-name"></span><button type="button" class="file-chip-remove">✕</button>';
+      el.querySelector(".file-chip-icon").textContent = getFileIcon(name, f.isDirectory);
+      const nameEl = el.querySelector(".file-chip-name");
+      nameEl.textContent = name;
+      nameEl.title = f.path;
+      el.querySelector(".file-chip-remove").addEventListener("click", () => {
+        pendingFiles.splice(i, 1);
+        renderFileChips();
+      });
+      fileChipsEl.appendChild(el);
+    });
+  }
+
+  // Drag & drop file paths from the sidebar file browser onto the composer input
+  messageInput.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    messageInput.classList.add("file-drop-hover");
+  });
+  messageInput.addEventListener("dragleave", () => {
+    messageInput.classList.remove("file-drop-hover");
+  });
+  messageInput.addEventListener("drop", (e) => {
+    e.preventDefault();
+    messageInput.classList.remove("file-drop-hover");
+    const raw = e.dataTransfer.getData("application/x-ompcot-path");
+    if (raw) {
+      try {
+        addFilePaths([JSON.parse(raw)]);
+        return;
+      } catch {
+        // cae al text/plain
+      }
+    }
+    const text = e.dataTransfer.getData("text/plain");
+    if (text?.startsWith("/")) addFilePaths([{ path: text, isDirectory: false }]);
+  });
+
+  // ponytail: el evento nativo no dice si la ruta es un directorio; se infiere por
+  // "no tiene extensión". Techo conocido: Makefile / LICENSE muestran ícono de carpeta.
+  // Es sólo cosmético (nunca cambia lo que se envía); si molesta, preguntarle a
+  // /api/files antes de pintar el chip.
+  const looksLikeDir = (p) => !/\.[^/.]+$/.test(p.split("/").pop() || "");
+
+  // Tauri intercepta el drop del SO antes de que llegue al DOM (dragDropEnabled es
+  // true por default), así que el handler HTML5 de arriba nunca lo ve en escritorio.
+  // El evento nativo sí, y encima trae rutas absolutas reales.
+  (async () => {
+    const win = window.__TAURI__?.window?.getCurrentWindow?.();
+    if (!win?.onDragDropEvent) return;
+    await win.onDragDropEvent(({ payload }) => {
+      if (payload.type === "enter" || payload.type === "over") {
+        messageInput.classList.add("file-drop-hover");
+      } else if (payload.type === "leave") {
+        messageInput.classList.remove("file-drop-hover");
+      } else if (payload.type === "drop") {
+        messageInput.classList.remove("file-drop-hover");
+        addFilePaths((payload.paths || []).map((p) => ({ path: p, isDirectory: looksLikeDir(p) })));
+      }
+    });
+  })().catch((e) => console.error("[Ompcot] native drag-drop listen failed:", e));
 
   // Send message (with images)
   let messageQueue = [];
@@ -239,14 +337,19 @@ export function setupComposer({
     if (!currentOnboardingState().canQuery) return;
 
     const message = messageInput.value.trim();
-    if (!message) return;
+    if (!message && pendingFiles.length === 0) return;
 
     messageInput.value = "";
     messageInput.style.height = "auto";
 
+    const text = composePromptText(
+      message,
+      pendingFiles.map((f) => f.path),
+    );
+
     const cmd = {
       type: "prompt",
-      message,
+      message: text,
     };
 
     if (pendingImages.length > 0) {
@@ -264,17 +367,20 @@ export function setupComposer({
       renderImagePreviews();
     }
 
+    pendingFiles = [];
+    renderFileChips();
+
     if (state.isStreaming) {
       // Queue it — show as bubble above input
       messageQueue.push(cmd);
-      setLastSentMessage(message);
+      setLastSentMessage(text);
       renderQueuedMessages();
       return;
     }
 
-    setLastSentMessage(message);
-    messageRenderer.renderUserMessage({ content: message, images: cmd.images });
-    trackPromptDelivery(wsClient.send(cmd), message);
+    setLastSentMessage(text);
+    messageRenderer.renderUserMessage({ content: text, images: cmd.images });
+    trackPromptDelivery(wsClient.send(cmd), cmd.message);
     refreshSidebarAfterUserPrompt();
   }
 
@@ -359,6 +465,7 @@ export function setupComposer({
     clearMessageQueue,
     flushQueue,
     escapeHtml,
+    addFilePaths,
     getInFlightPrompt: (requestId) => inFlightPrompts.get(requestId),
     deleteInFlightPrompt: (requestId) => inFlightPrompts.delete(requestId),
     setPlanModeIndicator,

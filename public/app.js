@@ -232,7 +232,7 @@ const fileSidebarClose = document.getElementById("file-sidebar-close");
 const fileSidebarUp = document.getElementById("file-sidebar-up");
 const fileList = document.getElementById("file-list");
 const fileSidebarPath = document.getElementById("file-sidebar-path");
-const fileBrowser = new FileBrowser(fileList, fileSidebarPath, messageInput);
+const fileBrowser = new FileBrowser(fileList, fileSidebarPath);
 fileSidebarToggle.addEventListener("click", () => {
   const isCollapsed = fileSidebar.classList.toggle("collapsed");
   if (!isCollapsed && !fileBrowser.currentPath) {

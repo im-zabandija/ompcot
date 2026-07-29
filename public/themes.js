@@ -59,6 +59,9 @@ const DENSITY_COOKIE = "ompcot-density";
 const SIDEBAR_WIDTH_COOKIE = "ompcot-sidebar-width";
 const MOTION_COOKIE = "ompcot-motion";
 const VOICE_LOCALE_COOKIE = "ompcot-voice-locale";
+const PINNED_MODELS_COOKIE = "ompcot-pinned-models";
+const RECENT_MODELS_COOKIE = "ompcot-recent-models";
+const MAX_RECENT_MODELS = 5;
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10; // 10 years
 
 function readCookie(name) {
@@ -293,6 +296,38 @@ export function getVoiceLocale() {
 
 export function setVoiceLocale(locale) {
   writeCookie(VOICE_LOCALE_COOKIE, typeof locale === "string" ? locale : "");
+}
+
+// Modelos fijados y usados recientemente en el selector, compartidos entre
+// workspaces vía cookie (localStorage está particionado por puerto).
+function readModelIds(cookie) {
+  try {
+    const parsed = JSON.parse(readCookie(cookie) || "[]");
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getPinnedModels() {
+  return readModelIds(PINNED_MODELS_COOKIE);
+}
+
+export function togglePinnedModel(id) {
+  const cur = getPinnedModels();
+  const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+  writeCookie(PINNED_MODELS_COOKIE, JSON.stringify(next));
+  return next;
+}
+
+export function getRecentModels() {
+  return readModelIds(RECENT_MODELS_COOKIE);
+}
+
+export function pushRecentModel(id) {
+  const next = [id, ...getRecentModels().filter((x) => x !== id)].slice(0, MAX_RECENT_MODELS);
+  writeCookie(RECENT_MODELS_COOKIE, JSON.stringify(next));
+  return next;
 }
 
 // Re-apply every persisted appearance override on module load, so a fresh

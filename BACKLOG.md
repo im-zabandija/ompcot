@@ -41,40 +41,19 @@ Una idea por ítem, dentro de la categoría que más se parezca. Formato:
       programa pero dan info (ej. el roadmap, heredado del fork original en
       inglés — no se entiende qué dice). Agregar opción para alternar entre
       español e inglés en la app; por ahora solo esos dos idiomas.
-- [ ] [P2] Roadmap propio en español con nuestros pedidos e ideas
-      Reemplazar/complementar el roadmap heredado del fork (en inglés) por
-      uno que refleje nuestros requisitos, pedidos e ideas, para poder ver
-      qué sigue y con qué urgencia.
 - [ ] [P3] Vigilar el repositorio original (upstream) por cambios relevantes
       Además de nuestro repo, tener algo que avise si el proyecto original
       tuvo cambios importantes que convenga traer al nuestro, o hacia dónde
       apunta su rumbo.
-- [ ] [P2] Chequeo de actualización de OMP (el runtime) al abrir la sección
-      Al abrir una sección/la app, verificar si hay versión nueva de OMP
-      disponible. Botón de actualizar en el menú de Ajustes, y un aviso
-      (badge/notificación) en el menú principal.
-- [ ] [P2] Pegar imagen/archivo del portapapeles directo en el chat (Ctrl+V)
-      Hoy hay que ir a buscar el archivo a mano (ej. carpeta de capturas).
-      Con Ctrl+V la imagen/archivo del portapapeles debería aparecer directo
-      adjunto en el chat, sin salir a buscarlo.
-- [ ] [P2] Limpiador de sesiones/secciones abandonadas ("zombies")
-      Se acumulan secciones abandonadas ligadas a directorios viejos.
-      Agregar una forma de detectarlas y limpiarlas.
+- [ ] [P2] Pegar archivos no-imagen del portapapeles directo en el chat (Ctrl+V)
+      Las imágenes ya se pueden pegar así (`app-composer.js:146-181`). Falta
+      cubrir el caso de archivos no-imagen del portapapeles, que hoy hay que
+      ir a buscar a mano.
 - [ ] [P3] Modo "chat rápido" sin crear proyecto/directorio
       Cada sección depende de un directorio, y crear uno solo para una
       consulta rápida es tedioso. Poder iniciar un chat y hablar directo,
       usando un directorio temporal/scratch creado automáticamente, para
       consultas cotidianas que no son trabajo real de proyecto.
-- [ ] [P2] Modo plan persistente (toggle, sin escribir /plan)
-      Activar "modo plan" como un switch en vez de tener que escribir el
-      comando slash cada vez.
-- [ ] [P3] Menú de autocompletado al escribir "/"
-      Al tipear "/" en el chat, que aparezca la lista de comandos
-      disponibles (como en otros GUIs de chat para IA).
-- [ ] [P3] Selector de thinking level como menú desplegable
-      Hoy cambia con un solo click (cicla los niveles). Quiero un
-      dropdown/lista para elegir explícitamente la potencia/enfoque de
-      thinking.
 - [ ] [P3] Visor de Markdown/HTML para planes generados
       Sección/panel dedicado para ver los planes en modo plan renderizados
       (markdown/HTML), que se abra sin perder el contexto del plan sobre el
@@ -124,6 +103,30 @@ Una idea por ítem, dentro de la categoría que más se parezca. Formato:
 
 <!-- Acá voy moviendo lo tildado arriba, con fecha, para no perder el historial -->
 
+### 2026-07-27
+
+- [x] **Limpiador de sesiones/secciones abandonadas ("zombies").**
+      `public/session-cleanup.js` detecta secciones ligadas a directorios que
+      ya no existen y las ofrece limpiar.
+- [x] **Pegar imagen del portapapeles directo en el chat (Ctrl+V).**
+      `app-composer.js:146-181`: handler DOM `paste` más fallback nativo
+      WebKitGTK vía `transport.readClipboardImage()`. Falta la parte de
+      archivos no-imagen, que queda pendiente arriba.
+- [x] **Adjuntar archivo/carpeta arrastrado al chat como chip, no como ruta de texto.**
+      El drop (desde la sidebar de archivos o desde el explorador del SO) ya
+      no escribe la ruta cruda en el textarea: aparece como chip con ícono +
+      nombre, con la ruta completa en el `title`. El drop del SO se escucha
+      con `onDragDropEvent` de Tauri, que hoy interceptaba el evento antes de
+      que llegara al DOM.
+- [x] **Modelos fijados + recientes en el selector de modelo.**
+      Sección "Pinned & recent" arriba del listado general, hasta 3 modelos.
+      Pin persistente entre workspaces vía cookie (`themes.js`), porque
+      `localStorage` está particionado por puerto y cada workspace corre en
+      uno distinto.
+- [x] **Roadmap propio en español.**
+      `ROADMAP.md` reescrito entero en español, ordenado por urgencia
+      (Hecho / Ahora / Después / Ideas heredadas), derivado de este backlog.
+
 ### 2026-07-26
 
 - [x] **Eliminar sesiones desde la barra lateral.**
@@ -168,7 +171,9 @@ Una idea por ítem, dentro de la categoría que más se parezca. Formato:
       Distinto del auto-updater de Ompcot: este mira el runtime `omp`
       (`omp update --check`) al arrancar, muestra una pill en el sidebar cuando
       hay versión nueva y una fila en Settings → Updates para instalarla con
-      `omp update --force`.
+      `omp update --force`. Cubre también el pedido de "chequeo al abrir la
+      sección": el check corre al levantar el proceso omp, que es cuando se
+      abre la sección.
 - [x] **Menú de slash commands y selector de thinking.**
       Autocompletado al tipear `/` en el composer (lista curada de los comandos
       nativos), y el control de thinking pasó de botón que cicla a dropdown con

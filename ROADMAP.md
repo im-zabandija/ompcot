@@ -1,103 +1,72 @@
-# Ompcot Roadmap
+# Roadmap de Ompcot
 
-Ideas and planned features. Nothing here is committed — just captured so it doesn't get lost.
-
----
-
-## ✅ Done
-
-### PWA / Install to Home Screen
-Service worker, manifest, custom icons. Installable on iOS/Android/macOS as a standalone app.
-
-### Full-Text Session Search
-Search across all historical sessions by message content, not just titles. Debounced API search with highlighted snippets in the sidebar.
-
-### Context Window Visualiser
-Click the token usage pill to see a breakdown of cached tokens, fresh input, and available space. Stacked bar with legend.
-
-### File Browser
-Right sidebar with lazy-loaded file tree. Navigate directories, double-click to open files natively (macOS `open`), drag files onto the input to insert their path. Filters out `node_modules`, `.git`, etc.
-
-### Custom Model Picker
-Styled dropdown with search/filter, keyboard support, frosted glass menu. Replaces native `<select>`.
-
-### Compaction Support
-Manual compact command broadcasts start/end events to Ompcot. Shows compaction status in the conversation.
-
-### Voice Input
-Mic button inside the input bubble. Uses Web Speech API (on-device dictation). Live transcription into the textarea. Pulses red while recording. Hidden if browser doesn't support it.
-
-### Diff Viewer
-Edit tool cards render a proper inline diff with red/green lines instead of raw JSON args. Works for both live and history cards.
-
-### Message Queuing
-Input stays enabled while the agent is working. Queued messages appear as pills above the input with cancel buttons. Auto-sends in order when the agent finishes. Just like the TUI.
-
-### Image Previews in Chat
-Sent images now display inline in user message bubbles. Works for both new messages and session history.
-
-### Six Themes
-Dusk (clean neutral dark, default), Dawn (warm blue dark), Midnight (OLED black), Clean (Apple-style light with cyan-blue accents), Terracotta (warm light), Sage (warm olive-green light). Theme picker shows colour palette dots. All shadows flattened — no more clay.
-
-### Frosted Header & Footer
-Both header and input area are `position: absolute` with `backdrop-filter: blur(40px) saturate(1.5)`. Messages scroll behind both for the frosted glass effect.
-
-### Settings Panel
-Theme picker, auto-compaction toggle, thinking level, show/hide thinking blocks, push notification toggle.
+Este archivo es la vista ordenada por urgencia de lo que se pide en `BACKLOG.md`.
+No agregues ideas acá directamente: anotalas en `BACKLOG.md` y esta vista se
+actualiza cuando se cierra una tanda de trabajo.
 
 ---
 
-## 🚀 Ready to Ship
+## Hecho
 
-### Logo & Branding
-- Fresh README with feature overview
-- Screenshots (Dusk, Clean, mobile, file browser, search)
-- Already have the Ompcot icon in multiple sizes
+- Chips de adjunto en el composer: soltar un archivo/carpeta (desde la sidebar
+  o desde el explorador del SO) ya no escribe la ruta cruda en el textarea,
+  aparece como chip con ícono + nombre (2026-07-27).
+- Modelos fijados y recientes arriba del listado en el selector de modelo,
+  con pin persistente entre workspaces vía cookie (2026-07-27).
+- Roadmap propio en español, este mismo archivo, derivado de `BACKLOG.md`
+  (2026-07-27).
+- Pegar imágenes del portapapeles directo en el chat con Ctrl+V
+  (`app-composer.js:146-181`) (2026-07-27).
+- Limpiador de sesiones/secciones abandonadas ("zombies"),
+  `public/session-cleanup.js` (2026-07-27).
+- Chequeo de actualización del runtime OMP al arrancar, con pill en la
+  sidebar y botón de instalar en Settings → Updates (2026-07-26).
+- Modo plan como toggle en la GUI, sin escribir `/plan` a mano (2026-07-26).
+- Menú de autocompletado de slash commands y selector de thinking level como
+  dropdown (2026-07-26).
+- Eliminar sesiones desde la barra lateral con confirmación (2026-07-26).
+- Ordenar las sesiones de la barra lateral (recientes / más viejas / A→Z)
+  (2026-07-26).
+- Jerarquía visual de la barra lateral de sesiones y títulos reales de sesión
+  en vez del primer mensaje truncado (2026-07-26).
+- Ícono de Ompcot propio reemplazando al de Pi (2026-07-26).
+- Fix de "Abrir carpeta", que no hacía nada bajo Wayland (2026-07-26).
+- Fix del bug donde al cambiar de sección/proyecto quedaban datos de la
+  sección anterior (2026-07-25).
+- Repositorio propio en GitHub y auto-update apuntando ahí (2026-07-22).
 
-### npm Publishing
-- `omp install npm:ompcot` for frictionless install
-- Needs npm account setup and packaging
+## Ahora (P2)
 
----
+- Traducción completa ES/EN de la app (UI + archivos internos) con selector
+  de idioma.
+- Pegar archivos no-imagen del portapapeles con Ctrl+V.
 
-## 🔜 Low-Hanging Fruit
+## Después (P3)
 
-### Quick Actions on Tool Results
-Copy output button on tool cards. Expand/collapse all. Maybe re-run command. ~30 mins.
+- Vigilar el repositorio upstream por cambios relevantes a traer.
+- Chat rápido sin crear proyecto, usando un directorio scratch automático.
+- Visor de Markdown/HTML para los planes generados en modo plan.
+- Animación de tipeo suave en las respuestas del chat.
+- Sacar la barra de título nativa y reemplazarla por controles custom.
 
----
+## Cuando toque (P4 y sin prioridad)
 
-## 🔮 Bigger Ideas
+- Pulida general de la UI del chat, inspirada en otros clientes (Hermes
+  Desktop, OpenCode Desktop).
+- Paneles responsivos que se adapten bien al tamaño de la ventana.
 
-### File Preview Panel
-Context-aware split pane that displays files the agent is working on.
+## Ideas heredadas que seguimos queriendo
 
-- Code → syntax highlighted viewer (Monaco/CodeMirror)
-- Images → preview (PNG, SVG, generated images)
-- HTML → live iframe preview, hot reloads as agent edits
-- Markdown → rendered preview
-
-Desktop: button collapses sidebar and shrinks conversation to narrow feed, preview panel takes 60-70%. Mobile: tap a file reference to open full-screen preview.
-
-Builds on the file browser — could auto-show preview when a file gets edited.
-
-### Agent Teams (bundled)
-Ship a subagent/team extension as part of Ompcot. Spawn agent teams from the web UI, visual grouping in sidebar, team status overview, live-switch between agents. Based on OMP's subagent pattern but tightly integrated.
-
-### Conversation Fork/Branch Visualisation
-Pi already has fork support in the RPC. Visualise the conversation as a tree — go back to any point and try a different approach. Like git for conversations.
-
-### Cost Dashboard
-Track spending over time, per model, per project. Charts and trends. Data already captured per message.
-
-### Session Templates
-Start a new session pre-loaded with context for a specific project. Each with its own CLAUDE.md, working directory, and maybe a starter prompt.
-
-### Multi-Model A/B Testing
-Send the same prompt to two models side by side and compare responses. Split view with both responses streaming.
-
-### Live Terminal Embed
-Embedded terminal panel (xterm.js) showing real-time bash output from OMP's tool executions. Would need pi-core to expose a PTY stream through the extension API — currently bash tool runs one-shot commands, not a persistent shell. Read-only output display is possible now but limited value over existing tool cards.
-
-### memoryd Dashboard
-Standalone viewer for memoryd memory files. Was previously built into Ompcot, stripped out to keep the core lean. The viewer code is saved at `~/Desktop/memoryd-viewer/`. Now being integrated into the native macOS memoryd menu bar app.
+- Panel de preview de archivos: split pane contextual que muestra código,
+  imágenes, HTML en vivo o Markdown renderizado según lo que edita el agente.
+- Equipos de agentes integrados en la web UI, con agrupación visual y
+  live-switch entre agentes.
+- Visualización de forks/branches de conversación como árbol, para volver a
+  cualquier punto y probar otro camino.
+- Dashboard de costos: gasto en el tiempo, por modelo y por proyecto.
+- Plantillas de sesión: arrancar una sesión nueva pre-cargada con contexto de
+  un proyecto (CLAUDE.md, directorio de trabajo, prompt inicial).
+- A/B testing multi-modelo: mandar el mismo prompt a dos modelos y comparar
+  las respuestas lado a lado.
+- Terminal embebida (xterm.js) mostrando la salida de bash del agente en
+  tiempo real.
