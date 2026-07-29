@@ -12,9 +12,30 @@ extensions/dist/
 # OMP session exports
 omp-session-*.html
 
-# Personal scratch/draft notes — see BACKLOG.md for the structured version
+# Personal request/draft notes — not for the public repo
 Ompcot - Ideas
+BACKLOG.md
 
 # Local dev launcher — hardcodes an absolute $HOME path, so it is per-machine
 # (run-dev.sh itself is portable and IS tracked)
 ompcot-dev.desktop
+
+# Legacy Bun binary lockfile — bun.lock (text) is the tracked source of truth
+bun.lockb
+
+# Scratch handoff notes some subagent runs drop in repo root instead of local://
+.impl-*.md
+.scratch-*.md
+
+# Secrets / env files — never commit
+.env
+.env.*
+
+# Runtime/dev logs
+*.log
+
+# Windows Explorer thumbnail cache (DS_Store's Windows sibling)
+Thumbs.db
+
+# Vitest coverage output, if ever generated
+coverage/

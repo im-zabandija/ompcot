@@ -1,232 +1,232 @@
 # Ompcot
 
-[Español](./README.md) | [English](./README.en.md) | [中文](./README.zh.md)
+[English](./README.md) | [Español](./docs/README.es.md) | [中文](./docs/README.zh.md)
 
-Una GUI de escritorio local para el agente de coding [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi). Sin nube, sin cuenta — corre enteramente en tu máquina.
+A local desktop GUI for the [Oh My Pi (OMP)](https://github.com/can1357/oh-my-pi) coding agent. No cloud, no account — runs entirely on your machine.
 
-Ompcot usa el runtime `omp` instalado en tu sistema. Resuelve primero `OMP_BIN` y después `omp` desde `PATH`, así que actualizar OMP no requiere recompilar la app.
+Ompcot uses the `omp` runtime installed on your system. It resolves `OMP_BIN` first and then `omp` from `PATH`, so upgrading OMP does not require rebuilding the app.
 
-> Adaptado de [Picot](https://github.com/shixin-guo/picot) (basado en Pi, a su vez fork de Tau) para usar OMP en vez de Pi — ver [Historia del fork](#historia-del-fork) para la cadena completa. Este repo es una continuación personal, mantenida activamente.
+> Adapted from [Picot](https://github.com/shixin-guo/picot) (Pi-based, itself a fork of Tau) for OMP instead of Pi — see [Fork history](#fork-history) for the full chain. This repo is a personal, actively-maintained continuation.
 
 ---
 
-## Instalación
+## Install
 
-[Descargar desde GitHub Releases](https://github.com/im-zabandija/ompcot/releases)
+[Download from GitHub Releases](https://github.com/im-zabandija/ompcot/releases)
 
-Instalá OMP antes de arrancar Ompcot. Usá el instalador de tu plataforma desde [omp.sh](https://omp.sh), o instalá el paquete del SDK con Bun:
+Install OMP before starting Ompcot. Use the installer for your platform from [omp.sh](https://omp.sh), or install the SDK package with Bun:
 
 ```bash
 bun install -g @oh-my-pi/pi-coding-agent
 ```
 
-### Aviso: builds de macOS sin firmar
+### macOS unsigned release notice
 
-Ompcot hoy distribuye builds de macOS sin firma/notarización de Apple Developer ID. Comportamiento esperado de Gatekeeper:
+Ompcot currently ships macOS builds without Apple Developer ID signing/notarization. Expected Gatekeeper behavior:
 
 `"Ompcot" cannot be opened because the developer cannot be verified.`
 
-**Para permitirlo:**
+**To allow it:**
 
-1. Arrastrá `Ompcot.app` a `/Applications`
-2. Click derecho → **Open**
-3. Si sigue bloqueado: **System Settings → Privacy & Security → Open Anyway**
-
----
-
-## Qué hace
-
-Ompcot te da una interfaz visual completa para OMP. Abrí cualquier carpeta de proyecto, arrancá a chatear con el agente, navegá sesiones y archivos — sin necesitar terminal. Varios proyectos corren en paralelo, cada uno en su propia ventana con su propio proceso de agente aislado.
+1. Drag `Ompcot.app` into `/Applications`
+2. Right-click → **Open**
+3. If blocked: **System Settings → Privacy & Security → Open Anyway**
 
 ---
 
-## Funcionalidades
+## What it does
+
+Ompcot gives you a full visual interface for OMP. Open any project folder, start chatting with the agent, browse sessions and files — no terminal required. Multiple projects run in parallel, each in its own window with its own isolated agent process.
+
+---
+
+## Features
 
 ### 💬 Chat
 
-- Renderizado completo de markdown con bloques de código resaltados por sintaxis
-- **Respuestas en streaming** con indicador de tipeo en vivo (impulsado por remend)
-- Adjuntar imágenes — pegar, arrastrar y soltar, o botón
-- **Visor de diff** inline para tool calls de edición (líneas rojo/verde)
-- Tarjetas de tool calls y **bloques de pensamiento** renderizados en vivo
-- Copiar cualquier mensaje con un click
-- Botón scroll-to-bottom con indicador de no leídos
-- **Cola de mensajes** — escribí mientras el agente trabaja; los mensajes se encolan como píldoras y se auto-envían cuando está listo
+- Full markdown rendering with syntax-highlighted code blocks
+- **Streaming responses** with live typing indicator (powered by remend)
+- Image attachments — paste, drag & drop, or button
+- Inline **diff viewer** for edit tool calls (red/green lines)
+- Tool-call cards and **thinking blocks** rendered live
+- Copy any message with one click
+- Scroll-to-bottom button with unread indicator
+- **Message queuing** — type while the agent is working; messages queue as pills and auto-send when ready
 
-### 🗂️ Multi-sesión y Multi-agente
+### 🗂️ Multi-Session & Multi-Agent
 
-- **Múltiples agentes en paralelo** — cada sesión levanta su propio proceso omp headless; sin ventana de SO nueva, sin interrumpir sesiones corriendo
-- Navegar y retomar cualquier sesión pasada desde la sidebar
-- Búsqueda de texto completo en todo el historial de sesiones con fragmentos resaltados
-- Sesiones ordenadas por fecha de creación; la sesión en vivo marcada con un punto verde
-- Renombrar sesiones inline, favoritos, tags y filtrado
+- **Multiple agents in parallel** — each session spawns its own headless omp process; no new OS window, no interruption of running sessions
+- Browse and resume any past session from the sidebar
+- Full-text search across all session history with highlighted snippets
+- Sessions sorted by creation time; live session marked with a green dot
+- Inline session rename, favourites, tags, and filtering
 
-### 🗃️ Proyectos y Workspace
+### 🗃️ Projects & Workspace
 
-- **Multi-proyecto** — cada proyecto tiene su propia ventana, directorio de trabajo, historial de sesiones y agente
-- Muestra la **rama de git actual** en el header del proyecto
-- **Abrir en editor externo** — lanzá VS Code, Cursor, o cualquier app directamente desde Ompcot
-- Selector de carpeta nativo para abrir cualquier proyecto sin tocar la terminal
+- **Multi-project** — each project gets its own window, working directory, session history, and agent
+- Shows the **current git branch** in the project header
+- **Open in external editor** — launch VS Code, Cursor, or any app directly from Ompcot
+- Native folder picker to open any project without touching the terminal
 
-### 📱 Acceso móvil y LAN
+### 📱 Mobile & LAN Access
 
-- **Código QR de LAN** — escaneá para abrir Ompcot en cualquier dispositivo de la misma red; cada
-  URL del QR lleva un token de acceso aleatorio, único por lanzamiento
-- Manejo de URLs optimizado para móvil y soporte de App Launcher (instalable como PWA en iOS/Android)
-- El broker de control nativo es solo-loopback; los clientes LAN solo pueden acceder al
-  endpoint de sesión OMP protegido por token que representa el código QR
+- **LAN QR code** — scan to open Ompcot on any device on the same network; each
+  QR URL carries a random, per-launch access token
+- Mobile-optimised URL handling and App Launcher support (installable as PWA on iOS/Android)
+- The native control broker is loopback-only; LAN clients can access only the
+  token-protected OMP session endpoint represented by the QR code
 
-### 📦 Gestor de paquetes
+### 📦 Package Manager
 
-- Navegar, instalar y quitar paquetes de la comunidad desde la UI
-- Construido sobre `omp install` — sin comandos de paquetes separados
+- Browse, install, and remove community packages from within the UI
+- Built on top of `omp install` — no separate package commands needed
 
-### 💰 Dashboard de costos y uso
+### 💰 Cost & Usage Dashboard
 
-- Tracking de costo por sesión con métricas de tokens/costo en vivo
-- Dashboard de costos completo con infobar, tendencias, y desglose por modelo
-- **Visualizador de context window** — click en la píldora de tokens para ver tokens cacheados, input fresco, y espacio disponible
+- Per-session cost tracking with live token/cost metrics
+- Full cost dashboard with infobar, trends, and per-model breakdown
+- **Context window visualiser** — click the token pill to see cached tokens, fresh input, and available space
 
-### 🎨 Temas y apariencia
+### 🎨 Themes & Appearance
 
-- Seis temas incluidos: **Dusk**, Dawn, Midnight, Clean, Terracotta, Sage
-- **Color de acento personalizado** — elegí cualquier color hex, aplicado por encima de cualquier tema
-- **Tamaño de fuente, densidad, y ancho de sidebar** — todos ajustables y persistidos
-- **Control de movimiento** — forzar animaciones reducidas/completas independiente de la config del SO
-- Header y barra de input con efecto vidrio esmerilado (`backdrop-filter: blur`)
-- Integración nativa con la barra de título de macOS
-- **Arrastrar la ventana** desde el área del header — se siente como una app nativa
+- Six built-in themes: **Dusk**, Dawn, Midnight, Clean, Terracotta, Sage
+- **Custom accent color** — pick any hex color, applied on top of any theme
+- **Font size, density, and sidebar width** — all adjustable and persisted
+- **Motion control** — force reduced/full animations independent of OS settings
+- Frosted-glass header and input bar (`backdrop-filter: blur`)
+- Native macOS title bar overlay integration
+- **Window dragging** from the header area — feels like a native app
 
-### 🎤 Entrada de voz
+### 🎤 Voice Input
 
-- Botón de micrófono en el área de input usando Web Speech API (dictado on-device)
-- Transcripción en vivo hacia el textarea; pulsa en rojo mientras graba
+- Mic button in the input area using Web Speech API (on-device dictation)
+- Live transcription into the textarea; pulses red while recording
 
-### 🗄️ Explorador de archivos
+### 🗄️ File Browser
 
-- Sidebar derecha con árbol de archivos de carga diferida
-- Navegar directorios, abrir archivos nativamente
-- Arrastrar archivos al input para insertar su ruta
+- Right sidebar with lazy-loaded file tree
+- Navigate directories, open files natively
+- Drag files onto the input to insert their path
 
-### ⚙️ Ajustes y control
+### ⚙️ Settings & Control
 
-- Selector de modelo con búsqueda/filtro y soporte de teclado
-- Toggle de nivel de thinking (off / bajo / medio / alto)
-- Compactación de contexto automática y manual con estado visible
-- Override de locale para entrada de voz (independiente del idioma del SO)
-- Notificaciones nativas del SO cuando el agente termina y la ventana no está enfocada
+- Model picker with search/filter and keyboard support
+- Thinking level toggle (off / low / medium / high)
+- Auto and manual **context compaction** with status display
+- Voice input locale override (independent of OS language)
+- Native OS notifications when the agent finishes while unfocused
 
-### 🖥️ Integración con el SO
+### 🖥️ OS Integration
 
-- **Ícono en la bandeja del sistema** con menú en vivo de las instancias corriendo
-- **Atajo global** (`Cmd/Ctrl+Shift+O`) para enfocar o abrir Ompcot desde cualquier lado
-- **Instancia única** — relanzar enfoca la ventana existente en vez de generar un duplicado
-- Tamaño y posición de ventana persistidos entre reinicios
-- **Acciones rápidas en tool cards** — copiar output, expandir/colapsar todo, y re-ejecutar comandos bash directo desde el composer
-
----
-
-## Capacidades de OMP integradas
-
-Ompcot no reimplementa la lógica del agente — gestiona subprocesos de OMP y expone sus capacidades a través de una UI nativa.
-
-- **Runtime `omp --mode rpc` gestionado** — un proceso OMP del sistema por workspace/sesión activa
-- **Puente RPC en streaming** — output token por token, eventos de tool-call, y bloques de pensamiento renderizados en vivo
-- **APIs de ciclo de vida de sesión** — crear, cambiar, y retomar sesiones; historial completo por proyecto
-- **Broker WebSocket** — múltiples clientes UI pueden conectarse al mismo proceso omp simultáneamente
-- **Compatibilidad con extensiones** — las extensiones de usuario de `~/.omp/agent/extensions/` y `.omp/extensions/` se cargan automáticamente
-- **Reutilización de credenciales** — lee el `~/.omp/agent/auth.json` existente de OMP; sin login separado
+- **System tray icon** with a live menu of running instances
+- **Global shortcut** (`Cmd/Ctrl+Shift+O`) to focus or open Ompcot from anywhere
+- **Single instance** — relaunching focuses the existing window instead of spawning a duplicate
+- Window size/position persisted across restarts
+- **Quick actions on tool cards** — copy output, expand/collapse all, and re-run bash commands straight from the composer
 
 ---
 
-## Cómo funciona
+## OMP capabilities integrated
+
+Ompcot does not re-implement agent logic — it manages OMP subprocesses and exposes their capabilities through a native UI.
+
+- **Managed `omp --mode rpc` runtime** — one system OMP process per active workspace/session
+- **Streaming RPC bridge** — token-by-token output, tool-call events, and thinking blocks rendered live
+- **Session lifecycle APIs** — create, switch, and resume sessions; full per-project history
+- **WebSocket broker** — multiple UI clients can connect to the same omp process simultaneously
+- **Extension compatibility** — user extensions from `~/.omp/agent/extensions/` and `.omp/extensions/` are auto-loaded
+- **Credential reuse** — reads OMP's existing `~/.omp/agent/auth.json`; no separate login needed
+
+---
+
+## How it works
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │ Ompcot .app                                          │
 │                                                      │
 │   Tauri + OmpManager (Rust)                          │
-│      ├─► spawn  omp --mode rpc  (proyecto A, :3001)  │
-│      ├─► spawn  omp --mode rpc  (proyecto B, :3002)  │
-│      └─► Ventana de SO por proyecto ──► WebView ──► HTTP │
+│      ├─► spawn  omp --mode rpc  (project A, :3001)   │
+│      ├─► spawn  omp --mode rpc  (project B, :3002)   │
+│      └─► OS Window per project ──► WebView ──► HTTP  │
 │                                                      │
 │   resources/                                         │
 │      ├─ public/             (frontend)               │
 │      └─ extensions/         (embedded-server.mjs)    │
 └──────────────────────────────────────────────────────┘
                        │
-                       ▼ lee / escribe
+                       ▼ reads / writes
               ~/.omp/agent/
-                 ├─ sessions/   (historial de chat)
+                 ├─ sessions/   (chat history)
                  ├─ auth.json   (API keys)
                  └─ settings.json
 ```
 
-El proceso omp gestionado carga `embedded-server.mjs` al arrancar. Esa extensión posee la superficie HTTP + WebSocket con la que habla el WebView de Tauri: assets estáticos, `/api/sessions`, `/api/cost-dashboard`, puente RPC para prompts, etc. El lado Rust de Ompcot controla el ciclo de vida de procesos, asignación de puertos, y gestión de ventanas.
+The managed omp process loads `embedded-server.mjs` at startup. That extension owns the HTTP + WebSocket surface the Tauri WebView talks to: static assets, `/api/sessions`, `/api/cost-dashboard`, RPC bridge for prompts, etc. Ompcot's Rust side controls process lifecycle, port allocation, and window management.
 
 ---
 
-## Uso
+## Usage
 
-1. Instalá OMP y asegurate de que `omp` esté en `PATH` (o seteá `OMP_BIN`)
-2. Lanzá **Ompcot**
-3. Click en una burbuja de proyecto o elegí una carpeta
-4. Arrancá a chatear — el agente omp gestionado arranca automáticamente
+1. Install OMP and ensure `omp` is on `PATH` (or set `OMP_BIN`)
+2. Launch **Ompcot**
+3. Click a project bubble or pick a folder
+4. Start chatting — the managed omp agent starts automatically
 
-Proveé credenciales de modelo en Ompcot Settings, vía `omp /login`, o escribiendo `~/.omp/agent/auth.json`.
+Provide model credentials in Ompcot Settings, via `omp /login`, or by writing `~/.omp/agent/auth.json`.
 
 ---
 
-## Compilar desde el código fuente
+## Build from source
 
 ```bash
 git clone https://github.com/im-zabandija/ompcot.git
 cd ompcot
 bun install --frozen-lockfile
-bun run dev         # arranca tauri dev con hot reload
+bun run dev         # start tauri dev with hot reload
 ```
 
-Para hacer un build de release:
+To make a release build:
 
 ```bash
-bun run build        # corre build:extensions + tauri build
+bun run build        # runs build:extensions + tauri build
 ```
 
-Después de cualquier cambio bajo `src-tauri/`:
+After any changes under `src-tauri/`:
 
 ```bash
-bun run check:rust   # cargo check + clippy + fmt (rápido; sin necesidad de build completo)
+bun run check:rust   # cargo check + clippy + fmt (fast; no full build needed)
 ```
 
-## Historia del fork
+## Fork history
 
-Linaje de Ompcot: [Tau](https://github.com/deflating/tau) → [Picot](https://github.com/shixin-guo/picot) (Shixin Guo, todavía desarrollado activamente) → [zephyrq-z/ompcot](https://github.com/zephyrq-z/ompcot) (migración Pi → OMP) → [kyle-kw/ompcot](https://github.com/kyle-kw/ompcot) (fix de release de Windows) → **este repo** (continuación personal, mantenida activamente). Cambios clave en el camino:
+Ompcot's lineage: [Tau](https://github.com/deflating/tau) → [Picot](https://github.com/shixin-guo/picot) (Shixin Guo, still actively developed) → [zephyrq-z/ompcot](https://github.com/zephyrq-z/ompcot) (Pi → OMP migration) → [kyle-kw/ompcot](https://github.com/kyle-kw/ompcot) (Windows release fix) → **this repo** (personal continuation, actively maintained). Key changes along the way:
 
-- **Migración Pi → OMP** — referencias de runtime, rutas, y variables de entorno usan OMP
-- **Runtime OMP del sistema** — resuelve `OMP_BIN` u `omp` desde `PATH`; las actualizaciones de OMP tienen efecto sin recompilar Ompcot
-- **Paquetes del SDK de OMP** — `@oh-my-pi/pi-coding-agent` y paquetes relacionados
+- **Pi → OMP migration** — runtime references, paths, and environment variables use OMP
+- **System OMP runtime** — resolves `OMP_BIN` or `omp` from `PATH`; OMP upgrades take effect without rebuilding Ompcot
+- **OMP SDK packages** — `@oh-my-pi/pi-coding-agent` and related packages
 
 ### 0.5.1
 
-- Sesiones en la barra lateral: eliminar (con confirmación) y ordenar por recientes / más viejas / nombre
-- Rediseño del listado de sesiones: jerarquía visual clara, filas más compactas y preview del primer mensaje en la sesión activa
-- Se corrigió el parseo del título de sesión: el servidor buscaba un formato que OMP ya no escribe, así que ninguna sesión mostraba su nombre real
-- "Abrir carpeta" no abría nada bajo Wayland: el diálogo pasó a usar el portal de escritorio y se ancla a la ventana de la app
-- Aviso de actualización del runtime OMP, con instalación desde Settings → Updates
-- Composer: menú de slash commands, selector de thinking desplegable, y modo plan que restringe las tools a sólo lectura
-- Logo oficial de OMP, que además funciona como botón de nueva sesión
+- Sidebar sessions: delete (with confirmation) and sort by recent / oldest / name
+- Redesigned session list: clearer visual hierarchy, tighter rows, and a first-message preview on the active session
+- Fixed session-title parsing: the server looked for a shape OMP no longer writes, so no session ever showed its real name
+- "Open folder" opened nothing under Wayland: the dialog now goes through the desktop portal and is anchored to the app window
+- OMP runtime update check, installable from Settings → Updates
+- Composer: slash-command menu, thinking-level dropdown, and a plan mode that restricts tools to read-only
+- Official OMP logo, which doubles as the new-session button
 
 ### 0.5.0
 
-- `app.js` partido de un monolito de 3656 líneas en 11 módulos enfocados bajo `public/app-*.js`
-- Mapa de arquitectura interactivo: `docs/architecture-map.html`
-- Personalización visual: color de acento, tamaño de fuente, densidad, ancho de sidebar, preferencia de movimiento
-- Integración nativa con el SO: instancia única, persistencia de tamaño/posición de ventana, notificaciones nativas, bandeja del sistema, atajo global (`Cmd/Ctrl+Shift+O`)
-- Acciones rápidas en tool cards: copiar output, expandir/colapsar todo, re-ejecutar comandos bash
-- Polling consciente de inactividad (6x menos tráfico de red sin foco)
+- `app.js` split from a 3656-line monolith into 11 focused modules under `public/app-*.js`
+- Interactive architecture map: `docs/architecture-map.html`
+- Visual customization: accent color, font size, density, sidebar width, motion preference
+- Native OS integration: single-instance, window-state persistence, native notifications, system tray, global shortcut (`Cmd/Ctrl+Shift+O`)
+- Quick actions on tool cards: copy output, expand/collapse all, re-run bash commands
+- Idle-aware polling (6x less network traffic while unfocused)
 
 ---
 
-## Licencia
+## License
 
 MIT
