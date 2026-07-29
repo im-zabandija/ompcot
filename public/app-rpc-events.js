@@ -1,5 +1,7 @@
 import { resolveNewSessionLiveFile } from "./new-session-refresh.js";
 import { findPortForSession } from "./session-routing.js";
+import { prefersReducedMotion } from "./themes.js";
+import { createTypingPacer } from "./typing-pacer.js";
 
 /**
  * RPC event handlers — every `handle*` dispatched from the WebSocket
@@ -63,6 +65,15 @@ export function setupRpcEvents({
   let currentStreamingElement = null;
   let currentStreamingText = "";
   let currentStreamingThinking = "";
+
+  const typingPacer = createTypingPacer({
+    render: (text) => {
+      if (currentStreamingElement) {
+        messageRenderer.updateStreamingMessage(currentStreamingElement, text);
+      }
+    },
+    paced: () => !prefersReducedMotion(),
+  });
 
   function handleRPCEvent(event) {
     const eventSessionFile = event?.__broker?.sessionId || null;
@@ -259,8 +270,10 @@ export function setupRpcEvents({
   function handleAgentEnd(event = null) {
     state.setStreaming(false);
     showTypingIndicator(false);
-    currentStreamingElement = null;
-    currentStreamingText = "";
+    // Suelta el elemento igual que antes, pero pasando por el reset central:
+    // el pacer tiene que vaciar la cola tipeada y olvidar su estado, si no el
+    // `shown` residual deja mudo al próximo mensaje.
+    resetStreamingState();
     updateUI();
 
     // Deferred session switch: user clicked a history session while streaming.
@@ -304,6 +317,8 @@ export function setupRpcEvents({
       currentStreamingText = "";
       currentStreamingThinking = "";
       currentStreamingElement = messageRenderer.renderAssistantMessage({ content: "" }, true);
+      // Invariante: burbuja nueva ⇒ pacer en cero (nunca un `shown` del mensaje anterior).
+      typingPacer.reset();
     } else if (message.role === "user") {
       // In mirror mode, user messages from TUI appear via events
       // Only render if we didn't just send this message ourselves
@@ -351,11 +366,13 @@ export function setupRpcEvents({
     currentStreamingText = getAssistantText(message);
     currentStreamingThinking = getAssistantThinking(message);
     currentStreamingElement = messageRenderer.renderAssistantMessage({ content: "" }, true);
+    typingPacer.reset();
     if (currentStreamingThinking) {
       messageRenderer.updateStreamingThinking(currentStreamingElement, currentStreamingThinking);
     }
     if (currentStreamingText) {
-      messageRenderer.updateStreamingMessage(currentStreamingElement, currentStreamingText);
+      typingPacer.push(currentStreamingText);
+      typingPacer.flush(); // hidratación: el texto ya existía, no se anima
     }
     return currentStreamingElement;
   }
@@ -376,7 +393,7 @@ export function setupRpcEvents({
       currentStreamingText =
         getAssistantText(message) || currentStreamingText + assistantMessageEvent.delta;
       if (currentStreamingElement) {
-        messageRenderer.updateStreamingMessage(currentStreamingElement, currentStreamingText);
+        typingPacer.push(currentStreamingText);
       }
     }
   }
@@ -394,6 +411,7 @@ export function setupRpcEvents({
       ensureStreamingAssistantElement(message);
     }
     if (currentStreamingElement) {
+      typingPacer.flush();
       // Pass usage info for cost display
       const usage = message?.usage || null;
       // Pass thinking content so finalize can render the thinking block
@@ -403,6 +421,7 @@ export function setupRpcEvents({
         currentStreamingThinking,
       );
       currentStreamingElement = null;
+      typingPacer.reset();
       currentStreamingThinking = "";
 
       // Track session cost and tokens
@@ -494,6 +513,8 @@ export function setupRpcEvents({
   }
 
   function resetStreamingState() {
+    typingPacer.flush(); // antes de soltar el elemento: no perder la cola tipeada
+    typingPacer.reset();
     currentStreamingElement = null;
     currentStreamingText = "";
     currentStreamingThinking = "";

@@ -287,6 +287,15 @@ export function clearMotion() {
   document.documentElement.removeAttribute("data-motion");
   writeCookie(MOTION_COOKIE, "");
 }
+// Reduced-motion efectivo. El override de Settings (data-motion) manda sobre la
+// media query del SO, igual que promete el comentario de getMotion/applyMotion:
+// "auto" deja la media query a cargo; "reduced"/"full" fuerzan el estado.
+export function prefersReducedMotion() {
+  const mode = document.documentElement.getAttribute("data-motion");
+  if (mode === "reduced") return true;
+  if (mode === "full") return false;
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+}
 
 // Voice-input locale override. Null means "use the OS locale" (navigator.language).
 export function getVoiceLocale() {

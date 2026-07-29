@@ -517,9 +517,10 @@ fn open_workspace_window(
         .title_bar_style(TitleBarStyle::Overlay)
         .hidden_title(true);
 
-    // Non-macOS: keep standard native decorations.
+    // Non-macOS: sin decoraciones nativas; los controles los dibuja el frontend
+    // (public/window-controls.js) y el resize lo maneja startResizeDragging.
     #[cfg(not(target_os = "macos"))]
-    let builder = builder.decorations(true);
+    let builder = builder.decorations(false);
 
     builder.build().map_err(|e| e.to_string())?;
 

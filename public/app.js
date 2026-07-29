@@ -28,6 +28,7 @@ import { StateManager } from "./state.js";
 import { ToolCardRenderer } from "./tool-card.js";
 import { initTransport } from "./transport.js";
 import { resolveWebSocketUrl, WebSocketClient } from "./websocket-client.js";
+import { setupWindowControls } from "./window-controls.js";
 import {
   openFolderAsWorkspace,
   startInWindowNewSession,
@@ -139,11 +140,7 @@ const inputAreaEl = document.querySelector(".input-area");
 const composerCard = document.getElementById("composer-card");
 const settingsPanel = document.getElementById("settings-panel");
 
-headerEl?.addEventListener("mousedown", (e) => {
-  if (e.button !== 0) return;
-  if (e.target.closest("button, a, input, select, textarea, [role=button]")) return;
-  window.__TAURI__?.window?.getCurrentWindow().startDragging();
-});
+setupWindowControls().catch(() => {});
 
 setupMessagesInsets({
   main: mainContainer,

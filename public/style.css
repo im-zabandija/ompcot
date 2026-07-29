@@ -5989,3 +5989,149 @@ html.macos-overlay .settings-content {
 .lan-qr-btn {
   color: var(--accent-text);
 }
+
+/* ─── Barra de título custom (Windows/Linux; macOS usa TitleBarStyle::Overlay) ── */
+.window-controls,
+.window-resize-handles {
+  display: none;
+}
+
+/* Reserva la esquina superior derecha para que los controles no pisen
+   #file-sidebar-toggle ni las pills del header (3×28px + 2×2px gap = 88px). */
+html.custom-titlebar .header {
+  padding-right: 96px;
+}
+
+html.custom-titlebar .window-controls {
+  display: flex;
+  position: fixed;
+  top: 6px;
+  right: 8px;
+  gap: 2px;
+  z-index: 3000; /* por encima de .settings-panel (260) y del swap overlay */
+  opacity: 0;
+  transition: opacity 120ms var(--ease, ease);
+}
+/* Invisibles en reposo pero siempre hit-testeables: aparecen al pasar el mouse
+   por la zona, que es el pedido, y siguen alcanzables por teclado. */
+html.custom-titlebar .window-controls:hover,
+html.custom-titlebar .window-controls:focus-within {
+  opacity: 1;
+}
+
+.window-control {
+  width: 28px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.window-control:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+}
+.window-control-close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+.window-control .wc-restore {
+  display: none;
+}
+#window-controls[data-maximized="true"] .window-control .wc-max {
+  display: none;
+}
+#window-controls[data-maximized="true"] .window-control .wc-restore {
+  display: inline;
+}
+
+/* Bordes de resize: una ventana sin decoraciones en GTK pierde los agarres
+   nativos, así que los reponemos con startResizeDragging. */
+html.custom-titlebar .window-resize-handles {
+  display: block;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3001;
+}
+.wrh {
+  position: absolute;
+  pointer-events: auto;
+}
+.wrh-n {
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 4px;
+  cursor: n-resize;
+}
+.wrh-s {
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 4px;
+  cursor: s-resize;
+}
+.wrh-w {
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  cursor: w-resize;
+}
+.wrh-e {
+  right: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  cursor: e-resize;
+}
+.wrh-nw {
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  cursor: nw-resize;
+}
+.wrh-ne {
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  cursor: ne-resize;
+}
+.wrh-sw {
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  cursor: sw-resize;
+}
+.wrh-se {
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  cursor: se-resize;
+}
+
+/* La fila de botones del file browser vive en el mismo borde derecho y arranca
+   en y=12: sin este respiro, el X de "cerrar panel" cae debajo del X de
+   "cerrar ventana" (z-index 3000) y un click cerraría la ventana entera. */
+html.custom-titlebar .file-sidebar-header {
+  padding-top: 34px;
+}
+
+/* El handle de resize Este (4px) tapaba la barra de scroll (6px) de los
+   contenedores que llegan al borde derecho: agarrarla redimensionaba en vez de
+   scrollear. Los corremos 4px hacia adentro. */
+html.custom-titlebar .messages,
+html.custom-titlebar .settings-content {
+  margin-right: 4px;
+}
