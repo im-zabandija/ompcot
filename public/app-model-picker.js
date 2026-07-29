@@ -1,9 +1,37 @@
 import { getOnboardingState } from "./onboarding-state.js";
+import { getPinnedModels, getRecentModels, pushRecentModel, togglePinnedModel } from "./themes.js";
 
 /**
  * Canonical thinking levels (from RPC `get_state`).
  */
 const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+
+/**
+ * Clave única de un modelo. Los `id` colisionan entre proveedores
+ * (`claude-opus-5` existe en `anthropic` y en `opencode-zen`, 53 colisiones
+ * en total), así que todo lo que indexe modelos tiene que usar esto y no `id`.
+ */
+export const modelKey = (m) => `${m.provider}/${m.id}`;
+
+/**
+ * Fijados primero (todos), y recientes hasta completar `limit` filas.
+ * `pinnedIds`/`recentIds` son claves `provider/id`.
+ */
+export function topModels(pinnedIds, recentIds, available, limit = 3) {
+  const byKey = new Map(available.map((m) => [modelKey(m), m]));
+  const pinned = pinnedIds.map((k) => byKey.get(k)).filter(Boolean);
+  const seen = new Set(pinned.map(modelKey));
+  const recent = [];
+  for (const key of recentIds) {
+    if (pinned.length + recent.length >= limit) break;
+    if (seen.has(key)) continue;
+    const m = byKey.get(key);
+    if (!m) continue; // el modelo ya no está disponible: se ignora, no se rompe
+    seen.add(key);
+    recent.push(m);
+  }
+  return [...pinned, ...recent];
+}
 
 /**
  * Model picker (dropdown + search) and thinking-level dropdown.
@@ -42,6 +70,7 @@ export function setupModelPicker({
   const thinkingDropdownMenu = document.getElementById("thinking-dropdown-menu");
 
   let currentModelId = "";
+  let currentModelProvider = "";
   let availableModels = [];
   let hasLoadedAvailableModels = false;
   let didAutoOpenEmptyModelsDropdown = false;
@@ -104,9 +133,10 @@ export function setupModelPicker({
       }
       if (stateData.success && stateData.data?.model) {
         currentModelId = stateData.data.model.id || "";
+        currentModelProvider = stateData.data.model.provider || "";
         updateModelLabel();
 
-        const model = availableModels.find((m) => m.id === currentModelId);
+        const model = availableModels.find((m) => modelKey(m) === currentKey());
         if (model?.contextWindow) {
           setContextWindowSize(model.contextWindow);
           updateTokenUsage();
@@ -138,6 +168,8 @@ export function setupModelPicker({
     }
   }
 
+  const currentKey = () => `${currentModelProvider}/${currentModelId}`;
+
   function updateModelLabel() {
     const shortName = currentModelId.replace(/^claude-/, "").replace(/-\d{8}$/, "");
     modelDropdownLabel.textContent = shortName || "model";
@@ -167,6 +199,50 @@ export function setupModelPicker({
     itemsContainer.className = "model-dropdown-items";
     modelDropdownMenu.appendChild(itemsContainer);
 
+    function sectionLabel(text) {
+      const el = document.createElement("div");
+      el.className = "model-dropdown-section";
+      el.textContent = text;
+      return el;
+    }
+
+    function createModelRow(m) {
+      const shortName = m.id.replace(/-\d{8}$/, "");
+      const key = modelKey(m);
+      // El proveedor se muestra SIEMPRE (incluido anthropic): hay ids repetidos
+      // entre proveedores y sin la etiqueta las filas son indistinguibles.
+      const providerLabel = m.provider
+        ? `<span class="model-dropdown-item-provider">${m.provider}</span>`
+        : "";
+      const ctxK = m.contextWindow ? `${(m.contextWindow / 1000).toFixed(0)}k` : "";
+      const isPinned = getPinnedModels().includes(key);
+      const el = document.createElement("div");
+      el.className = `model-dropdown-item${key === currentKey() ? " active" : ""}`;
+      el.innerHTML = `<span>${shortName}${providerLabel}</span><span class="model-dropdown-item-right"><span class="model-dropdown-item-ctx">${ctxK}</span><button type="button" class="model-dropdown-pin${isPinned ? " pinned" : ""}" title="Pin model">${isPinned ? "★" : "☆"}</button></span>`;
+      el.querySelector(".model-dropdown-pin").addEventListener("click", (e) => {
+        e.stopPropagation();
+        togglePinnedModel(key);
+        renderItems(search.value);
+      });
+      el.addEventListener("click", async () => {
+        closeModelDropdown();
+        const display = m.id.replace(/^claude-/, "").replace(/-\d{8}$/, "");
+        await rpcCommand(
+          { type: "set_model", provider: m.provider, modelId: m.id },
+          `Switching to ${display}...`,
+        );
+        pushRecentModel(key);
+        currentModelId = m.id;
+        currentModelProvider = m.provider || "";
+        updateModelLabel();
+        if (m.contextWindow) {
+          setContextWindowSize(m.contextWindow);
+          updateTokenUsage();
+        }
+      });
+      return el;
+    }
+
     function renderItems(filter) {
       itemsContainer.innerHTML = "";
       const query = (filter || "").toLowerCase();
@@ -189,6 +265,14 @@ export function setupModelPicker({
         itemsContainer.appendChild(empty);
         return;
       }
+      if (!query) {
+        const top = topModels(getPinnedModels(), getRecentModels(), availableModels);
+        if (top.length) {
+          itemsContainer.appendChild(sectionLabel("Pinned & recent"));
+          for (const m of top) itemsContainer.appendChild(createModelRow(m));
+          itemsContainer.appendChild(sectionLabel("All models"));
+        }
+      }
       availableModels.forEach((m) => {
         const shortName = m.id.replace(/-\d{8}$/, "");
         const providerStr = m.provider || "";
@@ -198,30 +282,7 @@ export function setupModelPicker({
           !providerStr.toLowerCase().includes(query)
         )
           return;
-
-        const el = document.createElement("div");
-        el.className = `model-dropdown-item${m.id === currentModelId ? " active" : ""}`;
-        const ctxK = m.contextWindow ? `${(m.contextWindow / 1000).toFixed(0)}k` : "";
-        const providerLabel =
-          m.provider && m.provider !== "anthropic"
-            ? `<span class="model-dropdown-item-provider">${m.provider}</span>`
-            : "";
-        el.innerHTML = `<span>${shortName}${providerLabel}</span><span class="model-dropdown-item-ctx">${ctxK}</span>`;
-        el.addEventListener("click", async () => {
-          closeModelDropdown();
-          const display = m.id.replace(/^claude-/, "").replace(/-\d{8}$/, "");
-          await rpcCommand(
-            { type: "set_model", provider: m.provider, modelId: m.id },
-            `Switching to ${display}...`,
-          );
-          currentModelId = m.id;
-          updateModelLabel();
-          if (m.contextWindow) {
-            setContextWindowSize(m.contextWindow);
-            updateTokenUsage();
-          }
-        });
-        itemsContainer.appendChild(el);
+        itemsContainer.appendChild(createModelRow(m));
       });
     }
 
@@ -320,8 +381,9 @@ export function setupModelPicker({
       currentThinkingLevel = level;
       updateThinkingBtn();
     },
-    setCurrentModelId: (id) => {
+    setCurrentModelId: (id, provider = "") => {
       currentModelId = id;
+      currentModelProvider = provider;
     },
   };
 }

@@ -448,7 +448,7 @@ export function setupSessionRouting({
 
     // Update model display
     if (data.model) {
-      setCurrentModelId(data.model.id || "");
+      setCurrentModelId(data.model.id || "", data.model.provider || "");
       updateModelLabel();
       if (data.model.contextWindow) {
         setContextWindowSize(data.model.contextWindow);
