@@ -185,7 +185,7 @@ including how to thread mutable app.js state through getters/setters):
 - `websocket-client.js` — WebSocket client for streaming chat with OMP.
 - `state.js` — shared app state.
 - `transport.js` — sends lifecycle and native operations through the WebSocket broker (includes `showNotification`, `openInApp`, `listInstalledApps`).
-- `message-renderer.js`, `tool-card.js`, `markdown.js` — chat message rendering; `tool-card.js` has a real LCS diff viewer and copy/expand/re-run actions on tool cards.
+- `message-renderer.js`, `tool-card.js`, `markdown.js` — chat message rendering; `tool-card.js` renders the diff OMP already delivers in `result.details.diff` (it does not compute diffs itself) and has copy/expand/re-run actions on tool cards.
 - `session-sidebar.js` — session history list.
 - `file-browser.js` — lazy-loaded file tree sidebar.
 - `dialogs.js`, `workspace-actions.js` — modal dialogs and workspace actions.

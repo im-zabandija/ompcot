@@ -19,12 +19,6 @@ export class ToolCardRenderer {
     const argsJson = this.formatJson(args);
     const isExpanded = status === "streaming" || status === "pending";
 
-    const isEdit =
-      (toolName === "edit" || toolName === "Edit") &&
-      args &&
-      (args.oldText || args.old_text) &&
-      (args.newText || args.new_text);
-
     const hasCommand = typeof args?.command === "string" && args.command.length > 0;
     const rerunBtnHtml = hasCommand
       ? '<button class="tool-action-btn rerun-btn" title="Re-run in composer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>'
@@ -44,19 +38,12 @@ export class ToolCardRenderer {
         </div>
       </div>
       <div class="tool-card-body${isExpanded ? " expanded" : ""}">
-        ${!isEdit && argsJson ? `<div class="tool-args">${this.escapeHtml(argsJson)}</div>` : ""}
+        ${argsJson ? `<div class="tool-args">${this.escapeHtml(argsJson)}</div>` : ""}
         <div class="tool-output-wrapper">
           <div class="tool-output"></div>
         </div>
       </div>
     `;
-
-    // Insert diff view for Edit tools
-    if (isEdit) {
-      const diffEl = this.renderDiff(args.oldText || args.old_text, args.newText || args.new_text);
-      const body = card.querySelector(".tool-card-body");
-      body.insertBefore(diffEl, body.firstChild);
-    }
 
     if (hasCommand) {
       const rerunBtn = card.querySelector(".rerun-btn");
@@ -120,6 +107,14 @@ export class ToolCardRenderer {
     if (outputElement && result) {
       const output = this.formatResult(result);
       outputElement.textContent = output;
+    }
+
+    // Real diff, computed by OMP and forwarded verbatim — not gated by tool name.
+    const diff = result?.details?.diff;
+    if (typeof diff === "string" && diff.length > 0) {
+      const body = card.querySelector(".tool-card-body");
+      body?.querySelector(".tool-diff")?.remove();
+      body?.insertBefore(this.renderEditDiff(diff), body.firstChild);
     }
 
     // Collapse completed cards (less noise)
@@ -235,24 +230,12 @@ export class ToolCardRenderer {
     const body = document.createElement("div");
     body.className = "tool-card-body";
 
-    const isEdit =
-      (toolName === "edit" || toolName === "Edit") &&
-      args &&
-      (args.oldText || args.old_text) &&
-      (args.newText || args.new_text);
-
-    if (isEdit) {
-      body.appendChild(
-        this.renderDiff(args.oldText || args.old_text, args.newText || args.new_text),
-      );
-    } else {
-      const argsJson = this.formatJson(args);
-      if (argsJson) {
-        const argsEl = document.createElement("div");
-        argsEl.className = "tool-args";
-        argsEl.textContent = argsJson;
-        body.appendChild(argsEl);
-      }
+    const argsJson = this.formatJson(args);
+    if (argsJson) {
+      const argsEl = document.createElement("div");
+      argsEl.className = "tool-args";
+      argsEl.textContent = argsJson;
+      body.appendChild(argsEl);
     }
 
     const outputEl = document.createElement("div");
@@ -326,28 +309,51 @@ export class ToolCardRenderer {
     }
   }
 
-  /** Render a simple inline diff for Edit tool */
-  renderDiff(oldText, newText) {
+  /** Parses the diff OMP already computed ("+16|text", "-24|text", " 15|text"). */
+  parseEditDiff(diff) {
+    if (!diff) return [];
+    const lineRe = /^([ +-])(\d*)\|([\s\S]*)$/;
+    return diff.split("\n").map((raw) => {
+      if (raw === "") return { kind: "gap", line: null, text: "" };
+      const m = raw.match(lineRe);
+      if (!m) return { kind: "ctx", line: null, text: raw };
+      const [, marker, lineNo, text] = m;
+      const kind = marker === "+" ? "add" : marker === "-" ? "rem" : "ctx";
+      return { kind, line: lineNo ? Number(lineNo) : null, text };
+    });
+  }
+
+  /** Renders the real diff OMP computed for an `edit` tool call. */
+  renderEditDiff(diff) {
     const container = document.createElement("div");
     container.className = "tool-diff";
 
-    const oldLines = oldText.split("\n");
-    const newLines = newText.split("\n");
+    for (const entry of this.parseEditDiff(diff)) {
+      if (entry.kind === "gap") {
+        const gap = document.createElement("div");
+        gap.className = "diff-gap";
+        gap.textContent = "⋯";
+        container.appendChild(gap);
+        continue;
+      }
 
-    // Removed lines
-    for (const line of oldLines) {
-      const el = document.createElement("div");
-      el.className = "diff-line diff-removed";
-      el.textContent = `- ${line}`;
-      container.appendChild(el);
-    }
+      const kindClass = { add: "diff-added", rem: "diff-removed", ctx: "diff-context" }[entry.kind];
+      const row = document.createElement("div");
+      row.className = `diff-line ${kindClass}`;
 
-    // Added lines
-    for (const line of newLines) {
-      const el = document.createElement("div");
-      el.className = "diff-line diff-added";
-      el.textContent = `+ ${line}`;
-      container.appendChild(el);
+      if (entry.line !== null) {
+        const lineNo = document.createElement("span");
+        lineNo.className = "diff-line-no";
+        lineNo.textContent = String(entry.line);
+        row.appendChild(lineNo);
+      }
+
+      const text = document.createElement("span");
+      text.className = "diff-line-text";
+      text.textContent = entry.text;
+      row.appendChild(text);
+
+      container.appendChild(row);
     }
 
     return container;

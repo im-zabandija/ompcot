@@ -43,7 +43,16 @@ actualiza cuando se cierra una tanda de trabajo.
 
 ## Después (P3)
 
-- Vigilar el repositorio upstream por cambios relevantes a traer.
+- Vigilar `picot` (el original vivo), no `upstream` (congelado), por cambios
+  relevantes a traer — sólo su `public/`, que es nuestro mismo linaje vanilla
+  JS; su capa de extensión migró a Pi y ya no nos sirve.
+- Bandeja de atención unificada: una sola vista que junte approvals,
+  preguntas y confirmaciones de todas las sesiones (visto en t4-code y
+  MTEnt/omp-desktop).
+- Terminal PTY nativa embebida — antes "terminal embebida xterm.js", ahora con
+  referencia concreta del mismo stack: Omnividente/omp-desktop (Tauri + Rust).
+  Ver el ítem en `BACKLOG.md` por los dos renderers candidatos (xterm.js o
+  ghostty-web).
 - Chat rápido sin crear proyecto, usando un directorio scratch automático.
 - Visor de Markdown/HTML para los planes generados en modo plan.
 - Animación de tipeo suave en las respuestas del chat.
@@ -51,8 +60,25 @@ actualiza cuando se cierra una tanda de trabajo.
 
 ## Cuando toque (P4 y sin prioridad)
 
-- Pulida general de la UI del chat, inspirada en otros clientes (Hermes
-  Desktop, OpenCode Desktop).
+- Pulida del chat: base de tokens y checker de diseño, resaltado de sintaxis,
+  diff real del `edit`, tipografía monoespaciada unificada (P4.1-P4.4), y 13
+  sub-ítems más anotados en el backlog (P4.5-P4.17).
+- Stats por turno en el chat: tokens in/out, costo, tokens/segundo (visto en
+  MTEnt/omp-desktop).
+- Panel de "archivos que tocó el agente" con sus diffs (MTEnt, Ran1sss/OMP-IDE).
+- Visor de diffs multi-archivo estilo VS Code (Vincent-Huang-2000/oh-my-pi-desktop).
+- Árbol de sesiones padre/hijo navegable (BRCOO/ohmypi-craft).
+- Acciones masivas sobre sesiones: multi-selección para archivar/borrar/etiquetar (BRCOO).
+- Anotaciones de follow-up: seleccionar un pedazo de respuesta, anotarlo y
+  mandarlo citado como siguiente mensaje (BRCOO).
+- Failover automático de modelo al agotarse la cuota, manteniendo el thinking
+  level (Ran1sss/OMP-IDE).
+- Aprobaciones y preguntas del agente inline en el chat, en vez de modales
+  aparte (patrón de Hermes One).
+- Slider de esfuerzo de pensamiento (Faster↔Smarter) en vez del dropdown de 7
+  niveles (picot, Hermes One, t4-code).
+- Sistema de tokens de 3 capas a largo plazo (modelo de OpenCode Desktop:
+  paletas crudas + capa semántica + alias).
 - Paneles responsivos que se adapten bien al tamaño de la ventana.
 
 ## Ideas heredadas que seguimos queriendo
@@ -68,5 +94,6 @@ actualiza cuando se cierra una tanda de trabajo.
   un proyecto (CLAUDE.md, directorio de trabajo, prompt inicial).
 - A/B testing multi-modelo: mandar el mismo prompt a dos modelos y comparar
   las respuestas lado a lado.
-- Terminal embebida (xterm.js) mostrando la salida de bash del agente en
-  tiempo real.
+- Terminal PTY nativa embebida — promovida a P3 (ver arriba). Referencia
+  concreta del mismo stack: `Omnividente/omp-desktop` (Tauri + Rust,
+  `portable-pty`); renderer candidato: `xterm.js` o `ghostty-web`.

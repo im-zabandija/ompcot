@@ -104,7 +104,9 @@ export function renderMarkdown(text) {
       const langLabel = block.lang || "code";
       html += `<div class="code-block-wrapper">`;
       html += `<div class="code-block-header"><span>${escapeHtml(langLabel)}</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>`;
-      html += `<pre><code>${escapeHtml(block.code)}</code></pre></div>`;
+      const codeLang = (block.lang || "").toLowerCase().replace(/[^a-z0-9+#-]/g, "");
+      const codeClass = codeLang ? ` class="language-${codeLang}"` : "";
+      html += `<pre><code${codeClass}>${escapeHtml(block.code)}</code></pre></div>`;
       continue;
     }
 

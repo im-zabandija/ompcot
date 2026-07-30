@@ -74,3 +74,33 @@ describe("ToolCardRenderer re-run action", () => {
     expect(container.querySelector(".rerun-btn")).toBeNull();
   });
 });
+
+describe("ToolCardRenderer.parseEditDiff", () => {
+  let renderer;
+
+  beforeEach(() => {
+    renderer = new ToolCardRenderer(document.createElement("div"));
+  });
+
+  it("parses context, add, remove, and gap lines from a real OMP diff", () => {
+    const diff = [
+      ' 15|import { getFileIcon } from "./file-browser.js";',
+      '+16|import { composePromptText } from "./prompt-attachments.js";',
+      " 16|",
+      "-24|/** comentario viejo */",
+      "",
+      " 31|export function setupComposer({",
+    ].join("\n");
+
+    const entries = renderer.parseEditDiff(diff);
+
+    expect(entries.map((e) => e.kind)).toEqual(["ctx", "add", "ctx", "rem", "gap", "ctx"]);
+    expect(entries.map((e) => e.line)).toEqual([15, 16, 16, 24, null, 31]);
+    expect(entries[1].text).toBe('import { composePromptText } from "./prompt-attachments.js";');
+    expect(entries[2].text).toBe("");
+  });
+
+  it("returns an empty array for an empty diff", () => {
+    expect(renderer.parseEditDiff("")).toEqual([]);
+  });
+});

@@ -2,9 +2,13 @@
  * Message Renderer - Renders chat messages with markdown support
  */
 
+import { clearCaretTrail, updateCaretTrail } from "./caret-trail.js";
 import { getFileIcon } from "./file-browser.js";
 import { renderMarkdown, renderStreamingMarkdown, renderUserMarkdown } from "./markdown.js";
 import { looksLikeDir, splitPromptAttachments } from "./prompt-attachments.js";
+import { markStreamTail } from "./stream-tail.js";
+import { hasTypingFx, prefersReducedMotion } from "./themes.js";
+import hljs from "./vendor/highlight.js";
 
 function buildAttachmentChips(paths) {
   const wrap = document.createElement("div");
@@ -214,7 +218,10 @@ export class MessageRenderer {
       ${!isStreaming ? '<button class="message-copy-btn" aria-label="Copy message"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>' : ""}
     `;
 
-    if (!isStreaming) this._setupCopyBtn(div);
+    if (!isStreaming) {
+      this._setupCopyBtn(div);
+      this.highlightCodeBlocks(div);
+    }
     this.container.appendChild(div);
     if (!isHistory) this.scrollToBottom();
 
@@ -270,14 +277,21 @@ export class MessageRenderer {
           contentDiv.appendChild(textNode);
         }
         textNode.innerHTML = rendered;
+        if (hasTypingFx("tail")) markStreamTail(textNode);
+        if (hasTypingFx("trail") && !prefersReducedMotion())
+          updateCaretTrail(messageElement, textNode);
       } else {
         contentDiv.innerHTML = rendered;
+        if (hasTypingFx("tail")) markStreamTail(contentDiv);
+        if (hasTypingFx("trail") && !prefersReducedMotion())
+          updateCaretTrail(messageElement, contentDiv);
       }
       this.scrollToBottom();
     }
   }
 
   finalizeStreamingMessage(messageElement, usage = null, thinking = "") {
+    clearCaretTrail(messageElement);
     const contentDiv = messageElement.querySelector(".message-content");
     if (contentDiv) {
       contentDiv.classList.remove("streaming");
@@ -298,6 +312,7 @@ export class MessageRenderer {
       }
       html += renderMarkdown(rawText);
       contentDiv.innerHTML = html;
+      this.highlightCodeBlocks(contentDiv);
     }
 
     // Add copy button after streaming finishes
@@ -405,6 +420,16 @@ export class MessageRenderer {
     return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
+  highlightCodeBlocks(root) {
+    for (const el of root.querySelectorAll("pre code[class*='language-']")) {
+      if (el.classList.contains("hljs")) continue;
+      try {
+        hljs.highlightElement(el);
+      } catch {
+        // One bad grammar shouldn't break the rest; block stays plain.
+      }
+    }
+  }
   escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;

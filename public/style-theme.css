@@ -1,6 +1,35 @@
 /* Shared design tokens + per-theme color tokens */
 
 :root {
+  /* Tipografía — la escala real de Ompcot, derivada de lo que ya usa el CSS.
+     OJO: nuestro `md` es 13px; el de picot es 14px. No copiar valores entre
+     los dos proyectos sin mirar. */
+  --font-mono: "SF Mono", "Menlo", "Monaco", monospace;
+  --font-size-base: 15px;
+  --font-size-2xs: 10px;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+
+  /* Espaciado — base 4px, con los medios pasos que usamos de verdad (10, 14) */
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
   /* Shape */
   --radius-xs: 4px;
   --radius-sm: 6px;
