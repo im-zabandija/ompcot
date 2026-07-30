@@ -2,7 +2,29 @@
  * Message Renderer - Renders chat messages with markdown support
  */
 
+import { getFileIcon } from "./file-browser.js";
 import { renderMarkdown, renderStreamingMarkdown, renderUserMarkdown } from "./markdown.js";
+import { looksLikeDir, splitPromptAttachments } from "./prompt-attachments.js";
+
+function buildAttachmentChips(paths) {
+  const wrap = document.createElement("div");
+  wrap.className = "file-chips message-file-chips";
+  for (const p of paths) {
+    const name = p.split(/[\\/]/).pop() || p;
+    const chip = document.createElement("span");
+    chip.className = "file-chip";
+    const icon = document.createElement("span");
+    icon.className = "file-chip-icon";
+    icon.textContent = getFileIcon(name, looksLikeDir(p));
+    const nameEl = document.createElement("span");
+    nameEl.className = "file-chip-name";
+    nameEl.textContent = name;
+    nameEl.title = p;
+    chip.append(icon, nameEl);
+    wrap.appendChild(chip);
+  }
+  return wrap;
+}
 
 export class MessageRenderer {
   constructor(container) {
@@ -104,6 +126,8 @@ export class MessageRenderer {
     const div = document.createElement("div");
     div.className = `message user${isHistory ? " history" : ""}`;
 
+    const { text, paths } = splitPromptAttachments(message.content);
+
     let imagesHtml = "";
     if (message.images && message.images.length > 0) {
       imagesHtml =
@@ -120,9 +144,19 @@ export class MessageRenderer {
     }
 
     div.innerHTML = `
-      <div class="message-content">${imagesHtml}${renderUserMarkdown(message.content)}</div>
+      <div class="message-content">${imagesHtml}${renderUserMarkdown(text)}</div>
       <button class="message-copy-btn" aria-label="Copy message"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
     `;
+    if (paths.length > 0) {
+      const contentEl = div.querySelector(".message-content");
+      const chips = buildAttachmentChips(paths);
+      // Sin texto abajo, el chip es lo último de la burbuja: sin margen inferior.
+      if (!text) chips.classList.add("only-attachments");
+      const imagesEl = contentEl.querySelector(".message-images");
+      contentEl.insertBefore(chips, imagesEl ? imagesEl.nextSibling : contentEl.firstChild);
+      // Copiar tiene que seguir dando las rutas reales, no el nombre del chip.
+      div.dataset.copyText = message.content;
+    }
     this._setupCopyBtn(div);
     this.container.appendChild(div);
     if (!isHistory) this.scrollToBottom();
@@ -309,7 +343,8 @@ export class MessageRenderer {
     btn.addEventListener("click", () => {
       const content = messageEl.querySelector(".message-content");
       if (!content) return;
-      const text = content.textContent;
+      // Con chips, textContent daría "📄 AGENTS.md"; el dataset guarda el prompt real.
+      const text = messageEl.dataset.copyText ?? content.textContent;
       // Fallback for non-HTTPS (LAN access)
       const copyText = (t) => {
         if (navigator.clipboard) return navigator.clipboard.writeText(t);

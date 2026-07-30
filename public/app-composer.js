@@ -13,19 +13,13 @@
  */
 
 import { getFileIcon } from "./file-browser.js";
+import { composePromptText, looksLikeDir } from "./prompt-attachments.js";
 
 export function base64ToFile(data, mimeType) {
   const bin = atob(data);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new File([bytes], "pasted-image", { type: mimeType || "image/png" });
-}
-
-/** El texto final del prompt: el mensaje y, debajo, una ruta por línea. */
-export function composePromptText(message, paths) {
-  if (!paths?.length) return message;
-  const list = paths.join("\n");
-  return message ? `${message}\n\n${list}` : list;
 }
 
 export function setupComposer({
@@ -275,12 +269,6 @@ export function setupComposer({
     const text = e.dataTransfer.getData("text/plain");
     if (text?.startsWith("/")) addFilePaths([{ path: text, isDirectory: false }]);
   });
-
-  // ponytail: el evento nativo no dice si la ruta es un directorio; se infiere por
-  // "no tiene extensión". Techo conocido: Makefile / LICENSE muestran ícono de carpeta.
-  // Es sólo cosmético (nunca cambia lo que se envía); si molesta, preguntarle a
-  // /api/files antes de pintar el chip.
-  const looksLikeDir = (p) => !/\.[^/.]+$/.test(p.split("/").pop() || "");
 
   // Tauri intercepta el drop del SO antes de que llegue al DOM (dragDropEnabled es
   // true por default), así que el handler HTML5 de arriba nunca lo ve en escritorio.

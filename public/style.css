@@ -4315,6 +4315,22 @@ body.hide-thinking .thinking-block {
   color: var(--text-primary);
 }
 
+/* Chips de adjunto en un mensaje ya enviado: sin botón de borrar y heredando el
+   color de la burbuja (fondo acento) en vez del gris del composer. */
+.message-file-chips {
+  margin-bottom: 6px;
+}
+
+.message-file-chips.only-attachments {
+  margin-bottom: 0;
+}
+
+.message.user .message-file-chips .file-chip {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border-color: color-mix(in srgb, currentColor 28%, transparent);
+  color: inherit;
+}
+
 .image-preview {
   position: relative;
   width: 64px;

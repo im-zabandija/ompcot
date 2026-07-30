@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { JSDOM } from "jsdom";
 import { describe, expect, test, vi } from "vitest";
-import { composePromptText, setupComposer } from "./app-composer.js";
+import { setupComposer } from "./app-composer.js";
+import { composePromptText, splitPromptAttachments } from "./prompt-attachments.js";
 
 // Paso 1 del backlog P2: chips de adjunto en el composer.
 // composePromptText es pura; el resto se ejercita montando el body real de
@@ -19,6 +20,34 @@ describe("composePromptText (pure)", () => {
 
   test("message + no paths: message unchanged, no trailing blank lines", () => {
     expect(composePromptText("hola", [])).toBe("hola");
+  });
+});
+
+describe("splitPromptAttachments (pure)", () => {
+  test("roundtrip: recupera texto y rutas de lo que arma composePromptText", () => {
+    const wire = composePromptText("revisá esto", ["/a/b.md", "/c/d"]);
+    expect(splitPromptAttachments(wire)).toEqual({
+      text: "revisá esto",
+      paths: ["/a/b.md", "/c/d"],
+    });
+  });
+
+  test("mensaje que es sólo rutas: texto vacío", () => {
+    expect(splitPromptAttachments("/a/b.md")).toEqual({ text: "", paths: ["/a/b.md"] });
+  });
+
+  test("prosa que termina en una ruta sin línea en blanco queda como texto", () => {
+    const raw = "mirá esto\n/a/b.md";
+    expect(splitPromptAttachments(raw)).toEqual({ text: raw, paths: [] });
+  });
+
+  test("un slash-command no es un adjunto", () => {
+    expect(splitPromptAttachments("/help")).toEqual({ text: "/help", paths: [] });
+  });
+
+  test("una ruta con espacios cae a texto plano (techo conocido)", () => {
+    const raw = "hola\n\n/home/x/My Docs/a.md";
+    expect(splitPromptAttachments(raw)).toEqual({ text: raw, paths: [] });
   });
 });
 
