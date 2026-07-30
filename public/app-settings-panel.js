@@ -15,6 +15,7 @@ import {
   applyMotion,
   applySidebarWidth,
   applyTheme,
+  applyTypingFx,
   clearAccentOverride,
   getAccentOverride,
   getCurrentTheme,
@@ -22,6 +23,7 @@ import {
   getFontSize,
   getMotion,
   getSidebarWidth,
+  getTypingFx,
   getVoiceLocale,
   setVoiceLocale,
   themes,
@@ -229,6 +231,27 @@ export function setupSettingsPanel({
       applyDensity(getDensity() === "compact" ? "comfortable" : "compact");
       setDensityToggle();
     });
+
+    // Efectos de tipeo — tres toggles sobre una sola preferencia multi-token.
+    const typingFxToggles = [
+      ["caret", document.getElementById("setting-typing-fx-caret")],
+      ["tail", document.getElementById("setting-typing-fx-tail")],
+      ["trail", document.getElementById("setting-typing-fx-trail")],
+    ];
+    const paintTypingFx = () => {
+      const on = getTypingFx();
+      for (const [token, btn] of typingFxToggles) {
+        btn.className = `settings-toggle${on.includes(token) ? " on" : ""}`;
+      }
+    };
+    paintTypingFx();
+    for (const [token, btn] of typingFxToggles) {
+      btn.addEventListener("click", () => {
+        const on = getTypingFx();
+        applyTypingFx(on.includes(token) ? on.filter((t) => t !== token) : [...on, token]);
+        paintTypingFx();
+      });
+    }
 
     // Sidebar width — slider, default 272 when unset.
     sidebarSlider.value = String(getSidebarWidth() ?? 272);

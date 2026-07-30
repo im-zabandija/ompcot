@@ -5,17 +5,21 @@ import {
   applyFontSize,
   applyMotion,
   applySidebarWidth,
+  applyTypingFx,
   clearAccentOverride,
   clearDensity,
   clearFontSize,
   clearMotion,
   clearSidebarWidth,
+  clearTypingFx,
   getAccentOverride,
   getDensity,
   getFontSize,
   getMotion,
   getSidebarWidth,
+  getTypingFx,
   getVoiceLocale,
+  hasTypingFx,
   setVoiceLocale,
 } from "./themes.js";
 
@@ -26,6 +30,7 @@ const APPEARANCE_COOKIES = [
   "ompcot-sidebar-width",
   "ompcot-motion",
   "ompcot-voice-locale",
+  "ompcot-typing-fx",
 ];
 
 function resetDocument() {
@@ -47,6 +52,7 @@ function resetDocument() {
   }
   root.removeAttribute("data-density");
   root.removeAttribute("data-motion");
+  root.removeAttribute("data-typing-fx");
 }
 
 beforeEach(resetDocument);
@@ -204,6 +210,44 @@ describe("motion override", () => {
     clearMotion();
     expect(document.documentElement.hasAttribute("data-motion")).toBe(false);
     expect(getMotion()).toBe(null);
+  });
+});
+
+describe("typing effects", () => {
+  it("defaults to all three tokens when no cookie is set", () => {
+    expect(getTypingFx()).toEqual(["caret", "tail", "trail"]);
+    expect(hasTypingFx("caret")).toBe(true);
+    expect(hasTypingFx("tail")).toBe(true);
+    expect(hasTypingFx("trail")).toBe(true);
+  });
+
+  it("applyTypingFx([]) persists the 'none' sentinel, not an empty cookie", () => {
+    // Regression: writeCookie("") deletes the cookie, which would fall back to the
+    // "all three" default on next read — the sentinel is what makes "all off" durable.
+    applyTypingFx([]);
+    expect(document.cookie).toContain("ompcot-typing-fx=none");
+    expect(getTypingFx()).toEqual([]);
+    expect(hasTypingFx("caret")).toBe(false);
+  });
+
+  it("applyTypingFx canonicalizes token order regardless of input order", () => {
+    applyTypingFx(["trail", "caret"]);
+    expect(document.documentElement.getAttribute("data-typing-fx")).toBe("caret trail");
+    expect(getTypingFx()).toEqual(["caret", "trail"]);
+    expect(hasTypingFx("tail")).toBe(false);
+  });
+
+  it("falls back to the default when the cookie holds no valid tokens", () => {
+    // biome-ignore lint/suspicious/noDocumentCookie: simulate a corrupted cookie directly
+    document.cookie = "ompcot-typing-fx=bogus; Path=/";
+    expect(getTypingFx()).toEqual(["caret", "tail", "trail"]);
+  });
+
+  it("clearTypingFx resets the attribute to all three and clears the cookie", () => {
+    applyTypingFx([]);
+    clearTypingFx();
+    expect(document.documentElement.getAttribute("data-typing-fx")).toBe("caret tail trail");
+    expect(getTypingFx()).toEqual(["caret", "tail", "trail"]);
   });
 });
 

@@ -11,8 +11,8 @@ export function createTypingPacer({
   render,
   schedule = (fn) => requestAnimationFrame(fn),
   cancel = (id) => cancelAnimationFrame(id),
-  minStep = 3,
-  divisor = 6,
+  minStep = 2,
+  divisor = 30,
   paced = () => true,
 } = {}) {
   let target = "";

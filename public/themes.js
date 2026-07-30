@@ -63,6 +63,9 @@ const PINNED_MODELS_COOKIE = "ompcot-pinned-models";
 const RECENT_MODELS_COOKIE = "ompcot-recent-models";
 const MAX_RECENT_MODELS = 5;
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10; // 10 years
+const TYPING_FX_COOKIE = "ompcot-typing-fx";
+const TYPING_FX_TOKENS = ["caret", "tail", "trail"];
+const TYPING_FX_NONE = "none";
 
 function readCookie(name) {
   try {
@@ -287,6 +290,39 @@ export function clearMotion() {
   document.documentElement.removeAttribute("data-motion");
   writeCookie(MOTION_COOKIE, "");
 }
+
+// Efectos de tipeo — subconjunto de "caret tail trail" en UNA sola preferencia
+// multi-token. Sin cookie ⇒ los tres prendidos. El centinela "none" distingue
+// "todos apagados" de "sin preferencia": writeCookie("") BORRA la cookie, así que
+// guardar "" haría volver al default en la próxima carga.
+export function getTypingFx() {
+  const v = readCookie(TYPING_FX_COOKIE);
+  if (!v) return [...TYPING_FX_TOKENS];
+  if (v === TYPING_FX_NONE) return [];
+  const picked = v.split(" ").filter((t) => TYPING_FX_TOKENS.includes(t));
+  return picked.length ? picked : [...TYPING_FX_TOKENS]; // cookie corrupta ⇒ default
+}
+
+export function applyTypingFx(tokens) {
+  const picked = TYPING_FX_TOKENS.filter((t) => tokens.includes(t)); // orden canónico
+  document.documentElement.setAttribute("data-typing-fx", picked.join(" "));
+  writeCookie(TYPING_FX_COOKIE, picked.length ? picked.join(" ") : TYPING_FX_NONE);
+  return picked;
+}
+
+export function clearTypingFx() {
+  document.documentElement.setAttribute("data-typing-fx", TYPING_FX_TOKENS.join(" "));
+  writeCookie(TYPING_FX_COOKIE, "");
+}
+
+// Lectura para consumidores JS: el DOM es la fuente de verdad, igual que
+// prefersReducedMotion. Sin atributo ⇒ default (los tres), para que coincida con
+// el default del CSS del Paso 2.
+export function hasTypingFx(token) {
+  const attr = document.documentElement.getAttribute("data-typing-fx");
+  if (attr == null) return TYPING_FX_TOKENS.includes(token);
+  return attr.split(" ").includes(token);
+}
 // Reduced-motion efectivo. El override de Settings (data-motion) manda sobre la
 // media query del SO, igual que promete el comentario de getMotion/applyMotion:
 // "auto" deja la media query a cargo; "reduced"/"full" fuerzan el estado.
@@ -353,6 +389,7 @@ export function applyPersistedAppearance() {
   if (sidebar != null) applySidebarWidth(sidebar);
   const motion = getMotion();
   if (motion) applyMotion(motion);
+  applyTypingFx(getTypingFx());
 }
 
 applyPersistedAppearance();

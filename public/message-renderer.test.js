@@ -14,8 +14,10 @@ describe("MessageRenderer streaming markdown preview", () => {
     const el = renderer.renderAssistantMessage({ content: "" }, true);
     renderer.updateStreamingMessage(el, "hello **bold te");
 
+    // The trailing word streams inside a .stream-tail span (soft-tail typing
+    // effect); textContent reassembles the word across that boundary.
     const content = el.querySelector(".message-content");
-    expect(content.innerHTML).toContain("<strong>bold te</strong>");
+    expect(content.querySelector("strong")?.textContent).toBe("bold te");
   });
 
   it("finalizes from the raw text, not the rendered DOM", () => {
@@ -43,7 +45,8 @@ describe("MessageRenderer streaming markdown preview", () => {
     renderer.updateStreamingMessage(el, "some *italic");
 
     expect(el.querySelector(".streaming-thinking")).not.toBeNull();
-    expect(el.querySelector(".streaming-text").innerHTML).toContain("<em>italic</em>");
+    const textNode = el.querySelector(".streaming-text");
+    expect(textNode.querySelector("em")?.textContent).toBe("italic");
   });
 
   it("does not render raw HTML from streamed text", () => {

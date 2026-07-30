@@ -23,6 +23,7 @@
     "core:window:allow-start-resize-dragging",
     "window-state:default",
     "notification:default",
+    "mcp-bridge:default",
     "default"
   ]
 }

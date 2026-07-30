@@ -1221,6 +1221,18 @@ fn main() {
             app.handle()
                 .plugin(tauri_plugin_window_state::Builder::default().build())?;
 
+            // Debug-only bridge exposing the WebView (screenshot/DOM/JS exec)
+            // to the tauri MCP server for agent-driven UI inspection. Loopback
+            // bind is mandatory: the plugin's default of 0.0.0.0 would expose
+            // full WebView control to the LAN, breaking this repo's
+            // loopback-only policy for the broker and embedded server.
+            #[cfg(debug_assertions)]
+            app.handle().plugin(
+                tauri_plugin_mcp_bridge::Builder::new()
+                    .bind_address("127.0.0.1")
+                    .build(),
+            )?;
+
             let static_dir = find_static_dir(app);
             let manager = Arc::new(OmpManager::new(static_dir));
             let broker = Arc::new(BrokerWs::start().expect("failed to start broker websocket"));

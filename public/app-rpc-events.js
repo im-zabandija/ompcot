@@ -1,3 +1,4 @@
+import { clearCaretTrail } from "./caret-trail.js";
 import { resolveNewSessionLiveFile } from "./new-session-refresh.js";
 import { findPortForSession } from "./session-routing.js";
 import { prefersReducedMotion } from "./themes.js";
@@ -515,6 +516,7 @@ export function setupRpcEvents({
   function resetStreamingState() {
     typingPacer.flush(); // antes de soltar el elemento: no perder la cola tipeada
     typingPacer.reset();
+    clearCaretTrail(currentStreamingElement);
     currentStreamingElement = null;
     currentStreamingText = "";
     currentStreamingThinking = "";
