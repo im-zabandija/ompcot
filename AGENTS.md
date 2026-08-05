@@ -125,6 +125,47 @@ placeholder crate on crates.io, not the real linter). `cargo fmt`/`rustfmt` may
 likewise be absent; per `bun run check:rust` above this is advisory-only and
 does not block the script.
 
+## Commit messages
+
+Every commit in this repo is bilingual: the English message on top, then a
+literal `[ES]` line, then the same message in Spanish.
+
+```
+<type>(<scope>): <english subject>
+
+<english body>
+
+[ES]
+<type>(<scope>): <asunto en español>
+
+<cuerpo en español>
+```
+
+Rules:
+
+- The first line is **always English**, conventional commit, imperative,
+  ≤ 72 chars.
+- The marker is exactly the line `[ES]`, alone on its line, preceded by a blank
+  line and followed immediately by the Spanish subject (no blank line between
+  the marker and the subject).
+- **Never write a line that is exactly `---`** anywhere in the message.
+  `git format-patch` treats it as the message/diff separator, so `git am` would
+  drop everything below it. That is why the separator is `[ES]` and not a
+  horizontal rule.
+- Write the body in whichever language you are thinking in and translate the
+  other half from it — do not write two independent messages.
+- **Never translate:** file paths, identifiers, function names, commands, flags,
+  versions, SHAs, package/crate names, or UI/log strings quoted in the message.
+  Only the prose around them gets translated.
+- Keep both halves structurally identical: same bullets, numbering, indented
+  blocks and line breaks. Wrap at ≤ 76 columns.
+- Empty-body commit: English subject, blank line, `[ES]`, Spanish subject —
+  nothing else.
+
+The whole history already follows this (`git log` from
+`3c858dba30433432166e1eb0f1bd865c359310fc` onwards), and
+`scripts/release.sh` emits it for release commits.
+
 ## Linting & Formatting
 
 This project uses [Biome](https://biomejs.dev/) for JS/TS linting and formatting.

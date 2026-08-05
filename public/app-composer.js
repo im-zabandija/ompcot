@@ -13,7 +13,7 @@
  */
 
 import { getFileIcon } from "./file-browser.js";
-import { composePromptText, looksLikeDir } from "./prompt-attachments.js";
+import { composePromptText, looksLikeDir, parseFileUriList } from "./prompt-attachments.js";
 
 export function base64ToFile(data, mimeType) {
   const bin = atob(data);
@@ -148,14 +148,26 @@ export function setupComposer({
     addImageFiles(e.dataTransfer.files);
   });
 
-  // Paste images
+  // Paste: file paths first (text/uri-list), then images
   messageInput.addEventListener("paste", (e) => {
     const cd = e.clipboardData;
+    const plain = cd?.getData?.("text/plain") || "";
+
+    // Un archivo copiado en el explorador viaja como text/uri-list — y en algunos
+    // entornos el mismo file:// URI aparece además en text/plain. Va como chip, no
+    // como texto: por eso se cancela el paste.
+    const paths = parseFileUriList(cd?.getData?.("text/uri-list") || plain);
+    if (paths.length) {
+      e.preventDefault();
+      addFilePaths(paths.map((p) => ({ path: p, isDirectory: looksLikeDir(p) })));
+      return;
+    }
+
     // A text paste means the user wants text, not a stale clipboard image, so
     // record it; the native fallback below bows out when it fires right after.
     // ponytail: some Linux clipboard managers keep an old image "offered" even
     // after you copy text — this stops that stale image from auto-attaching.
-    if (cd?.getData?.("text/plain")) lastTextPasteAt = Date.now();
+    if (plain) lastTextPasteAt = Date.now();
     const files = [];
     for (const item of cd?.items || []) {
       if (!item.type.startsWith("image/")) continue;

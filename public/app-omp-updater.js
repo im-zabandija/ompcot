@@ -23,6 +23,7 @@ export function createOmpUpdater({
 }) {
   let busy = false;
   let updateAvailable = false;
+  let restartPending = false;
 
   function setStatus(message, tone = "info") {
     if (!statusRow || !statusEl) return;
@@ -42,11 +43,17 @@ export function createOmpUpdater({
     sidebarPill.classList.toggle("hidden", !visible);
   }
 
-  // The settings button rebinds between "Check for update" (→ checkNow) and
-  // "Update OMP" (→ installUpdate). `.onclick` reassignment is the single-handler
-  // rebind primitive, so no listener bookkeeping is needed.
+  // The settings button rebinds between "Check for update" (→ checkNow),
+  // "Update OMP" (→ installUpdate) and "Restart Ompcot" (→ restartNow, after a
+  // successful update). `.onclick` reassignment is the single-handler rebind
+  // primitive, so no listener bookkeeping is needed.
   function setCheckButton(mode) {
     if (!checkBtn) return;
+    if (mode === "restart") {
+      checkBtn.textContent = "Restart Ompcot";
+      checkBtn.onclick = () => restartNow();
+      return;
+    }
     if (mode === "update") {
       checkBtn.textContent = "Update OMP";
       checkBtn.onclick = () => installUpdate();
@@ -125,7 +132,8 @@ export function createOmpUpdater({
         setStatus("Updated — restart Ompcot to apply.", "ok");
         setPill(false);
         updateAvailable = false;
-        setCheckButton("check");
+        restartPending = true;
+        setCheckButton("restart");
       } else {
         const raw = String(d?.output || "unknown error").trim();
         setStatus(`Update failed: ${raw}`, "warn");
@@ -135,7 +143,24 @@ export function createOmpUpdater({
     } finally {
       busy = false;
       if (checkBtn) checkBtn.disabled = false;
-      setCheckButton(updateAvailable ? "update" : "check");
+      setCheckButton(restartPending ? "restart" : updateAvailable ? "update" : "check");
+    }
+  }
+
+  // app.restart() kills the omp processes of every window along with their
+  // in-flight turns, so the confirm is mandatory.
+  async function restartNow() {
+    const ok = await confirmModal({
+      title: "Restart Ompcot",
+      message:
+        "Restart now to run the new omp runtime? Every running agent in every window is stopped.",
+      confirmLabel: "Restart",
+    });
+    if (!ok) return;
+    try {
+      await transport.relaunchApp();
+    } catch (err) {
+      setStatus(`Restart failed: ${String(err?.message || err)}`, "warn");
     }
   }
 

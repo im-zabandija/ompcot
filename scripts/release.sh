@@ -111,7 +111,8 @@ fi
 
 echo "Committing release version bump..."
 git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock package.json bun.lock
-git commit -m "chore(release): $TAG"
+git commit -m "chore(release): $TAG" -m "[ES]
+chore(release): $TAG"
 
 echo "Creating tag $TAG..."
 git tag "$TAG"

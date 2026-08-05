@@ -41,3 +41,21 @@ export function splitPromptAttachments(content) {
 // ícono de carpeta. Es sólo cosmético (nunca cambia lo que se envía); si molesta,
 // preguntarle a /api/files antes de pintar el chip.
 export const looksLikeDir = (p) => !/\.[^/.]+$/.test(p.split(/[\\/]/).pop() || "");
+
+/**
+ * Parsea un text/uri-list (RFC 2483) a rutas locales absolutas. Solo sobreviven
+ * las entradas `file://`: una ruta absoluta pegada como prosa sigue siendo prosa.
+ */
+export function parseFileUriList(raw) {
+  const out = [];
+  for (const line of String(raw || "").split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t.startsWith("#") || !t.startsWith("file://")) continue;
+    try {
+      out.push(decodeURIComponent(new URL(t).pathname));
+    } catch {
+      // URI malformada: se ignora
+    }
+  }
+  return out;
+}

@@ -3,7 +3,11 @@ import { join } from "node:path";
 import { JSDOM } from "jsdom";
 import { describe, expect, test, vi } from "vitest";
 import { setupComposer } from "./app-composer.js";
-import { composePromptText, splitPromptAttachments } from "./prompt-attachments.js";
+import {
+  composePromptText,
+  parseFileUriList,
+  splitPromptAttachments,
+} from "./prompt-attachments.js";
 
 // Paso 1 del backlog P2: chips de adjunto en el composer.
 // composePromptText es pura; el resto se ejercita montando el body real de
@@ -51,6 +55,33 @@ describe("splitPromptAttachments (pure)", () => {
   });
 });
 
+describe("parseFileUriList (pure)", () => {
+  test("parses file URIs separated by CRLF", () => {
+    expect(parseFileUriList("file:///tmp/one.txt\r\nfile:///tmp/two.md")).toEqual([
+      "/tmp/one.txt",
+      "/tmp/two.md",
+    ]);
+  });
+
+  test("ignores RFC 2483 comments and non-file URIs", () => {
+    expect(
+      parseFileUriList("# copied files\nhttp://example.com/file.txt\nfile:///tmp/kept.txt"),
+    ).toEqual(["/tmp/kept.txt"]);
+  });
+
+  test("decodes percent-escaped characters in paths", () => {
+    expect(parseFileUriList("file:///tmp/My%20File.md")).toEqual(["/tmp/My File.md"]);
+  });
+
+  test("skips malformed URIs while retaining valid entries", () => {
+    expect(parseFileUriList("file:///%E0%A4%A\nfile:///tmp/valid.txt")).toEqual(["/tmp/valid.txt"]);
+  });
+
+  test.each(["", null, undefined])("empty input %p returns no paths", (raw) => {
+    expect(parseFileUriList(raw)).toEqual([]);
+  });
+});
+
 describe("file chips (DOM)", () => {
   function loadBody() {
     const html = readFileSync(join(process.cwd(), "public/index.html"), "utf8");
@@ -76,6 +107,51 @@ describe("file chips (DOM)", () => {
       rpcCommand: vi.fn().mockResolvedValue({ success: true, data: { enabled: false } }),
     };
   }
+
+  describe("pasting file URIs (DOM)", () => {
+    function pasteEvent(data) {
+      const event = new Event("paste", { cancelable: true });
+      Object.defineProperty(event, "clipboardData", {
+        value: { getData: (type) => data[type] ?? "", items: [] },
+      });
+      return event;
+    }
+
+    test("attaches two pasted files as chips and prevents the text paste", () => {
+      loadBody();
+      setupComposer(composerDeps());
+      const event = pasteEvent({
+        "text/uri-list": "file:///tmp/one.txt\nfile:///tmp/two.md",
+      });
+
+      document.querySelector("#message-input").dispatchEvent(event);
+
+      expect(document.querySelectorAll("#file-chips .file-chip")).toHaveLength(2);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    test("leaves ordinary prose as an unhandled text paste", () => {
+      loadBody();
+      setupComposer(composerDeps());
+      const event = pasteEvent({ "text/plain": "hola mundo" });
+
+      document.querySelector("#message-input").dispatchEvent(event);
+
+      expect(document.querySelectorAll("#file-chips .file-chip")).toHaveLength(0);
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    test("does not treat a bare absolute path as an attachment", () => {
+      loadBody();
+      setupComposer(composerDeps());
+      const event = pasteEvent({ "text/plain": "/etc/hosts" });
+
+      document.querySelector("#message-input").dispatchEvent(event);
+
+      expect(document.querySelectorAll("#file-chips .file-chip")).toHaveLength(0);
+      expect(event.defaultPrevented).toBe(false);
+    });
+  });
 
   test("addFilePaths renders one .file-chip per path", () => {
     loadBody();
