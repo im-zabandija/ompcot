@@ -61,16 +61,26 @@ export function parseFileUriList(raw) {
 }
 
 /**
- * Candidatas a adjunto dentro de un texto pegado: solo si TODAS las líneas no
- * vacías son rutas absolutas. Cualquier prosa mezclada devuelve [].
- * No decide si son adjuntos de verdad — eso lo resuelve el chequeo contra el
- * disco, lo único que distingue una ruta real de una que solo lo parece.
+ * Particiones candidatas de un texto pegado, de la más conservadora a la más
+ * agresiva: el texto entero (una ruta puede tener espacios), una por línea, y
+ * una por token. No se elige por heurística — el llamador las prueba en orden
+ * contra el disco y gana la primera que exista.
+ *
+ * Una partición solo se ofrece si TODAS sus partes son rutas absolutas: sin
+ * eso, "/home/zabandija es mi home" se partiría en tokens y "/home/zabandija"
+ * (que existe) se comería la prosa.
  */
-export function pastedPathCandidates(raw) {
-  const lines = String(raw || "")
+export function pathSplitCandidates(raw) {
+  const isAbs = (s) => /^(?:\/|[A-Za-z]:[\\/])/.test(s);
+  const text = String(raw || "").trim();
+  if (!text || !isAbs(text)) return [];
+  const out = [[text]];
+  const lines = text
     .split(/\r?\n/)
-    .map((l) => l.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
-  if (!lines.length) return [];
-  return lines.every((l) => /^(?:\/|[A-Za-z]:[\\/])/.test(l)) ? lines : [];
+  if (lines.length > 1 && lines.every(isAbs)) out.push(lines);
+  const tokens = text.split(/\s+/).filter(Boolean);
+  if (tokens.length > 1 && tokens.every(isAbs)) out.push(tokens);
+  return out;
 }

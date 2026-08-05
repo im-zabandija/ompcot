@@ -17,7 +17,7 @@ import {
   composePromptText,
   looksLikeDir,
   parseFileUriList,
-  pastedPathCandidates,
+  pathSplitCandidates,
 } from "./prompt-attachments.js";
 
 export function base64ToFile(data, mimeType) {
@@ -61,10 +61,11 @@ export function setupComposer({
   });
 
   // Auto-resize textarea
-  messageInput.addEventListener("input", () => {
+  function autoResize() {
     messageInput.style.height = "auto";
     messageInput.style.height = `${Math.min(messageInput.scrollHeight, 160)}px`;
-  });
+  }
+  messageInput.addEventListener("input", autoResize);
 
   // Image attachment
   const attachBtn = document.getElementById("attach-btn");
@@ -158,10 +159,10 @@ export function setupComposer({
     const cd = e.clipboardData;
     const plain = cd?.getData?.("text/plain") || "";
 
-    // Un archivo copiado en el explorador viaja como text/uri-list, pero el spec
-    // de paste recorta clipboardData a los tipos "safe for bindings" y ese no
-    // entra: WebKitGTK entrega solo la ruta pelada en text/plain. Se prueban los
-    // dos formatos, empezando por el URI que aún llega en otras plataformas.
+    // Un archivo copiado en el explorador viaja como text/uri-list. Este camino
+    // sirve donde clipboardData funciona (Windows/macOS/Chromium); en WebKitGTK
+    // getData() devuelve vacío para todos los tipos y lo cubre el listener de
+    // `beforeinput` de más abajo.
     const uris = parseFileUriList(cd?.getData?.("text/uri-list") || plain);
     if (uris.length) {
       e.preventDefault();
@@ -170,11 +171,10 @@ export function setupComposer({
       return;
     }
 
-    const candidates = pastedPathCandidates(plain);
-    if (candidates.length) {
+    if (pathSplitCandidates(plain).length) {
       e.preventDefault();
       lastTextPasteAt = Date.now();
-      attachExistingPaths(candidates, plain);
+      attachPastedText(plain);
       return;
     }
 
@@ -192,6 +192,39 @@ export function setupComposer({
       lastDomImagePasteAt = Date.now();
       addImageFiles(files);
     }
+  });
+
+  // WebKitGTK anuncia "text/uri-list" en clipboardData.types pero getData()
+  // devuelve vacío para TODOS los tipos, así que el handler de arriba no puede
+  // ver la ruta en Linux. El texto sí llega acá: beforeinput con inputType
+  // "insertFromPaste" trae en `data` exactamente lo que se está por insertar.
+  // ponytail: no se sabe si el motor respeta preventDefault() acá, así que va
+  // con red — si el texto entra igual, el listener de `input` de abajo lo saca
+  // en el mismo tick. Si algún día WebKit arregla getData(), este camino queda
+  // inofensivo: el handler `paste` cancela antes y nunca llega.
+  let pastedPathText = "";
+  messageInput.addEventListener("beforeinput", (e) => {
+    if (e.inputType !== "insertFromPaste" || !e.data) return;
+    if (!parseFileUriList(e.data).length && !pathSplitCandidates(e.data).length) return;
+    e.preventDefault();
+    pastedPathText = e.data;
+    lastTextPasteAt = Date.now();
+    attachPastedText(e.data);
+  });
+
+  // Red del preventDefault de arriba: si el motor insertó el texto igual, se
+  // quita acá antes de que se vea. attachPastedText lo repone en el cursor si
+  // al final ninguna ruta existía, así que los dos caminos terminan igual.
+  messageInput.addEventListener("input", () => {
+    if (!pastedPathText) return;
+    const text = pastedPathText;
+    pastedPathText = "";
+    const at = messageInput.value.lastIndexOf(text);
+    if (at === -1) return;
+    messageInput.value =
+      messageInput.value.slice(0, at) + messageInput.value.slice(at + text.length);
+    messageInput.setSelectionRange(at, at);
+    autoResize();
   });
 
   // WebKitGTK (Linux) doesn't deliver clipboard images to the DOM paste
@@ -244,23 +277,37 @@ export function setupComposer({
     renderFileChips();
   }
 
-  // Un paste no dice si `/home/x/foo` es un archivo o prosa que arranca con "/".
-  // Lo único que lo decide es el disco, y el handler de paste es sincrónico: se
-  // cancela el pegado y, si al final ninguna ruta existía, el texto se inserta a
-  // mano. El isDirectory viene del backend, así que acá el ícono del chip nunca
-  // se equivoca (a diferencia de looksLikeDir).
-  async function attachExistingPaths(paths, fallbackText) {
-    let found = [];
+  // Un texto pegado no dice si `/home/x/foo` es un archivo o prosa que arranca
+  // con "/", ni con qué separador vienen varios archivos. Lo único que lo
+  // decide es el disco: se prueban las particiones de la más conservadora a la
+  // más agresiva y gana la primera que exista. El isDirectory también sale del
+  // backend, así que el ícono del chip nunca se equivoca.
+  async function attachPastedText(text) {
     try {
-      found = await resolveExistingPaths(paths);
+      const uriPaths = parseFileUriList(text);
+      if (uriPaths.length) {
+        const found = await resolveExistingPaths(uriPaths);
+        if (found.length) {
+          addFilePaths(found);
+          return;
+        }
+      }
+      for (const candidate of pathSplitCandidates(text)) {
+        const found = await resolveExistingPaths(candidate);
+        if (found.length) {
+          addFilePaths(found);
+          return;
+        }
+      }
     } catch (err) {
       console.error("[Ompcot] pasted path lookup failed:", err);
+    } finally {
+      // Para cuando esto resuelve, la red del listener de `input` o ya corrió o
+      // nunca va a correr (el motor respetó el preventDefault). Dejar el flag
+      // vivo haría que el próximo tecleo borre el texto que se repone abajo.
+      pastedPathText = "";
     }
-    if (found.length) {
-      addFilePaths(found);
-      return;
-    }
-    insertAtCursor(fallbackText);
+    insertAtCursor(text);
   }
 
   function insertAtCursor(text) {
@@ -269,8 +316,7 @@ export function setupComposer({
     messageInput.value = messageInput.value.slice(0, start) + text + messageInput.value.slice(end);
     const caret = start + text.length;
     messageInput.setSelectionRange(caret, caret);
-    // El listener de `input` es el que hace el auto-resize del textarea.
-    messageInput.dispatchEvent(new Event("input", { bubbles: true }));
+    autoResize();
   }
 
   function renderFileChips() {
@@ -510,7 +556,7 @@ export function setupComposer({
     flushQueue,
     escapeHtml,
     addFilePaths,
-    attachExistingPaths,
+    attachPastedText,
     getInFlightPrompt: (requestId) => inFlightPrompts.get(requestId),
     deleteInFlightPrompt: (requestId) => inFlightPrompts.delete(requestId),
     setPlanModeIndicator,

@@ -7,7 +7,7 @@ import { resolveExistingPaths } from "./file-browser.js";
 import {
   composePromptText,
   parseFileUriList,
-  pastedPathCandidates,
+  pathSplitCandidates,
   splitPromptAttachments,
 } from "./prompt-attachments.js";
 
@@ -88,29 +88,42 @@ describe("parseFileUriList (pure)", () => {
   });
 });
 
-describe("pastedPathCandidates (pure)", () => {
-  test("returns two absolute paths separated by a newline", () => {
-    expect(pastedPathCandidates("/tmp/one.txt\n/home/x/two.md")).toEqual([
-      "/tmp/one.txt",
-      "/home/x/two.md",
+describe("pathSplitCandidates (pure)", () => {
+  test("returns the whole path as the only partition", () => {
+    expect(pathSplitCandidates("/home/x/steam")).toEqual([["/home/x/steam"]]);
+  });
+
+  test("keeps an absolute path with spaces whole", () => {
+    expect(pathSplitCandidates("/home/x/Mis Docs/a.md")).toEqual([["/home/x/Mis Docs/a.md"]]);
+  });
+
+  test("offers the whole text and a partition of absolute tokens", () => {
+    expect(pathSplitCandidates("/a/x.txt /b/y.txt")).toEqual([
+      ["/a/x.txt /b/y.txt"],
+      ["/a/x.txt", "/b/y.txt"],
     ]);
   });
 
-  test("accepts an absolute path containing spaces", () => {
-    expect(pastedPathCandidates("/home/x/Mis Docs/a.md")).toEqual(["/home/x/Mis Docs/a.md"]);
+  test("offers the whole text and a partition of absolute lines", () => {
+    const text = "/a/x.txt\n/b/y.txt";
+    const candidates = pathSplitCandidates(text);
+    expect(candidates[0]).toEqual([text]);
+    expect(candidates).toContainEqual(["/a/x.txt", "/b/y.txt"]);
   });
 
-  test.each([
-    ["mixed prose and a path", "revisá /tmp/file.txt", []],
-    ["prose only", "hola mundo", []],
-    ["empty or whitespace-only", " \n  ", []],
-  ])("rejects %s", (_name, raw, expected) => {
-    expect(pastedPathCandidates(raw)).toEqual(expected);
+  test("does not split prose that starts with an absolute-looking path", () => {
+    expect(pathSplitCandidates("/home/zabandija es mi home")).toEqual([
+      ["/home/zabandija es mi home"],
+    ]);
+  });
+
+  test.each(["hola mundo", "", null, undefined])("rejects %p", (raw) => {
+    expect(pathSplitCandidates(raw)).toEqual([]);
   });
 
   test("accepts an absolute Windows path", () => {
     const path = "C:\\Users\\x\\a.md";
-    expect(pastedPathCandidates(path)).toEqual([path]);
+    expect(pathSplitCandidates(path)).toEqual([[path]]);
   });
 });
 
@@ -192,6 +205,19 @@ describe("file chips (DOM)", () => {
       rpcCommand: vi.fn().mockResolvedValue({ success: true, data: { enabled: false } }),
     };
   }
+  function stubFileLookup(items) {
+    const fetch = vi.fn(() =>
+      Promise.resolve({
+        json: async () => ({ items }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    return fetch;
+  }
+
+  async function yieldToLookup() {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 
   describe("pasting file URIs (DOM)", () => {
     function pasteEvent(data) {
@@ -200,20 +226,6 @@ describe("file chips (DOM)", () => {
         value: { getData: (type) => data[type] ?? "", items: [] },
       });
       return event;
-    }
-
-    function stubFileLookup(items) {
-      const fetch = vi.fn(() =>
-        Promise.resolve({
-          json: async () => ({ items }),
-        }),
-      );
-      vi.stubGlobal("fetch", fetch);
-      return fetch;
-    }
-
-    async function yieldToLookup() {
-      await new Promise((resolve) => setTimeout(resolve, 0));
     }
 
     test("attaches two pasted files as chips and prevents the text paste", () => {
@@ -284,6 +296,94 @@ describe("file chips (DOM)", () => {
       await yieldToLookup();
 
       expect(document.querySelector(".file-chip-icon").textContent).toBe("📁");
+    });
+  });
+
+  describe("beforeinput pasted paths (DOM)", () => {
+    function beforeInputEvent(inputType, data) {
+      return new InputEvent("beforeinput", {
+        inputType,
+        data,
+        bubbles: true,
+        cancelable: true,
+      });
+    }
+
+    test("attaches a listed path and cancels insertFromPaste", async () => {
+      const path = "/tmp/existe.txt";
+      const fetch = stubFileLookup([
+        { name: "existe.txt", path, isDirectory: false, size: 1, mtime: 1 },
+      ]);
+      loadBody();
+      setupComposer(composerDeps());
+      const input = document.querySelector("#message-input");
+      const event = beforeInputEvent("insertFromPaste", path);
+
+      input.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      await yieldToLookup();
+
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(document.querySelector(".file-chip-name").title).toBe(path);
+    });
+
+    test("ignores insertText even when its data looks like a path", () => {
+      const fetch = stubFileLookup([
+        { name: "existe.txt", path: "/tmp/existe.txt", isDirectory: false, size: 1, mtime: 1 },
+      ]);
+      loadBody();
+      setupComposer(composerDeps());
+      const event = beforeInputEvent("insertText", "/tmp/existe.txt");
+
+      document.querySelector("#message-input").dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(document.querySelectorAll(".file-chip")).toHaveLength(0);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    test("leaves ordinary prose as an unhandled beforeinput", () => {
+      const fetch = stubFileLookup([]);
+      loadBody();
+      setupComposer(composerDeps());
+      const event = beforeInputEvent("insertFromPaste", "hola mundo");
+
+      document.querySelector("#message-input").dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(document.querySelectorAll(".file-chip")).toHaveLength(0);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    test("input fallback removes text inserted despite preventDefault", async () => {
+      const path = "/tmp/existe.txt";
+      stubFileLookup([{ name: "existe.txt", path, isDirectory: false, size: 1, mtime: 1 }]);
+      loadBody();
+      setupComposer(composerDeps());
+      const input = document.querySelector("#message-input");
+
+      input.dispatchEvent(beforeInputEvent("insertFromPaste", path));
+      input.value = path;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+
+      expect(input.value).toBe("");
+      await yieldToLookup();
+    });
+
+    test("keeps fallback text after a later input when lookup finds nothing", async () => {
+      const path = "/tmp/missing.txt";
+      stubFileLookup([]);
+      loadBody();
+      setupComposer(composerDeps());
+      const input = document.querySelector("#message-input");
+
+      input.dispatchEvent(beforeInputEvent("insertFromPaste", path));
+      await yieldToLookup();
+      expect(input.value).toBe(path);
+
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+
+      expect(input.value).toBe(path);
     });
   });
 
