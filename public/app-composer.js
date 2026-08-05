@@ -12,8 +12,13 @@
  * duplicating it, and there's no dedicated string-utils module today.
  */
 
-import { getFileIcon } from "./file-browser.js";
-import { composePromptText, looksLikeDir, parseFileUriList } from "./prompt-attachments.js";
+import { getFileIcon, resolveExistingPaths } from "./file-browser.js";
+import {
+  composePromptText,
+  looksLikeDir,
+  parseFileUriList,
+  pastedPathCandidates,
+} from "./prompt-attachments.js";
 
 export function base64ToFile(data, mimeType) {
   const bin = atob(data);
@@ -148,18 +153,28 @@ export function setupComposer({
     addImageFiles(e.dataTransfer.files);
   });
 
-  // Paste: file paths first (text/uri-list), then images
+  // Paste: file paths first (text/uri-list, then bare paths), then images
   messageInput.addEventListener("paste", (e) => {
     const cd = e.clipboardData;
     const plain = cd?.getData?.("text/plain") || "";
 
-    // Un archivo copiado en el explorador viaja como text/uri-list — y en algunos
-    // entornos el mismo file:// URI aparece además en text/plain. Va como chip, no
-    // como texto: por eso se cancela el paste.
-    const paths = parseFileUriList(cd?.getData?.("text/uri-list") || plain);
-    if (paths.length) {
+    // Un archivo copiado en el explorador viaja como text/uri-list, pero el spec
+    // de paste recorta clipboardData a los tipos "safe for bindings" y ese no
+    // entra: WebKitGTK entrega solo la ruta pelada en text/plain. Se prueban los
+    // dos formatos, empezando por el URI que aún llega en otras plataformas.
+    const uris = parseFileUriList(cd?.getData?.("text/uri-list") || plain);
+    if (uris.length) {
       e.preventDefault();
-      addFilePaths(paths.map((p) => ({ path: p, isDirectory: looksLikeDir(p) })));
+      lastTextPasteAt = Date.now();
+      addFilePaths(uris.map((p) => ({ path: p, isDirectory: looksLikeDir(p) })));
+      return;
+    }
+
+    const candidates = pastedPathCandidates(plain);
+    if (candidates.length) {
+      e.preventDefault();
+      lastTextPasteAt = Date.now();
+      attachExistingPaths(candidates, plain);
       return;
     }
 
@@ -227,6 +242,35 @@ export function setupComposer({
       pendingFiles.push(entry);
     }
     renderFileChips();
+  }
+
+  // Un paste no dice si `/home/x/foo` es un archivo o prosa que arranca con "/".
+  // Lo único que lo decide es el disco, y el handler de paste es sincrónico: se
+  // cancela el pegado y, si al final ninguna ruta existía, el texto se inserta a
+  // mano. El isDirectory viene del backend, así que acá el ícono del chip nunca
+  // se equivoca (a diferencia de looksLikeDir).
+  async function attachExistingPaths(paths, fallbackText) {
+    let found = [];
+    try {
+      found = await resolveExistingPaths(paths);
+    } catch (err) {
+      console.error("[Ompcot] pasted path lookup failed:", err);
+    }
+    if (found.length) {
+      addFilePaths(found);
+      return;
+    }
+    insertAtCursor(fallbackText);
+  }
+
+  function insertAtCursor(text) {
+    const start = messageInput.selectionStart ?? messageInput.value.length;
+    const end = messageInput.selectionEnd ?? start;
+    messageInput.value = messageInput.value.slice(0, start) + text + messageInput.value.slice(end);
+    const caret = start + text.length;
+    messageInput.setSelectionRange(caret, caret);
+    // El listener de `input` es el que hace el auto-resize del textarea.
+    messageInput.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   function renderFileChips() {
@@ -466,6 +510,7 @@ export function setupComposer({
     flushQueue,
     escapeHtml,
     addFilePaths,
+    attachExistingPaths,
     getInFlightPrompt: (requestId) => inFlightPrompts.get(requestId),
     deleteInFlightPrompt: (requestId) => inFlightPrompts.delete(requestId),
     setPlanModeIndicator,

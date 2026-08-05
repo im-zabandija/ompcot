@@ -50,6 +50,34 @@ export function getFileIcon(name, isDirectory) {
   return FILE_ICONS[ext] || FILE_ICONS.default;
 }
 
+/**
+ * De estas rutas, cuáles existen de verdad — con su `isDirectory` real.
+ * Se agrupan por directorio padre porque /api/files lista un directorio por
+ * llamada. Devuelve las encontradas EN EL ORDEN ORIGINAL de `paths`.
+ */
+export async function resolveExistingPaths(paths) {
+  const byDir = new Map();
+  for (const p of paths) {
+    const dir = p.replace(/[\\/][^\\/]*$/, "") || "/";
+    if (!byDir.has(dir)) byDir.set(dir, []);
+    byDir.get(dir).push(p);
+  }
+  const found = new Map();
+  for (const dir of byDir.keys()) {
+    try {
+      const res = await fetch(`/api/files?path=${encodeURIComponent(dir)}`);
+      const data = await res.json();
+      if (!Array.isArray(data?.items)) continue;
+      for (const item of data.items) {
+        found.set(item.path, { path: item.path, isDirectory: Boolean(item.isDirectory) });
+      }
+    } catch {
+      // directorio ilegible o backend caído: esas rutas cuentan como inexistentes
+    }
+  }
+  return paths.map((p) => found.get(p)).filter(Boolean);
+}
+
 function formatSize(bytes) {
   if (bytes == null) return "";
   if (bytes < 1024) return `${bytes}B`;

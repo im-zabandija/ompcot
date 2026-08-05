@@ -1,13 +1,19 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { JSDOM } from "jsdom";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { setupComposer } from "./app-composer.js";
+import { resolveExistingPaths } from "./file-browser.js";
 import {
   composePromptText,
   parseFileUriList,
+  pastedPathCandidates,
   splitPromptAttachments,
 } from "./prompt-attachments.js";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 // Paso 1 del backlog P2: chips de adjunto en el composer.
 // composePromptText es pura; el resto se ejercita montando el body real de
@@ -82,6 +88,85 @@ describe("parseFileUriList (pure)", () => {
   });
 });
 
+describe("pastedPathCandidates (pure)", () => {
+  test("returns two absolute paths separated by a newline", () => {
+    expect(pastedPathCandidates("/tmp/one.txt\n/home/x/two.md")).toEqual([
+      "/tmp/one.txt",
+      "/home/x/two.md",
+    ]);
+  });
+
+  test("accepts an absolute path containing spaces", () => {
+    expect(pastedPathCandidates("/home/x/Mis Docs/a.md")).toEqual(["/home/x/Mis Docs/a.md"]);
+  });
+
+  test.each([
+    ["mixed prose and a path", "revisá /tmp/file.txt", []],
+    ["prose only", "hola mundo", []],
+    ["empty or whitespace-only", " \n  ", []],
+  ])("rejects %s", (_name, raw, expected) => {
+    expect(pastedPathCandidates(raw)).toEqual(expected);
+  });
+
+  test("accepts an absolute Windows path", () => {
+    const path = "C:\\Users\\x\\a.md";
+    expect(pastedPathCandidates(path)).toEqual([path]);
+  });
+});
+
+describe("resolveExistingPaths (fetch)", () => {
+  function installFilesFetch(items) {
+    const fetch = vi.fn(() =>
+      Promise.resolve({
+        json: async () => ({ items }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    return fetch;
+  }
+
+  test("groups paths in one directory into one fetch and keeps backend types", async () => {
+    const fetch = installFilesFetch([
+      { name: "one.txt", path: "/tmp/one.txt", isDirectory: false, size: 1, mtime: 1 },
+      { name: "docs", path: "/tmp/docs", isDirectory: true, size: 0, mtime: 1 },
+    ]);
+
+    await expect(resolveExistingPaths(["/tmp/one.txt", "/tmp/docs"])).resolves.toEqual([
+      { path: "/tmp/one.txt", isDirectory: false },
+      { path: "/tmp/docs", isDirectory: true },
+    ]);
+    expect(fetch.mock.calls.length).toBe(1);
+  });
+
+  test("omits a path the backend does not list", async () => {
+    installFilesFetch([
+      { name: "present.txt", path: "/tmp/present.txt", isDirectory: false, size: 1, mtime: 1 },
+    ]);
+
+    await expect(resolveExistingPaths(["/tmp/missing.txt", "/tmp/present.txt"])).resolves.toEqual([
+      { path: "/tmp/present.txt", isDirectory: false },
+    ]);
+  });
+
+  test("returns existing paths in input order even when backend lists them reversed", async () => {
+    installFilesFetch([
+      { name: "second.txt", path: "/tmp/second.txt", isDirectory: false, size: 1, mtime: 1 },
+      { name: "first.txt", path: "/tmp/first.txt", isDirectory: true, size: 0, mtime: 1 },
+    ]);
+
+    await expect(resolveExistingPaths(["/tmp/first.txt", "/tmp/second.txt"])).resolves.toEqual([
+      { path: "/tmp/first.txt", isDirectory: true },
+      { path: "/tmp/second.txt", isDirectory: false },
+    ]);
+  });
+
+  test("returns no paths when the fetch rejects", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+
+    await expect(resolveExistingPaths(["/tmp/unavailable.txt"])).resolves.toEqual([]);
+  });
+});
+
 describe("file chips (DOM)", () => {
   function loadBody() {
     const html = readFileSync(join(process.cwd(), "public/index.html"), "utf8");
@@ -117,6 +202,20 @@ describe("file chips (DOM)", () => {
       return event;
     }
 
+    function stubFileLookup(items) {
+      const fetch = vi.fn(() =>
+        Promise.resolve({
+          json: async () => ({ items }),
+        }),
+      );
+      vi.stubGlobal("fetch", fetch);
+      return fetch;
+    }
+
+    async function yieldToLookup() {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
     test("attaches two pasted files as chips and prevents the text paste", () => {
       loadBody();
       setupComposer(composerDeps());
@@ -141,15 +240,50 @@ describe("file chips (DOM)", () => {
       expect(event.defaultPrevented).toBe(false);
     });
 
-    test("does not treat a bare absolute path as an attachment", () => {
+    test("attaches a bare path listed by the backend and clears the textarea", async () => {
+      const path = "/tmp/copied.txt";
+      stubFileLookup([{ name: "copied.txt", path, isDirectory: false, size: 1, mtime: 1 }]);
       loadBody();
       setupComposer(composerDeps());
-      const event = pasteEvent({ "text/plain": "/etc/hosts" });
+      const input = document.querySelector("#message-input");
+      const event = pasteEvent({ "text/plain": path });
 
-      document.querySelector("#message-input").dispatchEvent(event);
+      input.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      await yieldToLookup();
+
+      expect(document.querySelectorAll("#file-chips .file-chip")).toHaveLength(1);
+      expect(document.querySelector(".file-chip-name").title).toBe(path);
+      expect(input.value).toBe("");
+    });
+
+    test("falls back to inserting an unlisted bare path as text", async () => {
+      const path = "/tmp/missing.txt";
+      stubFileLookup([]);
+      loadBody();
+      setupComposer(composerDeps());
+      const input = document.querySelector("#message-input");
+      const event = pasteEvent({ "text/plain": path });
+
+      input.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      await yieldToLookup();
 
       expect(document.querySelectorAll("#file-chips .file-chip")).toHaveLength(0);
-      expect(event.defaultPrevented).toBe(false);
+      expect(input.value).toBe(path);
+    });
+
+    test("uses backend isDirectory for a pasted path with an extension", async () => {
+      const path = "/tmp/algo.txt";
+      stubFileLookup([{ name: "algo.txt", path, isDirectory: true, size: 0, mtime: 1 }]);
+      loadBody();
+      setupComposer(composerDeps());
+      const event = pasteEvent({ "text/plain": path });
+
+      document.querySelector("#message-input").dispatchEvent(event);
+      await yieldToLookup();
+
+      expect(document.querySelector(".file-chip-icon").textContent).toBe("📁");
     });
   });
 

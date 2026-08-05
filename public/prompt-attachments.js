@@ -59,3 +59,18 @@ export function parseFileUriList(raw) {
   }
   return out;
 }
+
+/**
+ * Candidatas a adjunto dentro de un texto pegado: solo si TODAS las líneas no
+ * vacías son rutas absolutas. Cualquier prosa mezclada devuelve [].
+ * No decide si son adjuntos de verdad — eso lo resuelve el chequeo contra el
+ * disco, lo único que distingue una ruta real de una que solo lo parece.
+ */
+export function pastedPathCandidates(raw) {
+  const lines = String(raw || "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (!lines.length) return [];
+  return lines.every((l) => /^(?:\/|[A-Za-z]:[\\/])/.test(l)) ? lines : [];
+}
