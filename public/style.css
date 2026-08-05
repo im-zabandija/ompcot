@@ -3334,6 +3334,14 @@ body {
   transform: scale(1.02);
 }
 
+/* Imagen a tamaño completo dentro del backdrop `.cleanup-overlay` reusado. */
+.image-lightbox-img {
+  max-width: 100%;
+  max-height: 90vh;
+  border-radius: var(--radius-lg);
+  object-fit: contain;
+}
+
 .queued-messages {
   display: flex;
   flex-direction: column;
@@ -4447,6 +4455,15 @@ body.hide-thinking .thinking-block {
   background: color-mix(in srgb, currentColor 14%, transparent);
   border-color: color-mix(in srgb, currentColor 28%, transparent);
   color: inherit;
+}
+
+/* Clickeables: abren la ruta en el SO. El chip del composer queda fuera. */
+.message-file-chips .file-chip {
+  cursor: pointer;
+}
+
+.message.user .message-file-chips .file-chip:hover {
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 
 .image-preview {

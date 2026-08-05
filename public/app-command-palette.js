@@ -14,7 +14,7 @@
  * (Esc closes it) — passed as deps to that module rather than reached
  * for directly.
  */
-export function setupCommandPalette({ statusText, messageRenderer, toolCardRenderer }) {
+export function setupCommandPalette({ statusText, updateUI, messageRenderer, toolCardRenderer }) {
   const commandBtn = document.getElementById("command-btn");
   const commandPalette = document.getElementById("command-palette");
   const commandPaletteOverlay = document.getElementById("command-palette-overlay");
@@ -83,32 +83,33 @@ export function setupCommandPalette({ statusText, messageRenderer, toolCardRende
   commandBtn.addEventListener("click", openCommandPalette);
   commandPaletteOverlay.addEventListener("click", closeCommandPalette);
 
-  async function rpcCommand(cmd, statusMsg) {
+  // Reset via updateUI so an in-flight turn stays labeled as working.
+  async function rpcCommand(cmd, statusMsg, { signal, timeoutMs } = {}) {
+    const controller = timeoutMs ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    const signals = [signal, controller?.signal].filter(Boolean);
     try {
       if (statusMsg) statusText.textContent = statusMsg;
       const resp = await fetch("/api/rpc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cmd),
+        signal: signals.length > 1 ? AbortSignal.any(signals) : signals[0],
       });
       const data = await resp.json();
       if (data.success) {
         statusText.textContent = "Done";
-        setTimeout(() => {
-          statusText.textContent = "Connected";
-        }, 2000);
+        setTimeout(() => updateUI(), 2000);
       } else {
         statusText.textContent = data.error || "Failed";
-        setTimeout(() => {
-          statusText.textContent = "Connected";
-        }, 3000);
+        setTimeout(() => updateUI(), 3000);
       }
       return data;
     } catch (_e) {
       statusText.textContent = "Error";
-      setTimeout(() => {
-        statusText.textContent = "Connected";
-      }, 3000);
+      setTimeout(() => updateUI(), 3000);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -116,9 +117,7 @@ export function setupCommandPalette({ statusText, messageRenderer, toolCardRende
     const data = await rpcCommand({ type: "export_html" }, "Exporting...");
     if (data?.success && data.data?.path) {
       statusText.textContent = `Exported: ${data.data.path}`;
-      setTimeout(() => {
-        statusText.textContent = "Connected";
-      }, 4000);
+      setTimeout(() => updateUI(), 4000);
     }
   }
 

@@ -28,6 +28,7 @@ export function setupSessionRouting({
   isMobile,
   nativeAvailable,
   logSessionRoute,
+  isSelectionCurrent,
   clearMessageQueue,
   getCurrentWorkspacePath,
   syncWorkspaceIndicatorFromInstances,
@@ -73,6 +74,12 @@ export function setupSessionRouting({
       projectDir: project?.dirName,
       liveInstances: getLiveInstances(),
     });
+    // Clicks encolados: si el usuario ya eligió otra sesión mientras esta
+    // esperaba su turno, no hay nada que hacer — la última manda.
+    if (!isSelectionCurrent(session?.filePath ?? null)) {
+      logSessionRoute("select:superseded", { selectedSession: session?.filePath });
+      return;
+    }
     // An explicit session selection supersedes any pending deferred switch.
     // Leaving it set would (a) suppress all live rendering for the newly
     // selected session via the `pendingSessionSwitchPath` guard in
@@ -280,6 +287,12 @@ export function setupSessionRouting({
         ok: res.ok,
       });
       const data = await res.json();
+      // Una selección más nueva ya pasó por el sidebar mientras esta fetch
+      // estaba en vuelo: no pintes un hilo que el usuario ya dejó atrás.
+      if (!isSelectionCurrent(session.filePath)) {
+        logSessionRoute("history:stale-skip", { selectedSession: session.filePath });
+        return;
+      }
       messageRenderer.clear();
       logSessionRoute("history:render", {
         selectedSession: session.filePath,
@@ -314,6 +327,9 @@ export function setupSessionRouting({
             console.log("[App] History fetch status:", res.status);
             const data = await res.json();
             console.log("[App] History entries:", data.entries?.length || 0);
+
+            // Misma carrera que en renderSelectedSessionHistory.
+            if (!isSelectionCurrent(sessionFile)) return;
 
             messageRenderer.clear();
             renderSessionHistory(data.entries || [], { searchQuery: sidebar.searchQuery });

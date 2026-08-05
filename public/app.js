@@ -25,6 +25,7 @@ import { openAbandonedCleanup, refreshCleanupPill } from "./session-cleanup.js";
 import { SessionSidebar } from "./session-sidebar.js";
 import { setupSidebarSearchControl } from "./sidebar-search-control.js";
 import { StateManager } from "./state.js";
+import { statusPillText } from "./status-pill.js";
 import { ToolCardRenderer } from "./tool-card.js";
 import { initTransport } from "./transport.js";
 import { resolveWebSocketUrl, WebSocketClient } from "./websocket-client.js";
@@ -178,6 +179,9 @@ let sessionsLoaded = false;
 // (fast double-click on different sessions) would interleave their awaits and
 // corrupt that state, so a second call queues behind the first.
 let sessionSelectChain = Promise.resolve();
+// Stamped synchronously on every click (the chain above only dequeues later),
+// so a queued or in-flight selection can tell the user already moved on.
+let latestSelectionPath = null;
 let deferredMirrorSync = null;
 // Maps port -> sessionFile for each omp process we're tracking
 const portSessionMap = new Map();
@@ -470,6 +474,7 @@ const { handleRPCEvent, resetStreamingState } = setupRpcEvents({
 
 const { commandPalette, closeCommandPalette, rpcCommand } = setupCommandPalette({
   statusText,
+  updateUI,
   messageRenderer,
   toolCardRenderer,
 });
@@ -911,11 +916,14 @@ async function handleNewProjectChat(project) {
 // Public entry point: serializes selections so overlapping clicks don't
 // interleave their awaits and corrupt shared routing state.
 function handleSessionSelect(session, project) {
+  latestSelectionPath = session?.filePath ?? null;
   const run = sessionSelectChain.then(() => handleSessionSelectImpl(session, project));
   // Keep the chain alive even if this selection rejects.
   sessionSelectChain = run.catch(() => {});
   return run;
 }
+
+const isSelectionCurrent = (filePath) => filePath === latestSelectionPath;
 
 const {
   handleSessionSelectImpl,
@@ -937,6 +945,7 @@ const {
   isMobile,
   nativeAvailable,
   logSessionRoute,
+  isSelectionCurrent,
   clearMessageQueue,
   getCurrentWorkspacePath,
   syncWorkspaceIndicatorFromInstances,
@@ -1094,21 +1103,18 @@ function openExternalLink(url) {
 
 const { refreshLanUrl, getConnectionUrls } = setupLanQr({ statusText, openExternalLink });
 
+function applyStatusPill({ isStreaming, tailscaleUrl, lanUrl }) {
+  const { text, title } = statusPillText({ isStreaming, tailscaleUrl, lanUrl });
+  statusText.textContent = text;
+  statusText.title = title;
+}
+
 function updateConnectionStatus(status) {
   statusIndicator.className = `status-indicator ${status}`;
 
   if (status === "connected") {
     const { tailscaleUrl, lanUrl } = getConnectionUrls();
-    if (tailscaleUrl) {
-      statusText.textContent = "Connected • TS";
-      statusText.title = tailscaleUrl;
-    } else if (lanUrl) {
-      statusText.textContent = "Connected • LAN";
-      statusText.title = lanUrl;
-    } else {
-      statusText.textContent = "Connected";
-      statusText.title = "";
-    }
+    applyStatusPill({ isStreaming: state.isStreaming, tailscaleUrl, lanUrl });
     // Fetch network link metadata on first connect
     if (!tailscaleUrl && !lanUrl) {
       void refreshLanUrl();
@@ -1124,15 +1130,10 @@ function updateUI() {
 
   composerCard.classList.toggle("streaming", isStreaming);
 
-  if (isStreaming) {
-    statusIndicator.classList.add("streaming");
-    statusIndicator.classList.remove("connected");
-    statusText.textContent = "Working...";
-  } else {
-    statusIndicator.classList.remove("streaming");
-    statusIndicator.classList.add("connected");
-    statusText.textContent = "Connected";
-  }
+  const { tailscaleUrl, lanUrl } = getConnectionUrls();
+  applyStatusPill({ isStreaming, tailscaleUrl, lanUrl });
+  statusIndicator.classList.toggle("streaming", isStreaming);
+  statusIndicator.classList.toggle("connected", !isStreaming);
 
   messageInput.disabled = !onboarding.canType;
   sendBtn.disabled = !onboarding.canQuery;

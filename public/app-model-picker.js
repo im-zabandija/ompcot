@@ -75,6 +75,7 @@ export function setupModelPicker({
   let hasLoadedAvailableModels = false;
   let didAutoOpenEmptyModelsDropdown = false;
   let currentThinkingLevel = "off";
+  let switchingModel = false;
 
   function formatThinkingLevelLabel(level) {
     return `Thinking: ${level || "off"}`;
@@ -225,19 +226,29 @@ export function setupModelPicker({
         renderItems(search.value);
       });
       el.addEventListener("click", async () => {
+        if (switchingModel) return;
+        switchingModel = true;
         closeModelDropdown();
         const display = m.id.replace(/^claude-/, "").replace(/-\d{8}$/, "");
-        await rpcCommand(
-          { type: "set_model", provider: m.provider, modelId: m.id },
-          `Switching to ${display}...`,
-        );
-        pushRecentModel(key);
-        currentModelId = m.id;
-        currentModelProvider = m.provider || "";
-        updateModelLabel();
-        if (m.contextWindow) {
-          setContextWindowSize(m.contextWindow);
-          updateTokenUsage();
+        modelDropdownLabel.textContent = `Switching to ${display}…`;
+        try {
+          // Cap the queued POST at 12s; it can wait behind the active omp turn.
+          const data = await rpcCommand(
+            { type: "set_model", provider: m.provider, modelId: m.id },
+            `Switching to ${display}...`,
+            { timeoutMs: 12000 },
+          );
+          if (!data?.success) return;
+          pushRecentModel(key);
+          currentModelId = m.id;
+          currentModelProvider = m.provider || "";
+          if (m.contextWindow) {
+            setContextWindowSize(m.contextWindow);
+            updateTokenUsage();
+          }
+        } finally {
+          switchingModel = false;
+          updateModelLabel();
         }
       });
       return el;

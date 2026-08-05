@@ -4,10 +4,12 @@
 
 import { clearCaretTrail, updateCaretTrail } from "./caret-trail.js";
 import { getFileIcon } from "./file-browser.js";
+import { openImageLightbox } from "./image-lightbox.js";
 import { renderMarkdown, renderStreamingMarkdown, renderUserMarkdown } from "./markdown.js";
 import { looksLikeDir, splitPromptAttachments } from "./prompt-attachments.js";
 import { markStreamTail } from "./stream-tail.js";
 import { hasTypingFx, prefersReducedMotion } from "./themes.js";
+import { getTransport } from "./transport.js";
 import hljs from "./vendor/highlight.js";
 
 function buildAttachmentChips(paths) {
@@ -24,10 +26,24 @@ function buildAttachmentChips(paths) {
     nameEl.className = "file-chip-name";
     nameEl.textContent = name;
     nameEl.title = p;
+    chip.dataset.path = p;
+    chip.title = p;
+    chip.setAttribute("role", "button");
+    chip.tabIndex = 0;
     chip.append(icon, nameEl);
     wrap.appendChild(chip);
   }
   return wrap;
+}
+
+function openAttachmentPath(path) {
+  const transport = getTransport();
+  // Cliente remoto/LAN: no hay filesystem local que abrir. Silencioso a
+  // propósito — el `title` del chip ya muestra la ruta completa.
+  if (!transport?.capabilities?.native) return;
+  transport.openInApp(path).catch((err) => {
+    console.error("[attachment] failed to open", path, err);
+  });
 }
 
 export class MessageRenderer {
@@ -41,6 +57,25 @@ export class MessageRenderer {
       this.isNearBottom =
         this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight <
         threshold;
+    });
+
+    // Delegated: cubre mensajes en vivo y el historial recargado sin cablear
+    // elemento por elemento.
+    this.container.addEventListener("click", (e) => {
+      const img = e.target.closest?.(".message-image");
+      if (img) {
+        openImageLightbox(img.src, img.alt);
+        return;
+      }
+      const chip = e.target.closest?.(".file-chip[data-path]");
+      if (chip) openAttachmentPath(chip.dataset.path);
+    });
+    this.container.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const chip = e.target.closest?.(".file-chip[data-path]");
+      if (!chip) return;
+      e.preventDefault();
+      openAttachmentPath(chip.dataset.path);
     });
   }
 
