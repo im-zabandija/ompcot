@@ -182,6 +182,9 @@ export function setupRpcEvents({
         sidebar.setStreaming(sessionFile, true);
         break;
       case "agent_end":
+        // Un fin no-terminal no apaga el indicador de streaming del sidebar:
+        // el run sigue vivo (ver handleAgentEnd).
+        if (event.isTerminal === false) break;
         sidebar.setStreaming(sessionFile, false);
         sidebar.markUnread(sessionFile);
         sidebar.loadSessions({ quiet: true }).catch(() => {});
@@ -269,6 +272,15 @@ export function setupRpcEvents({
   }
 
   function handleAgentEnd(event = null) {
+    // OMP emite agent_end con isTerminal:false cuando mantenimiento o entrega
+    // asíncrona van a reanudar la sesión antes del settle real (docs/sdk.md).
+    // Se asienta la burbuja que acaba de cerrar, pero NO se vuelve a idle: si
+    // no, el botón de abortar desaparece justo cuando el agente sigue. Campo
+    // ausente = terminal (runtimes viejos).
+    if (event?.isTerminal === false) {
+      resetStreamingState();
+      return;
+    }
     state.setStreaming(false);
     showTypingIndicator(false);
     // Suelta el elemento igual que antes, pero pasando por el reset central:

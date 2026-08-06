@@ -331,6 +331,13 @@ wsClient.addEventListener("connected", () => {
   setTimeout(fetchContextWindow, 1000);
   // Sync the plan-mode button with the extension's real state
   void syncPlanMode();
+  // Un disconnect puede haberse comido los agent_start/agent_end de la sesión
+  // viva y dejar la cache del sidebar vieja. El snapshot de mirror_sync trae el
+  // isStreaming real del proceso omp y lo reconcilia. En el primer connect
+  // todavía no hay sesión a la que referirse, de ahí la guarda.
+  if (mirrorActiveSessionFile) {
+    wsClient.send({ type: "mirror_sync_request" });
+  }
 });
 
 wsClient.addEventListener("disconnected", () => {
