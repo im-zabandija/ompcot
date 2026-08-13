@@ -513,6 +513,7 @@ impl OmpManager {
             .env("OMCOT_STATIC_DIR", &static_dir)
             .env("OMCOT_PORT", port.to_string())
             .env("OMCOT_OMP_VERSION", locked_omp_version())
+            .env("OMCOT_OMP_BIN", &omp_bin_str)
             .stdin(Stdio::piped())
             // Drop stdout: omp emits RPC frames on it that we don't consume here, and
             // letting it fill an unread pipe would eventually block the child.

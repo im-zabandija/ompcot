@@ -391,6 +391,58 @@ export function resolveGitBranchCwd({
   return fallbackCwd;
 }
 
+/** Tope duro de un probe de modelo. */
+const MODEL_TEST_TIMEOUT_MS = 20_000;
+
+interface TurnEndMessage {
+  stopReason?: unknown;
+  ttft?: unknown;
+  usage?: { cost?: { total?: unknown } };
+}
+
+export interface ModelTestOutcome {
+  ok: boolean;
+  stopReason?: string;
+  ttftMs?: number;
+  costUsd?: number;
+  error?: string;
+}
+
+/**
+ * `omp -p ... --mode json` emite NDJSON. El éxito NO se puede leer del exit
+ * code: con un modelo inexistente omp imprime texto plano y sale con 0. La
+ * única señal confiable es la línea `turn_end`.
+ */
+export function parseModelTestOutput(stdout: string, stderr: string): ModelTestOutcome {
+  for (const line of stdout.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    let evt: { type?: string; message?: TurnEndMessage };
+    try {
+      evt = JSON.parse(trimmed) as { type?: string; message?: TurnEndMessage };
+    } catch {
+      continue;
+    }
+    if (evt?.type !== "turn_end") continue;
+    const msg = evt.message ?? {};
+    const cost = msg.usage?.cost?.total;
+    return {
+      ok: true,
+      stopReason: typeof msg.stopReason === "string" ? msg.stopReason : undefined,
+      ttftMs: typeof msg.ttft === "number" ? Math.round(msg.ttft) : undefined,
+      costUsd: typeof cost === "number" ? cost : undefined,
+    };
+  }
+  const lastLine = (text: string) =>
+    text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .pop();
+  const message = lastLine(stderr) || lastLine(stdout) || "el runtime no devolvió respuesta";
+  return { ok: false, error: message.slice(0, 300) };
+}
+
 // MIME types for static file serving
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html",
@@ -739,6 +791,7 @@ export default function (omp: ExtensionAPI) {
   const PLAN_MODE_READONLY_TOOLS = ["read", "glob", "grep", "web_search", "todo", "ask"];
   let planModeEnabled = false;
   let planModePreviousTools: string[] | null = null;
+  let modelTestInFlight = false;
 
   omp.on("session_start", async (_event, ctx) => {
     rememberCtx(ctx);
@@ -1327,6 +1380,61 @@ export default function (omp: ExtensionAPI) {
             // Leave planModeEnabled / planModePreviousTools as they were.
             sendTo(ws, error("set_plan_mode", errMessage(e)));
           }
+          break;
+        }
+
+        // ─── Model health probe ───
+        // Corre en un proceso omp aparte con --no-session: no toca la sesión
+        // del usuario ni se encola detrás de su turno.
+        case "test_model": {
+          const provider = String(command.provider ?? "").trim();
+          const modelId = String(command.id ?? "").trim();
+          if (!provider || !modelId) {
+            sendTo(ws, error("test_model", "provider e id son obligatorios"));
+            break;
+          }
+          if (modelTestInFlight) {
+            sendTo(ws, error("test_model", "ya hay un test de modelo en curso"));
+            break;
+          }
+          modelTestInFlight = true;
+          const startedAt = Date.now();
+          // `execFile` leaves the child's stdin open (piped) by default. omp's
+          // CLI detects a non-TTY stdin and blocks reading it for extra piped
+          // prompt content — even with `-p` already supplying the prompt —
+          // hanging the full MODEL_TEST_TIMEOUT_MS on every call, valid model
+          // or not (reproduced: verified via a direct child_process probe).
+          // Closing stdin explicitly sends EOF immediately, restoring the
+          // documented fast paths (~1s to fail, a few seconds to succeed).
+          const child = execFile(
+            process.env.OMCOT_OMP_BIN || "omp",
+            [
+              "-p",
+              "ping",
+              "--model",
+              `${provider}/${modelId}`,
+              "--mode",
+              "json",
+              "--no-tools",
+              "--no-session",
+              "--no-lsp",
+              "--thinking",
+              "off",
+            ],
+            { cwd: os.tmpdir(), timeout: MODEL_TEST_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
+            (err, stdout, stderr) => {
+              modelTestInFlight = false;
+              const latencyMs = Date.now() - startedAt;
+              const killed = Boolean(
+                err && (err as NodeJS.ErrnoException & { killed?: boolean }).killed,
+              );
+              const outcome = killed
+                ? { ok: false, error: `timeout tras ${MODEL_TEST_TIMEOUT_MS / 1000}s` }
+                : parseModelTestOutput(String(stdout), String(stderr));
+              sendTo(ws, success("test_model", { ...outcome, latencyMs }));
+            },
+          );
+          child.stdin?.end();
           break;
         }
 

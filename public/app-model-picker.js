@@ -219,11 +219,41 @@ export function setupModelPicker({
       const isPinned = getPinnedModels().includes(key);
       const el = document.createElement("div");
       el.className = `model-dropdown-item${key === currentKey() ? " active" : ""}`;
-      el.innerHTML = `<span>${shortName}${providerLabel}</span><span class="model-dropdown-item-right"><span class="model-dropdown-item-ctx">${ctxK}</span><button type="button" class="model-dropdown-pin${isPinned ? " pinned" : ""}" title="Pin model">${isPinned ? "★" : "☆"}</button></span>`;
+      el.innerHTML = `<span>${shortName}${providerLabel}</span><span class="model-dropdown-item-right"><span class="model-dropdown-item-result"></span><button type="button" class="model-dropdown-test" title="Probar este modelo">⚡</button><span class="model-dropdown-item-ctx">${ctxK}</span><button type="button" class="model-dropdown-pin${isPinned ? " pinned" : ""}" title="Pin model">${isPinned ? "★" : "☆"}</button></span>`;
       el.querySelector(".model-dropdown-pin").addEventListener("click", (e) => {
         e.stopPropagation();
         togglePinnedModel(key);
         renderItems(search.value);
+      });
+      el.querySelector(".model-dropdown-test").addEventListener("click", async (e) => {
+        // Igual que el pin: sin esto, el click seleccionaría el modelo.
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        const result = el.querySelector(".model-dropdown-item-result");
+        if (btn.disabled) return;
+        btn.disabled = true;
+        result.textContent = "…";
+        result.title = "";
+        try {
+          // 25s > los 20s de corte de la extensión, para que gane siempre el
+          // timeout de adentro, que es el que mata el proceso.
+          const data = await rpcCommand(
+            { type: "test_model", provider: m.provider, id: m.id },
+            `Probando ${shortName}...`,
+            { timeoutMs: 25000 },
+          );
+          const d = data?.data;
+          if (data?.success && d?.ok) {
+            result.textContent = `${(d.latencyMs / 1000).toFixed(1)}s · ${d.stopReason ?? "ok"}`;
+            result.title = `ttft ${d.ttftMs ?? "?"}ms`;
+          } else {
+            const msg = d?.error || data?.error || "falló";
+            result.textContent = "error";
+            result.title = msg;
+          }
+        } finally {
+          btn.disabled = false;
+        }
       });
       el.addEventListener("click", async () => {
         if (switchingModel) return;

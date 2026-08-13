@@ -1878,6 +1878,25 @@ body {
   color: var(--accent-text);
 }
 
+.model-dropdown-test {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0 var(--space-1);
+}
+
+.model-dropdown-test:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.model-dropdown-item-result {
+  font-size: var(--font-size-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
 /* Thinking tag — matches settings-value-btn style */
 .thinking-tag {
   padding: var(--space-1) var(--space-2-5);
