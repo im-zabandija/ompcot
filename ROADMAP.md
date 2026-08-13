@@ -8,6 +8,16 @@ actualiza cuando se cierra una tanda de trabajo.
 
 ## Hecho
 
+- Skills de workflow del repo (`fork-watch`, `ompcot-commit`, `ompcot-preflight`)
+  en `.omp/skills/` (2026-08-12).
+- Copiar un mensaje del asistente preserva el markdown crudo (2026-08-12).
+- Plan mode integrado de punta a punta: badge persistente en el composer y
+  aviso al clickear durante un turno (2026-08-12).
+- Diagnóstico de conectividad por modelo/proveedor: botón «Probar» en el
+  selector de modelo (2026-08-12).
+- Animación de tipeo suave en las respuestas del chat (2026-08-12).
+- Sacar la barra de título nativa y reemplazarla por controles custom
+  (2026-08-12).
 - Chips de adjunto en el composer: soltar un archivo/carpeta (desde la sidebar
   o desde el explorador del SO) ya no escribe la ruta cruda en el textarea,
   aparece como chip con ícono + nombre (2026-07-27).
@@ -55,14 +65,11 @@ actualiza cuando se cierra una tanda de trabajo.
   ghostty-web).
 - Chat rápido sin crear proyecto, usando un directorio scratch automático.
 - Visor de Markdown/HTML para los planes generados en modo plan.
-- Animación de tipeo suave en las respuestas del chat.
-- Sacar la barra de título nativa y reemplazarla por controles custom.
 
 ## Cuando toque (P4 y sin prioridad)
 
-- Pulida del chat: base de tokens y checker de diseño, resaltado de sintaxis,
-  diff real del `edit`, tipografía monoespaciada unificada (P4.1-P4.4), y 13
-  sub-ítems más anotados en el backlog (P4.5-P4.17).
+- Pulida del chat: 12 sub-ítems anotados en el backlog (P4.5-P4.17, sin el
+  P4.13 ya hecho).
 - Stats por turno en el chat: tokens in/out, costo, tokens/segundo (visto en
   MTEnt/omp-desktop).
 - Panel de "archivos que tocó el agente" con sus diffs (MTEnt, Ran1sss/OMP-IDE).
