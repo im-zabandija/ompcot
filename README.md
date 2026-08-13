@@ -206,6 +206,17 @@ Ompcot's lineage: [Tau](https://github.com/deflating/tau) → [Picot](https://gi
 - **System OMP runtime** — resolves `OMP_BIN` or `omp` from `PATH`; OMP upgrades take effect without rebuilding Ompcot
 - **OMP SDK packages** — `@oh-my-pi/pi-coding-agent` and related packages
 
+### 0.5.2
+
+- Repo workflow skills: `fork-watch` (forks/upstream check), `ompcot-commit`
+  (bilingual commits), `ompcot-preflight` (release audit)
+- Copying an assistant message now preserves the raw markdown (backticks,
+  headers, emphasis)
+- Plan mode: persistent "Plan mode" badge in the composer and explicit
+  feedback when clicking during a turn
+- Per-model health probe: "Probar" (⚡) action in the model picker shows
+  latency, stop reason and ttft without touching the session
+
 ### 0.5.1
 
 - Sidebar sessions: delete (with confirmation) and sort by recent / oldest / name

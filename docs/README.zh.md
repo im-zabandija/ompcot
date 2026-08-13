@@ -198,6 +198,19 @@ Ompcot 是 [Picot](https://github.com/shixin-guo/picot)（Picot 又是 Tau 的 f
 
 ---
 
+## 更新日志
+
+### 0.5.2
+
+- 仓库工作流 skills：`fork-watch`（fork/upstream 检查）、`ompcot-commit`
+  （双语提交）、`ompcot-preflight`（发布前审计）
+- 复制助手消息时现在保留原始 Markdown（反引号、标题、强调）
+- 计划模式：composer 中常驻 "Plan mode" 徽章，回合进行中点击时有明确反馈
+- 模型健康探测：模型选择器中的 "Probar"（⚡）操作显示延迟、停止原因和
+  首 token 时间，不触碰当前会话
+
+---
+
 ## License
 
 MIT

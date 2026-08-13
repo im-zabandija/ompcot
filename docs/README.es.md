@@ -206,6 +206,18 @@ Linaje de Ompcot: [Tau](https://github.com/deflating/tau) → [Picot](https://gi
 - **Runtime OMP del sistema** — resuelve `OMP_BIN` u `omp` desde `PATH`; las actualizaciones de OMP tienen efecto sin recompilar Ompcot
 - **Paquetes del SDK de OMP** — `@oh-my-pi/pi-coding-agent` y paquetes relacionados
 
+### 0.5.2
+
+- Skills de workflow del repo: `fork-watch` (chequeo de forks/upstreams),
+  `ompcot-commit` (commits bilingües), `ompcot-preflight` (auditoría de
+  release)
+- Copiar un mensaje del asistente ahora preserva el markdown crudo
+  (backticks, encabezados, énfasis)
+- Plan mode: badge persistente "Plan mode" en el composer y feedback
+  explícito al clickear durante un turno
+- Probe de salud por modelo: acción "Probar" (⚡) en el selector de modelos
+  muestra latencia, stop reason y ttft sin tocar la sesión
+
 ### 0.5.1
 
 - Sesiones en la barra lateral: eliminar (con confirmación) y ordenar por recientes / más viejas / nombre
