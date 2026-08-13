@@ -546,6 +546,8 @@ const {
     lastSentMessage = msg;
   },
   rpcCommand,
+  statusText,
+  updateUI,
 });
 setPlanModeIndicatorImpl = setPlanModeIndicator;
 

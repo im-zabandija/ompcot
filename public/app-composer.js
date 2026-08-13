@@ -13,6 +13,7 @@
  */
 
 import { getFileIcon, resolveExistingPaths } from "./file-browser.js";
+import { PLAN_MODE_CLICK_MESSAGE, planModeClickDecision } from "./plan-mode-gating.js";
 import {
   composePromptText,
   looksLikeDir,
@@ -42,6 +43,8 @@ export function setupComposer({
   setLastSentMessage,
   transport,
   rpcCommand,
+  statusText,
+  updateUI,
 }) {
   chatForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -520,6 +523,7 @@ export function setupComposer({
   // ALWAYS comes from the server response or the `plan_mode_changed`
   // broadcast, never from an optimistic local flip.
   const planToggleBtn = document.getElementById("plan-toggle-btn");
+  const planModeBadge = document.getElementById("plan-mode-badge");
   planToggleBtn.title = "Plan mode: restrict tools to read-only";
   let planModeOn = false;
   let planModeInFlight = false;
@@ -528,6 +532,7 @@ export function setupComposer({
     planModeOn = enabled;
     planToggleBtn.classList.toggle("active", enabled);
     planToggleBtn.setAttribute("aria-pressed", String(enabled));
+    planModeBadge.classList.toggle("hidden", !enabled);
   }
 
   async function syncPlanMode() {
@@ -536,12 +541,30 @@ export function setupComposer({
   }
 
   planToggleBtn.addEventListener("click", async () => {
-    if (planModeInFlight) return;
-    if (!currentOnboardingState().canQuery || state.isStreaming) return;
+    const decision = planModeClickDecision({
+      canQuery: currentOnboardingState().canQuery,
+      isStreaming: state.isStreaming,
+      inFlight: planModeInFlight,
+    });
+    if (decision === "ignore") return;
+    if (decision !== "toggle") {
+      // Sin esto el click era mudo y parecía que el botón estaba roto.
+      statusText.textContent = PLAN_MODE_CLICK_MESSAGE[decision];
+      setTimeout(() => updateUI(), 3000);
+      return;
+    }
     planModeInFlight = true;
     try {
-      const resp = await rpcCommand({ type: "set_plan_mode", enabled: !planModeOn });
+      // 12s de tope: el POST puede quedar encolado detrás del turno activo.
+      const resp = await rpcCommand(
+        { type: "set_plan_mode", enabled: !planModeOn },
+        planModeOn ? "Saliendo de Plan mode…" : "Activando Plan mode…",
+        { timeoutMs: 12000 },
+      );
+      // Si falla, el botón no puede quedar mintiendo: se re-sincroniza contra
+      // el estado real del servidor en vez de dejar el optimista.
       if (resp?.success) setPlanModeIndicator(Boolean(resp.data?.enabled));
+      else await syncPlanMode();
     } finally {
       planModeInFlight = false;
     }

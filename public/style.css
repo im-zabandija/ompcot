@@ -4697,6 +4697,16 @@ body.hide-thinking .thinking-block {
   background: var(--accent-subtle);
 }
 
+.plan-mode-badge {
+  font-size: var(--font-size-xs);
+  color: var(--accent-text);
+  background: var(--accent-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  white-space: nowrap;
+  align-self: center;
+}
+
 /* Slash-command autocomplete menu — floats above the composer card */
 .slash-menu {
   position: absolute;

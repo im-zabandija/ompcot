@@ -131,6 +131,8 @@ describe("plan-mode toggle (B2)", () => {
       pollInstances: vi.fn().mockResolvedValue(),
       setLastSentMessage: vi.fn(),
       rpcCommand,
+      statusText: document.querySelector("#status-text"),
+      updateUI: vi.fn(),
     };
   }
 
@@ -143,7 +145,11 @@ describe("plan-mode toggle (B2)", () => {
     expect(btn.getAttribute("aria-pressed")).toBe("false");
 
     btn.click();
-    expect(rpcCommand).toHaveBeenCalledWith({ type: "set_plan_mode", enabled: true });
+    expect(rpcCommand).toHaveBeenCalledWith(
+      { type: "set_plan_mode", enabled: true },
+      "Activando Plan mode…",
+      { timeoutMs: 12000 },
+    );
     // No optimistic flip before the response lands.
     expect(btn.getAttribute("aria-pressed")).toBe("false");
 
@@ -158,32 +164,52 @@ describe("plan-mode toggle (B2)", () => {
     expect(btn.getAttribute("aria-pressed")).toBe("false");
   });
 
-  test("does not flip when the RPC fails, then second click sends enabled:false", async () => {
+  test("does not flip when the RPC fails, then re-syncs and the next clicks toggle normally", async () => {
     loadBody();
     const rpcCommand = vi
       .fn()
       .mockResolvedValueOnce({ success: false, error: "nope" })
+      .mockResolvedValueOnce({ success: true, data: { enabled: false } })
       .mockResolvedValueOnce({ success: true, data: { enabled: true } })
       .mockResolvedValueOnce({ success: true, data: { enabled: false } });
     setupComposer(composerDeps(rpcCommand));
 
     const btn = document.querySelector("#plan-toggle-btn");
 
+    // First click fails: the button can't keep lying about the state, so it
+    // re-syncs against get_plan_mode instead of leaving the optimistic guess.
     btn.click();
     await new Promise((r) => setTimeout(r, 0));
+    expect(rpcCommand).toHaveBeenNthCalledWith(
+      1,
+      { type: "set_plan_mode", enabled: true },
+      "Activando Plan mode…",
+      { timeoutMs: 12000 },
+    );
+    expect(rpcCommand).toHaveBeenNthCalledWith(2, { type: "get_plan_mode" });
     expect(btn.getAttribute("aria-pressed")).toBe("false");
     expect(btn.classList.contains("active")).toBe(false);
 
-    // First click failed → still off → next click asks to enable again.
+    // Still off → next click asks to enable again.
     btn.click();
     await new Promise((r) => setTimeout(r, 0));
-    expect(rpcCommand).toHaveBeenNthCalledWith(2, { type: "set_plan_mode", enabled: true });
+    expect(rpcCommand).toHaveBeenNthCalledWith(
+      3,
+      { type: "set_plan_mode", enabled: true },
+      "Activando Plan mode…",
+      { timeoutMs: 12000 },
+    );
     expect(btn.getAttribute("aria-pressed")).toBe("true");
 
     // Now on → next click asks to disable.
     btn.click();
     await new Promise((r) => setTimeout(r, 0));
-    expect(rpcCommand).toHaveBeenNthCalledWith(3, { type: "set_plan_mode", enabled: false });
+    expect(rpcCommand).toHaveBeenNthCalledWith(
+      4,
+      { type: "set_plan_mode", enabled: false },
+      "Saliendo de Plan mode…",
+      { timeoutMs: 12000 },
+    );
     expect(btn.getAttribute("aria-pressed")).toBe("false");
   });
 
