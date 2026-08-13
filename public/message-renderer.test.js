@@ -127,3 +127,26 @@ describe("MessageRenderer user attachments", () => {
     expect(nameEl.textContent).toBe("script>");
   });
 });
+
+describe("MessageRenderer copy text", () => {
+  let container;
+  let renderer;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    renderer = new MessageRenderer(container);
+  });
+
+  it("guarda el markdown crudo del asistente para el botón de copiar", () => {
+    const raw = "# hola\n\nun `code` y **bold**";
+    const el = renderer.renderAssistantMessage({ content: raw });
+    expect(el.dataset.copyText).toBe(raw);
+  });
+
+  it("guarda el markdown crudo al finalizar un mensaje que venía streameando", () => {
+    const el = renderer.renderAssistantMessage({ content: "" }, true);
+    renderer.updateStreamingMessage(el, "a **bold** word and `code`");
+    renderer.finalizeStreamingMessage(el);
+    expect(el.dataset.copyText).toBe("a **bold** word and `code`");
+  });
+});

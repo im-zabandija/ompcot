@@ -236,6 +236,13 @@ export class MessageRenderer {
     if (isStreaming) {
       div._streamingRawText = rawStreamingText;
     }
+    // El botón de copiar lee `dataset.copyText` y cae a `textContent` si no
+    // está: sin esto, copiar una respuesta del asistente devuelve el markdown
+    // ya renderizado, sin backticks ni encabezados. Vacío = mensaje con puros
+    // bloques de thinking; ahí conviene seguir cayendo al textContent.
+    if (rawStreamingText) {
+      div.dataset.copyText = rawStreamingText;
+    }
 
     // Usage/cost info
     if (message.usage?.cost) {
@@ -338,6 +345,9 @@ export class MessageRenderer {
         typeof messageElement._streamingRawText === "string"
           ? messageElement._streamingRawText
           : domText;
+      if (rawText) {
+        messageElement.dataset.copyText = rawText;
+      }
       messageElement._streamingRawText = null;
 
       // Rebuild with thinking block (if any) + markdown text
