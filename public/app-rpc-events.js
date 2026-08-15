@@ -8,7 +8,7 @@ import { createTypingPacer } from "./typing-pacer.js";
 /**
  * RPC event handlers — every `handle*` dispatched from the WebSocket
  * "rpc" event: agent lifecycle, message stream, tool executions, auto-
- * compaction, extension UI requests, session-name updates.
+ * compaction, extension errors, session-name updates.
  *
  * Owns the transient streaming assistant element / text / thinking
  * accumulator (the only writers are here and `abortCurrentRun`, which
@@ -30,17 +30,11 @@ export function setupRpcEvents({
   messagesContainer,
   toolCardRenderer,
   transport,
-  dialogHandler,
   originalTitle,
   updateUI,
   updateCostDisplay,
   updateTokenUsage,
   showTypingIndicator,
-  // NOTE: line ~186 below calls a bare `scrollToBottom()` that has never
-  // resolved to anything (there's no top-level `scrollToBottom` — only
-  // methods on messageRenderer / toolCardRenderer). It's an inherited
-  // dormant bug — auto_compaction_start currently throws ReferenceError
-  // when it fires. Not fixing here to keep this extraction pure.
   showNewMessageBadge,
   hideCompactButton,
   syncWorkspaceIndicatorFromInstances,
@@ -155,9 +149,6 @@ export function setupRpcEvents({
         break;
       case "auto_compaction_end":
         handleCompactionEnd(event);
-        break;
-      case "extension_ui_request":
-        handleExtensionUIRequest(event);
         break;
       case "extension_error":
         messageRenderer.renderError(`Extension error: ${event.error}`);
@@ -459,28 +450,6 @@ export function setupRpcEvents({
     });
 
     toolCardRenderer.finalizeToolCard(toolCallId, view);
-  }
-
-  function handleExtensionUIRequest(event) {
-    switch (event.method) {
-      case "select":
-        dialogHandler.showSelect(event);
-        break;
-      case "confirm":
-        dialogHandler.showConfirm(event);
-        break;
-      case "input":
-        dialogHandler.showInput(event);
-        break;
-      case "editor":
-        dialogHandler.showEditor(event);
-        break;
-      case "notify":
-        dialogHandler.showNotification(event);
-        break;
-      default:
-        console.warn("[App] Unknown extension UI method:", event.method);
-    }
   }
 
   function resetStreamingState() {

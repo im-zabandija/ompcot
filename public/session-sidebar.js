@@ -463,7 +463,7 @@ export class SessionSidebar {
   // Context Menu
   // ═══════════════════════════════════════
 
-  showContextMenu(e, session, _project, _itemEl) {
+  showContextMenu(e, session) {
     e.preventDefault();
     this.closeContextMenu();
 
@@ -610,23 +610,6 @@ export class SessionSidebar {
     });
   }
 
-  async exportSession(_session) {
-    try {
-      const data = await (
-        await fetch("/api/rpc", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "export_html" }),
-        })
-      ).json();
-      if (data?.success && data.data?.path) {
-        window.open(`/api/sessions/${encodeURIComponent(data.data.path)}`);
-      }
-    } catch {
-      /* silent */
-    }
-  }
-
   // ═══════════════════════════════════════
   // Render
   // ═══════════════════════════════════════
@@ -696,13 +679,13 @@ export class SessionSidebar {
     `;
 
     item.addEventListener("click", () => this.onSessionSelect(session, project));
-    item.addEventListener("contextmenu", (e) => this.showContextMenu(e, session, project, item));
+    item.addEventListener("contextmenu", (e) => this.showContextMenu(e, session));
     const moreBtn = item.querySelector(".session-more-btn");
     if (moreBtn) {
       moreBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.showContextMenu(e, session, project, item);
+        this.showContextMenu(e, session);
       });
     }
 

@@ -49,13 +49,6 @@ function makeDeps(overrides = {}) {
       switchSession: vi.fn().mockResolvedValue(undefined),
       showNotification: vi.fn(),
     },
-    dialogHandler: {
-      showSelect: vi.fn(),
-      showConfirm: vi.fn(),
-      showInput: vi.fn(),
-      showEditor: vi.fn(),
-      showNotification: vi.fn(),
-    },
     originalTitle: "Ompcot",
     updateUI: vi.fn(),
     updateCostDisplay: vi.fn(),

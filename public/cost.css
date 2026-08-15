@@ -332,8 +332,7 @@ body {
 
 /* ── Overview grid ───────────────────────────────────────────────── */
 
-.infobar-overview-grid,
-.infobar-usage-grid {
+.infobar-overview-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
@@ -835,8 +834,7 @@ body {
 }
 
 @media (max-width: 420px) {
-  .infobar-overview-grid,
-  .infobar-usage-grid {
+  .infobar-overview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .infobar-activity-grid {

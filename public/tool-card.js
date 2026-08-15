@@ -17,7 +17,7 @@ export class ToolCardRenderer {
     card.className = "tool-card";
     card.dataset.toolCallId = toolCallId;
 
-    const argsPreview = this.getArgsPreview(toolName, args);
+    const argsPreview = this.getArgsPreview(args);
     const argsJson = this.formatJson(args);
     const isExpanded = status === "streaming" || status === "pending";
 
@@ -163,7 +163,7 @@ export class ToolCardRenderer {
     name.textContent = toolName;
     headerLeft.appendChild(name);
 
-    const preview = this.getArgsPreview(toolName, args);
+    const preview = this.getArgsPreview(args);
     if (preview) {
       const previewEl = document.createElement("span");
       previewEl.className = "tool-args-preview";
@@ -308,7 +308,7 @@ export class ToolCardRenderer {
   }
 
   /** Compact preview for the header line */
-  getArgsPreview(_toolName, args) {
+  getArgsPreview(args) {
     if (!args || Object.keys(args).length === 0) return "";
 
     // Show the most relevant arg inline

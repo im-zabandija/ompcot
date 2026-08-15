@@ -229,7 +229,7 @@ including how to thread mutable app.js state through getters/setters):
 - `message-renderer.js`, `tool-card.js`, `markdown.js` — chat message rendering; `tool-card.js` renders the diff OMP already delivers in `result.details.diff` (it does not compute diffs itself) and has copy/expand/re-run actions on tool cards.
 - `session-sidebar.js` — session history list.
 - `file-browser.js` — lazy-loaded file tree sidebar.
-- `dialogs.js`, `workspace-actions.js` — modal dialogs and workspace actions.
+- `workspace-actions.js` — workspace actions.
 - `themes.js` — 6 built-in themes + user overrides (accent color, font size, density, sidebar width, motion preference), all persisted in cross-port cookies.
 - `poll-gating.js` — pure `shouldPoll(hasFocus, msSinceLastPoll)` used by the polling ticker in `app-session-routing.js`.
 

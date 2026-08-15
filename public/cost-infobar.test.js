@@ -5,7 +5,6 @@ import {
   renderInfobarOverview,
   renderInfobarProjects,
   renderInfobarToolCost,
-  renderInfobarUsage,
 } from "./cost-infobar.js";
 
 describe("cost infobar renderers", () => {
@@ -42,10 +41,9 @@ describe("cost infobar renderers", () => {
     expect(target.textContent).toContain("Tool Calls");
   });
 
-  it("renders ranked model and project rows plus usage totals", () => {
+  it("renders ranked model and project rows plus tool cost", () => {
     const models = document.createElement("div");
     const projects = document.createElement("div");
-    const usage = document.createElement("div");
     const toolCost = document.createElement("div");
     const toolCostMeta = document.createElement("span");
     const OriginalChart = window.Chart;
@@ -85,18 +83,6 @@ describe("cost infobar renderers", () => {
       renderInfobarProjects(projects, [
         { name: "pi-alpha", path: "/work/pi-alpha", cost: 7.5, sessions: 2, fraction: 1 },
       ]);
-      renderInfobarUsage(usage, {
-        totalTokens: 3550,
-        inputTokens: 2000,
-        outputTokens: 1000,
-        cacheRead: 400,
-        cacheWrite: 150,
-        toolCalls: 6,
-        tools: [
-          { name: "read_file", count: 2, cost: 1.6, fraction: 1 },
-          { name: "edit_file", count: 2, cost: 1.4, fraction: 0.875 },
-        ],
-      });
       renderInfobarToolCost(
         toolCost,
         {
@@ -116,8 +102,6 @@ describe("cost infobar renderers", () => {
 
       expect(models.querySelectorAll(".infobar-model-legend-row")).toHaveLength(2);
       expect(projects.querySelector(".infobar-projects-chart")).not.toBeNull();
-      expect(usage.textContent).toContain("Total Tokens");
-      expect(usage.textContent).toContain("3.6K");
       expect(toolCost.textContent).toContain("read_file");
       expect(toolCostMeta.textContent).toContain("2 tracked");
     } finally {

@@ -156,23 +156,6 @@ export function renderInfobarProjects(target, rows = []) {
   renderProjectsChart(target.querySelector(".infobar-projects-chart"), top);
 }
 
-export function renderInfobarUsage(target, usage = {}) {
-  const summaryCards = [
-    ["Total Tokens", formatCompact(usage.totalTokens), "blue"],
-    ["Input", formatCompact(usage.inputTokens), "teal"],
-    ["Output", formatCompact(usage.outputTokens), "green"],
-    ["Cache Read", formatCompact(usage.cacheRead), "amber"],
-    ["Cache Write", formatCompact(usage.cacheWrite), "violet"],
-    ["Tool Calls", formatInt(usage.toolCalls), "rose"],
-  ];
-
-  target.innerHTML = `
-    <div class="infobar-usage-grid">
-      ${summaryCards.map(([title, value, tone]) => buildStatCard(title, value, tone)).join("")}
-    </div>
-  `;
-}
-
 export function renderInfobarToolCost(target, usage = {}, metaTarget = null) {
   const tools = Array.isArray(usage.tools) ? usage.tools : [];
   if (metaTarget) {
