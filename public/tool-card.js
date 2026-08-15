@@ -2,6 +2,8 @@
  * Tool Card - Renders and updates tool execution cards (collapsible)
  */
 
+import { resolveImageSrc } from "./image-src.js";
+
 export class ToolCardRenderer {
   constructor(container) {
     this.container = container;
@@ -112,6 +114,16 @@ export class ToolCardRenderer {
       const body = card.querySelector(".tool-card-body");
       body?.querySelector(".tool-diff")?.remove();
       body?.insertBefore(this.renderEditDiff(resultView.diff), body.firstChild);
+    }
+
+    // Tool result images, above the output.
+    if (resultView.images?.length > 0) {
+      const body = card.querySelector(".tool-card-body");
+      body?.querySelector(".tool-images")?.remove();
+      body?.insertBefore(
+        this.renderToolImages(resultView.images),
+        body.querySelector(".tool-output-wrapper"),
+      );
     }
 
     // Collapse completed cards (less noise)
@@ -273,6 +285,16 @@ export class ToolCardRenderer {
       body?.querySelector(".tool-diff")?.remove();
       body?.insertBefore(this.renderEditDiff(resultView.diff), body.firstChild);
     }
+
+    // Tool result images, above the output.
+    if (resultView.images?.length > 0) {
+      const body = card.querySelector(".tool-card-body");
+      body?.querySelector(".tool-images")?.remove();
+      body?.insertBefore(
+        this.renderToolImages(resultView.images),
+        body.querySelector(".tool-output"),
+      );
+    }
   }
 
   /** Populate the composer with a Re-run prompt for the given command and focus it. No auto-send. */
@@ -325,6 +347,23 @@ export class ToolCardRenderer {
       const kind = marker === "+" ? "add" : marker === "-" ? "rem" : "ctx";
       return { kind, line: lineNo ? Number(lineNo) : null, text };
     });
+  }
+
+  /** Imágenes de un resultado de herramienta. Comparten `.message-image` con el chat, así
+   *  que el lightbox delegado de MessageRenderer las cubre sin cablear nada. */
+  renderToolImages(images) {
+    const wrap = document.createElement("div");
+    wrap.className = "message-images tool-images";
+    for (const image of images) {
+      const el = document.createElement("img");
+      el.className = "message-image";
+      el.loading = "lazy";
+      el.decoding = "async";
+      el.alt = "Tool image";
+      el.src = resolveImageSrc(image);
+      wrap.appendChild(el);
+    }
+    return wrap;
   }
 
   /** Renders the real diff OMP computed for an `edit` tool call. */

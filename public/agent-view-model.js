@@ -28,15 +28,19 @@ export function messageThinking(message) {
     .join("\n");
 }
 
-/** @returns {Array<{data: string, mimeType: string}>} attached images. */
-export function messageImages(message) {
-  if (!Array.isArray(message?.content)) return [];
-  return message.content
+function imageBlocks(content) {
+  if (!Array.isArray(content)) return [];
+  return content
     .filter((block) => block.type === "image")
     .map((block) => ({
-      data: block.source?.data || block.data || "",
-      mimeType: block.source?.media_type || block.media_type || "image/png",
+      data: block.data || block.source?.data || "",
+      mimeType: block.mimeType || block.source?.media_type || block.media_type || "image/png",
     }));
+}
+
+/** @returns {Array<{data: string, mimeType: string}>} attached images. */
+export function messageImages(message) {
+  return imageBlocks(message?.content);
 }
 
 /** `{type:"toolCall", id, name, arguments}` block → tool card input. */
@@ -63,6 +67,7 @@ export function toolResultView(result, { isError = false, status } = {}) {
     status: status || (failed ? "error" : "complete"),
     isError: failed,
     output: toolOutput(result),
+    images: imageBlocks(result?.content),
     diff:
       typeof result?.details?.diff === "string" && result.details.diff.length > 0
         ? result.details.diff
@@ -77,6 +82,7 @@ function toolOutput(result) {
   // result sin `content[]`: 25.867/25.867 en el corpus de sesiones.
   if (!Array.isArray(result?.content)) return "";
   return result.content
+    .filter((block) => block.type !== "image")
     .map((block) => (block.type === "text" ? block.text : JSON.stringify(block)))
     .join("\n");
 }

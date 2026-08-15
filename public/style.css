@@ -4196,6 +4196,11 @@ body.hide-thinking .thinking-block {
   display: block;
 }
 
+.tool-card-body .message-images {
+  padding: var(--space-2-5) var(--space-3) 0;
+  margin-bottom: 0;
+}
+
 .tool-args {
   background: rgba(0, 0, 0, 0.15);
   padding: var(--space-2-5) var(--space-3);

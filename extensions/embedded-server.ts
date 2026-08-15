@@ -281,6 +281,7 @@ function findPublicDir(): string {
   return path.resolve(process.cwd(), "public");
 }
 const SESSIONS_DIR = path.join(OMP_AGENT_ROOT, "sessions");
+const BLOBS_DIR = path.join(OMP_AGENT_ROOT, "blobs");
 // TODO(rename->ompcot): directory `ompcot-instances` kept for backward compat — migrate to `ompcot-instances` once existing users are handled.
 const INSTANCES_DIR = path.join(path.dirname(OMP_AGENT_ROOT), "ompcot-instances");
 
@@ -450,6 +451,7 @@ const MIME_TYPES: Record<string, string> = {
   ".js": "application/javascript",
   ".json": "application/json",
   ".png": "image/png",
+  ".webp": "image/webp",
   ".jpg": "image/jpeg",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
@@ -1785,6 +1787,14 @@ export default function (omp: ExtensionAPI) {
       return;
     }
 
+    // Blob endpoint: /api/blob/:hash?mime=image%2Fwebp
+    const blobMatch = urlPath.match(/^\/api\/blob\/([^/]+)$/);
+    if (blobMatch && req.method === "GET") {
+      const blobUrl = new URL(`http://localhost${req.url}`);
+      serveBlobFile(res, blobMatch[1], blobUrl.searchParams.get("mime") || "");
+      return;
+    }
+
     // RPC proxy — handle via WebSocket command handler
     if (urlPath === "/api/rpc" && req.method === "POST") {
       let body = "";
@@ -2508,6 +2518,40 @@ export default function (omp: ExtensionAPI) {
     } catch (e: unknown) {
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: errMessage(e) || "Failed to build cost dashboard" }));
+    }
+  }
+
+  // ═══════════════════════════════════════
+  // Blob endpoint — imágenes referenciadas por el wire como `blob:sha256:<hash>`
+  // ═══════════════════════════════════════
+  function serveBlobFile(res: http.ServerResponse, hash: string, mime: string) {
+    // La regex es lo único que impide un path traversal por la URL: mismo
+    // `BLOB_HASH_RE` que usa el SDK.
+    if (!/^[a-f0-9]{64}$/.test(hash)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid blob hash" }));
+      return;
+    }
+
+    // El archivo canónico no tiene extensión; los sidecar `<hash>.<ext>` son
+    // hardlinks del mismo inodo y no siempre existen.
+    const filePath = path.join(BLOBS_DIR, hash);
+    if (!fs.existsSync(filePath)) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Blob not found" }));
+      return;
+    }
+
+    const contentType = /^image\//.test(mime) ? mime : "application/octet-stream";
+    try {
+      // Buffer y no `createReadStream().pipe(res)`: el adaptador Bun define
+      // `resLike.pipe = undefined`. El blob más grande medido son 270 KB.
+      const buffer = fs.readFileSync(filePath);
+      res.writeHead(200, { "Content-Type": contentType, "Cache-Control": "no-store" });
+      res.end(buffer);
+    } catch (e: unknown) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: errMessage(e) }));
     }
   }
 

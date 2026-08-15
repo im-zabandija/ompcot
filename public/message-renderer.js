@@ -5,6 +5,7 @@
 import { clearCaretTrail, updateCaretTrail } from "./caret-trail.js";
 import { getFileIcon } from "./file-browser.js";
 import { openImageLightbox } from "./image-lightbox.js";
+import { resolveImageSrc } from "./image-src.js";
 import { renderMarkdown, renderStreamingMarkdown, renderUserMarkdown } from "./markdown.js";
 import { looksLikeDir, splitPromptAttachments } from "./prompt-attachments.js";
 import { markStreamTail } from "./stream-tail.js";
@@ -173,9 +174,7 @@ export class MessageRenderer {
         '<div class="message-images">' +
         message.images
           .map((img) => {
-            const src = img.data.startsWith("data:")
-              ? img.data
-              : `data:${img.mimeType || "image/png"};base64,${img.data}`;
+            const src = this.escapeHtml(resolveImageSrc(img));
             return `<img class="message-image" src="${src}" alt="Attached image" />`;
           })
           .join("") +
