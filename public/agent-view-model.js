@@ -54,9 +54,14 @@ export function toolCallView(block) {
  * it doubles as CSS class and visible label in tool-card.js.
  */
 export function toolResultView(result, { isError = false, status } = {}) {
+  // `details.isError` es la única señal medida que aporta casos que `isError` no cubre:
+  // 39 `eval` con Traceback que hoy salen con la card verde. Quedan afuera a propósito
+  // `details.timedOut` (4 casos de `hub wait` expirado, que no son errores) y
+  // `details.exitCode` (0 casos huérfanos).
+  const failed = Boolean(isError || result?.details?.isError === true);
   return {
-    status: status || (isError ? "error" : "complete"),
-    isError: Boolean(isError),
+    status: status || (failed ? "error" : "complete"),
+    isError: failed,
     output: toolOutput(result),
     diff:
       typeof result?.details?.diff === "string" && result.details.diff.length > 0

@@ -38,6 +38,7 @@ function makeDeps(overrides = {}) {
       isStreaming: false,
       reset: vi.fn(),
       setStreaming: vi.fn(),
+      updateToolExecution: vi.fn(),
     },
     sidebar,
     messageRenderer,
@@ -146,5 +147,49 @@ describe("app rpc events — agent_end isTerminal contract", () => {
 
     expect(deps.sidebar.setStreaming).toHaveBeenCalledWith("/x/s.jsonl", false);
     expect(deps.sidebar.markUnread).toHaveBeenCalledWith("/x/s.jsonl");
+  });
+});
+
+describe("app rpc events — tool_execution_end status contract", () => {
+  test("details.isError:true paints the card error even when the event isError flag is false", () => {
+    const deps = makeDeps();
+    const { handleRPCEvent } = setupRpcEvents(deps);
+
+    handleRPCEvent({
+      type: "tool_execution_end",
+      toolCallId: "t1",
+      isError: false,
+      result: {
+        content: [{ type: "text", text: "Traceback..." }],
+        details: { isError: true },
+      },
+    });
+
+    // Sin esto, un `status` explícito en el callsite (p. ej. `isError ? "error" : "complete"`)
+    // vuelve a ganarle al derivado y la card queda verde con el Traceback adentro.
+    expect(deps.toolCardRenderer.finalizeToolCard).toHaveBeenCalledWith(
+      "t1",
+      expect.objectContaining({ isError: true, status: "error" }),
+    );
+  });
+
+  test("details.isError absent with isError:false completes the card", () => {
+    const deps = makeDeps();
+    const { handleRPCEvent } = setupRpcEvents(deps);
+
+    handleRPCEvent({
+      type: "tool_execution_end",
+      toolCallId: "t1",
+      isError: false,
+      result: {
+        content: [{ type: "text", text: "ok" }],
+        details: {},
+      },
+    });
+
+    expect(deps.toolCardRenderer.finalizeToolCard).toHaveBeenCalledWith(
+      "t1",
+      expect.objectContaining({ isError: false, status: "complete" }),
+    );
   });
 });

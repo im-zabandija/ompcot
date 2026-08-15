@@ -203,7 +203,7 @@ export function setupRpcEvents({
     el.id = "compaction-indicator";
     el.innerHTML = '<span class="compaction-spinner">⟳</span> Compacting context…';
     messagesContainer.appendChild(el);
-    scrollToBottom();
+    messageRenderer.scrollToBottom();
   }
 
   function handleCompactionEnd(event) {
@@ -450,7 +450,7 @@ export function setupRpcEvents({
 
   function handleToolExecutionEnd(event) {
     const { toolCallId, result, isError } = event;
-    const view = toolResultView(result, { isError, status: isError ? "error" : "complete" });
+    const view = toolResultView(result, { isError });
 
     state.updateToolExecution(toolCallId, {
       status: view.status,
