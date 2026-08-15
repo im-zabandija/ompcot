@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { toolResultView } from "./agent-view-model.js";
 import { ToolCardRenderer } from "./tool-card.js";
 
 describe("ToolCardRenderer re-run action", () => {
@@ -102,5 +103,151 @@ describe("ToolCardRenderer.parseEditDiff", () => {
 
   it("returns an empty array for an empty diff", () => {
     expect(renderer.parseEditDiff("")).toEqual([]);
+  });
+});
+
+describe("ToolCardRenderer.addHistoryResult", () => {
+  let container;
+  let renderer;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    renderer = new ToolCardRenderer(container);
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it("renders the result diff into a history card that stays collapsed (P4.14)", () => {
+    renderer.createHistoryCard({ toolCallId: "t1", toolName: "edit", args: { path: "a.js" } });
+    const card = container.querySelector(".tool-card");
+    expect(card).not.toBeNull();
+
+    renderer.addHistoryResult(
+      "t1",
+      toolResultView({
+        content: [{ type: "text", text: "ok" }],
+        details: { diff: "+16|nueva\n 17|contexto" },
+      }),
+    );
+
+    expect(card.querySelectorAll(".tool-diff")).toHaveLength(1);
+    const added = card.querySelector(".diff-line.diff-added");
+    expect(added).not.toBeNull();
+    expect(added.querySelector(".diff-line-text").textContent).toBe("nueva");
+    expect(added.querySelector(".diff-line-no").textContent).toBe("16");
+    expect(card.querySelector(".tool-output").textContent).toBe("ok");
+    expect(card.querySelector(".tool-card-body").classList.contains("expanded")).toBe(false);
+  });
+});
+
+describe("ToolCardRenderer.finalizeToolCard", () => {
+  let container;
+  let renderer;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    renderer = new ToolCardRenderer(container);
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it("renders the result diff into a live card", () => {
+    renderer.createToolCard({
+      toolCallId: "t1",
+      toolName: "edit",
+      args: { path: "a.js" },
+      status: "streaming",
+    });
+    const card = container.querySelector(".tool-card");
+
+    renderer.finalizeToolCard("t1", {
+      status: "complete",
+      isError: false,
+      output: "ok",
+      diff: "+16|nueva\n 17|contexto",
+    });
+
+    expect(card.querySelectorAll(".tool-diff")).toHaveLength(1);
+    const added = card.querySelector(".diff-line.diff-added");
+    expect(added).not.toBeNull();
+    expect(added.querySelector(".diff-line-text").textContent).toBe("nueva");
+  });
+
+  it("reflects the view status on the status element", () => {
+    renderer.createToolCard({
+      toolCallId: "t1",
+      toolName: "edit",
+      args: { path: "a.js" },
+      status: "streaming",
+    });
+    const card = container.querySelector(".tool-card");
+
+    renderer.finalizeToolCard("t1", {
+      status: "error",
+      isError: true,
+      output: "boom",
+      diff: null,
+    });
+
+    const status = card.querySelector(".tool-status");
+    expect(status.textContent).toBe("error");
+    expect(status.className).toBe("tool-status error");
+  });
+
+  it("keeps the card expanded on error and collapses it otherwise", () => {
+    renderer.createToolCard({
+      toolCallId: "t1",
+      toolName: "edit",
+      args: { path: "a.js" },
+      status: "streaming",
+    });
+    const errorCard = container.querySelector(".tool-card");
+    renderer.finalizeToolCard("t1", {
+      status: "error",
+      isError: true,
+      output: "boom",
+      diff: null,
+    });
+    expect(errorCard.querySelector(".tool-card-body").classList.contains("expanded")).toBe(true);
+
+    renderer.createToolCard({
+      toolCallId: "t2",
+      toolName: "edit",
+      args: { path: "b.js" },
+      status: "streaming",
+    });
+    const doneCard = container.querySelector('[data-tool-call-id="t2"]');
+    renderer.finalizeToolCard("t2", {
+      status: "complete",
+      isError: false,
+      output: "ok",
+      diff: null,
+    });
+    expect(doneCard.querySelector(".tool-card-body").classList.contains("expanded")).toBe(false);
+  });
+
+  it("writes the view output into the output element", () => {
+    renderer.createToolCard({
+      toolCallId: "t1",
+      toolName: "bash",
+      args: { command: "ls" },
+      status: "streaming",
+    });
+    const card = container.querySelector(".tool-card");
+
+    renderer.finalizeToolCard("t1", {
+      status: "complete",
+      isError: false,
+      output: "file1\nfile2",
+      diff: null,
+    });
+
+    expect(card.querySelector(".tool-output").textContent).toBe("file1\nfile2");
   });
 });

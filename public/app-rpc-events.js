@@ -1,3 +1,4 @@
+import { messageText, messageThinking, toolResultView } from "./agent-view-model.js";
 import { clearCaretTrail } from "./caret-trail.js";
 import { resolveNewSessionLiveFile } from "./new-session-refresh.js";
 import { findPortForSession } from "./session-routing.js";
@@ -336,8 +337,8 @@ export function setupRpcEvents({
       // In mirror mode, user messages from TUI appear via events
       // Only render if we didn't just send this message ourselves
       const lastSent = getLastSentMessage();
-      if (!lastSent || getMessageText(message) !== lastSent) {
-        const content = getMessageText(message);
+      if (!lastSent || messageText(message) !== lastSent) {
+        const content = messageText(message);
         if (content) {
           messageRenderer.renderUserMessage({ content });
         }
@@ -346,38 +347,10 @@ export function setupRpcEvents({
     }
   }
 
-  function getMessageText(message) {
-    if (typeof message.content === "string") return message.content;
-    if (Array.isArray(message.content)) {
-      return message.content
-        .filter((b) => b.type === "text")
-        .map((b) => b.text)
-        .join("\n");
-    }
-    return "";
-  }
-
-  function getAssistantText(message) {
-    if (typeof message?.content === "string") return message.content;
-    if (!Array.isArray(message?.content)) return "";
-    return message.content
-      .filter((block) => block.type === "text")
-      .map((block) => block.text || "")
-      .join("\n");
-  }
-
-  function getAssistantThinking(message) {
-    if (!Array.isArray(message?.content)) return "";
-    return message.content
-      .filter((block) => block.type === "thinking")
-      .map((block) => block.thinking || "")
-      .join("\n");
-  }
-
   function ensureStreamingAssistantElement(message = null) {
     if (currentStreamingElement) return currentStreamingElement;
-    currentStreamingText = getAssistantText(message);
-    currentStreamingThinking = getAssistantThinking(message);
+    currentStreamingText = messageText(message);
+    currentStreamingThinking = messageThinking(message);
     currentStreamingElement = messageRenderer.renderAssistantMessage({ content: "" }, true);
     typingPacer.reset();
     if (currentStreamingThinking) {
@@ -398,13 +371,13 @@ export function setupRpcEvents({
 
     if (assistantMessageEvent.type === "thinking_delta") {
       currentStreamingThinking =
-        getAssistantThinking(message) || currentStreamingThinking + assistantMessageEvent.delta;
+        messageThinking(message) || currentStreamingThinking + assistantMessageEvent.delta;
       if (currentStreamingElement) {
         messageRenderer.updateStreamingThinking(currentStreamingElement, currentStreamingThinking);
       }
     } else if (assistantMessageEvent.type === "text_delta") {
       currentStreamingText =
-        getAssistantText(message) || currentStreamingText + assistantMessageEvent.delta;
+        messageText(message) || currentStreamingText + assistantMessageEvent.delta;
       if (currentStreamingElement) {
         typingPacer.push(currentStreamingText);
       }
@@ -465,11 +438,11 @@ export function setupRpcEvents({
 
   function handleToolExecutionUpdate(event) {
     const { toolCallId, partialResult } = event;
-    const output = formatToolOutput(partialResult);
+    const view = toolResultView(partialResult, { status: "streaming" });
 
     state.updateToolExecution(toolCallId, {
-      status: "streaming",
-      output,
+      status: view.status,
+      output: view.output,
     });
 
     toolCardRenderer.updateToolCard(state.getToolExecution(toolCallId));
@@ -477,15 +450,15 @@ export function setupRpcEvents({
 
   function handleToolExecutionEnd(event) {
     const { toolCallId, result, isError } = event;
-    const output = formatToolOutput(result);
+    const view = toolResultView(result, { isError, status: isError ? "error" : "complete" });
 
     state.updateToolExecution(toolCallId, {
-      status: isError ? "error" : "complete",
-      output,
-      isError,
+      status: view.status,
+      output: view.output,
+      isError: view.isError,
     });
 
-    toolCardRenderer.finalizeToolCard(toolCallId, result, isError);
+    toolCardRenderer.finalizeToolCard(toolCallId, view);
   }
 
   function handleExtensionUIRequest(event) {
@@ -508,21 +481,6 @@ export function setupRpcEvents({
       default:
         console.warn("[App] Unknown extension UI method:", event.method);
     }
-  }
-
-  function formatToolOutput(result) {
-    if (!result) return "";
-
-    if (result.content && Array.isArray(result.content)) {
-      return result.content
-        .map((block) => {
-          if (block.type === "text") return block.text;
-          return JSON.stringify(block);
-        })
-        .join("\n");
-    }
-
-    return JSON.stringify(result, null, 2);
   }
 
   function resetStreamingState() {

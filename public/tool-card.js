@@ -90,35 +90,32 @@ export class ToolCardRenderer {
     }
   }
 
-  finalizeToolCard(toolCallId, result, isError) {
+  finalizeToolCard(toolCallId, resultView) {
     const card = this.toolCards.get(toolCallId);
     if (!card) return;
 
     // Update status
     const statusElement = card.querySelector(".tool-status");
     if (statusElement) {
-      const status = isError ? "error" : "complete";
-      statusElement.className = `tool-status ${status}`;
-      statusElement.textContent = status;
+      statusElement.className = `tool-status ${resultView.status}`;
+      statusElement.textContent = resultView.status;
     }
 
     // Update output with final result
     const outputElement = card.querySelector(".tool-output");
-    if (outputElement && result) {
-      const output = this.formatResult(result);
-      outputElement.textContent = output;
+    if (outputElement) {
+      outputElement.textContent = resultView.output;
     }
 
     // Real diff, computed by OMP and forwarded verbatim — not gated by tool name.
-    const diff = result?.details?.diff;
-    if (typeof diff === "string" && diff.length > 0) {
+    if (resultView.diff) {
       const body = card.querySelector(".tool-card-body");
       body?.querySelector(".tool-diff")?.remove();
-      body?.insertBefore(this.renderEditDiff(diff), body.firstChild);
+      body?.insertBefore(this.renderEditDiff(resultView.diff), body.firstChild);
     }
 
     // Collapse completed cards (less noise)
-    if (!isError) {
+    if (!resultView.isError) {
       const body = card.querySelector(".tool-card-body");
       const chevron = card.querySelector(".tool-card-chevron");
       if (body) body.classList.remove("expanded");
@@ -253,11 +250,11 @@ export class ToolCardRenderer {
   /**
    * Add result to a history card (stays collapsed)
    */
-  addHistoryResult(toolCallId, result, isError) {
+  addHistoryResult(toolCallId, resultView) {
     const card = this.toolCards.get(toolCallId);
     if (!card) return;
 
-    if (isError) {
+    if (resultView.isError) {
       const statusEl = card.querySelector(".tool-status");
       if (statusEl) {
         statusEl.className = "tool-status error";
@@ -266,8 +263,15 @@ export class ToolCardRenderer {
     }
 
     const outputElement = card.querySelector(".tool-output");
-    if (outputElement && result) {
-      outputElement.textContent = this.formatResult(result);
+    if (outputElement) {
+      outputElement.textContent = resultView.output;
+    }
+
+    // Real diff, computed by OMP and forwarded verbatim — not gated by tool name.
+    if (resultView.diff) {
+      const body = card.querySelector(".tool-card-body");
+      body?.querySelector(".tool-diff")?.remove();
+      body?.insertBefore(this.renderEditDiff(resultView.diff), body.firstChild);
     }
   }
 
@@ -357,21 +361,6 @@ export class ToolCardRenderer {
     }
 
     return container;
-  }
-
-  formatResult(result) {
-    if (!result) return "";
-
-    if (result.content && Array.isArray(result.content)) {
-      return result.content
-        .map((block) => {
-          if (block.type === "text") return block.text;
-          return JSON.stringify(block);
-        })
-        .join("\n");
-    }
-
-    return JSON.stringify(result, null, 2);
   }
 
   escapeHtml(text) {

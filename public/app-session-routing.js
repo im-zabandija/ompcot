@@ -1,3 +1,4 @@
+import { messageImages, messageText, toolCallView, toolResultView } from "./agent-view-model.js";
 import { anchorHistoryToBottom } from "./history-scroll-anchor.js";
 import { shouldPoll } from "./poll-gating.js";
 import { findPortForSession, isCrossProjectSelection } from "./session-routing.js";
@@ -576,22 +577,8 @@ export function setupSessionRouting({
       if (!msg) continue;
 
       if (msg.role === "user") {
-        const content =
-          typeof msg.content === "string"
-            ? msg.content
-            : (msg.content || [])
-                .filter((b) => b.type === "text")
-                .map((b) => b.text)
-                .join("\n");
-        // Extract images from content blocks
-        const images = Array.isArray(msg.content)
-          ? msg.content
-              .filter((b) => b.type === "image")
-              .map((b) => ({
-                data: b.source?.data || b.data || "",
-                mimeType: b.source?.media_type || b.media_type || "image/png",
-              }))
-          : [];
+        const content = messageText(msg);
+        const images = messageImages(msg);
         if (content || images.length > 0) {
           userCount++;
           messageRenderer.renderUserMessage(
@@ -600,7 +587,6 @@ export function setupSessionRouting({
           );
         }
       } else if (msg.role === "assistant") {
-        const textBlocks = (msg.content || []).filter((b) => b.type === "text");
         const thinkingBlocks = (msg.content || []).filter((b) => b.type === "thinking");
         const toolCalls = (msg.content || []).filter((b) => b.type === "toolCall");
 
@@ -612,7 +598,7 @@ export function setupSessionRouting({
           }
         }
 
-        const text = textBlocks.map((b) => b.text).join("\n");
+        const text = messageText(msg);
 
         if (text || thinkingBlocks.length > 0) {
           assistantCount++;
@@ -638,11 +624,7 @@ export function setupSessionRouting({
         // Show tool calls as compact history cards
         for (const tc of toolCalls) {
           toolCardCount++;
-          const card = toolCardRenderer.createHistoryCard({
-            toolCallId: tc.id,
-            toolName: tc.name,
-            args: tc.arguments || {},
-          });
+          const card = toolCardRenderer.createHistoryCard(toolCallView(tc));
           console.log(
             `[History] Tool card created: ${tc.name}`,
             card?.offsetHeight,
@@ -653,8 +635,7 @@ export function setupSessionRouting({
         toolResultCount++;
         toolCardRenderer.addHistoryResult(
           msg.toolCallId,
-          { content: msg.content || [] },
-          msg.isError,
+          toolResultView(msg, { isError: msg.isError }),
         );
       }
     }
