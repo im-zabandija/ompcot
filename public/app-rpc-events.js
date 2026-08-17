@@ -8,7 +8,7 @@ import { createTypingPacer } from "./typing-pacer.js";
 /**
  * RPC event handlers — every `handle*` dispatched from the WebSocket
  * "rpc" event: agent lifecycle, message stream, tool executions, auto-
- * compaction, extension errors, session-name updates.
+ * compaction, plan mode, session-name updates.
  *
  * Owns the transient streaming assistant element / text / thinking
  * accumulator (the only writers are here and `abortCurrentRun`, which
@@ -149,9 +149,6 @@ export function setupRpcEvents({
         break;
       case "auto_compaction_end":
         handleCompactionEnd(event);
-        break;
-      case "extension_error":
-        messageRenderer.renderError(`Extension error: ${event.error}`);
         break;
       case "plan_mode_changed":
         // Extension broadcast: another client toggled plan mode — sync the

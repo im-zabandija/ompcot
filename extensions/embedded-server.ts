@@ -568,10 +568,11 @@ type EmbeddedServerGlobal = {
   // in their closure: OMP invalidates the old `omp` after `new_session`,
   // `switch_session`, `fork`, and `reload`, and any session-bound call on
   // a stale `omp` (e.g. `omp.setThinkingLevel`, `omp.sendUserMessage`,
-  // `omp.setSessionName`) throws an error that OMP surfaces as an
-  // `extension_error` event — which the frontend renders as a red error
-  // bubble in chat. Routing through `getApi()` guarantees we always hit
-  // the current session's `omp`.
+  // `omp.setSessionName`) throws. OMP reports that throw as an
+  // `extension_error` **RPC frame on the omp process stdout**, which Ompcot
+  // discards (`src-tauri/src/omp_manager.rs`, `.stdout(Stdio::null())`), so
+  // the user sees nothing at all. Routing through `getApi()` guarantees we
+  // always hit the current session's `omp`.
   getApi: (() => ExtensionAPI | null) | null;
   // Process-scoped parse caches. Live across extension reloads (which would
   // otherwise wipe per-extension `Map`s on every new_session). Without these,
@@ -650,9 +651,9 @@ export default function (omp: ExtensionAPI) {
   // the *old* `omp` — for example because `globalState.handleCommand` was
   // re-published a tick later than expected — calling
   // `oldOMP.setThinkingLevel()` etc. throws "This extension ctx is stale
-  // after session replacement or reload". OMP surfaces that throw as
-  // an `extension_error` event, which the frontend renders as a red error
-  // bubble in chat (`public/app.js` `extension_error` case).
+  // after session replacement or reload". OMP reports that throw as an
+  // `extension_error` RPC frame on stdout, which Ompcot discards, so the
+  // failure is invisible to the user — see the note on `getApi` above.
   //
   // Routing through `currentApi()` guarantees the call is dispatched to
   // whichever extension instance most recently received `session_start`
@@ -752,8 +753,16 @@ export default function (omp: ExtensionAPI) {
     "auto_compaction_end",
     "auto_retry_start",
     "auto_retry_end",
-    "model_select",
-    "extension_error",
+    // Sólo van acá los eventos que el runtime emite HACIA las extensiones
+    // (`extensionRunner.emit` → `handlers.get(event.type)`). `omp.on()` no
+    // valida el nombre: suscribir uno que el runtime nunca emite se registra
+    // igual y no dispara nunca. Por eso vivieron acá sin hacer nada
+    // `model_select` (no existe en el runtime instalado: el único match en el
+    // binario está en el texto del CHANGELOG) y `extension_error` (existe,
+    // pero es un frame RPC del stdout del proceso, no un evento de extensión,
+    // y ese stdout Ompcot lo descarta). Antes de agregar uno nuevo:
+    // `grep -ac "<evento>" ~/.local/bin/omp` y confirmá que sea un evento de
+    // sesión, no un mensaje del canal RPC.
   ] as const;
 
   // Cache the process-scoped ModelRegistry the first time we see any ctx.
@@ -966,8 +975,9 @@ export default function (omp: ExtensionAPI) {
     // Used by every case that performs a session-bound mutation
     // (`sendUserMessage`, `setThinkingLevel`, `setModel`, `setSessionName`,
     // …). Returning a clean error here is cheaper than letting the call
-    // throw `"This extension ctx is stale after session replacement"` and
-    // having OMP re-emit it as an `extension_error` event in chat.
+    // throw `"This extension ctx is stale after session replacement"`, which
+    // OMP reporta como frame `extension_error` en un stdout que se descarta:
+    // el usuario no vería nada.
     const requireApi = (cmd: string): ExtensionAPI | null => {
       if (api) return api;
       sendTo(ws, error(cmd, "No active session"));
