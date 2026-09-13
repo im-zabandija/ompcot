@@ -8,12 +8,17 @@ description: Chequea el estado de los forks y upstreams de Ompcot y decide si ha
 Chequeo del linaje de Ompcot. Corre en menos de un minuto y termina en una
 recomendación, no en un merge.
 
-## El linaje, verificado el 2026-08-12
+## El linaje, verificado el 2026-09-13
 
 - `origin` → `im-zabandija/ompcot`. El nuestro.
-- `picot` → `shixin-guo/picot`. **El único vivo.** Último commit 2026-08-02.
-  Se bifurcó: migró de OMP a Pi, así que su `extensions/` ya no nos sirve.
-  Su `public/` sí: es nuestro mismo linaje de vanilla JS.
+- `picot` → `shixin-guo/picot`. **El único vivo, y muy activo.** Último
+  release `v0.5.6` (2026-09-11), 435 commits nuevos desde nuestro
+  merge-base, 40 tocando `public/` directo — casi 6 semanas sin chequear
+  antes de esta corrida. Se bifurcó: migró de OMP a Pi y pasó a una
+  arquitectura `public/native/` con submódulos (`session/`, `settings/`,
+  `workspace/`) más `public/locales/*.json` para i18n; su capa de extensión
+  (`extensions/pi-chat-src/`) ya no nos sirve — su `public/` sí, que sigue
+  siendo nuestro mismo linaje de vanilla JS pese a la reorganización.
 - `upstream` → `kyle-kw/ompcot`. **Congelado** desde 2026-07-01, su último
   commit ya está en nuestra historia. Vigilarlo es vigilar un repo muerto.
 - `zephyrq` → `zephyrq-z/ompcot`. Muerto desde 2026-06-29.
