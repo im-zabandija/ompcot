@@ -511,8 +511,27 @@ export class SessionSidebar {
   }
 
   async deleteSession(session) {
-    // Can't delete the live/running session's file out from under omp.
-    if (session.filePath === this.activeSessionFile || this.streamingFiles.has(session.filePath)) {
+    // Can't delete the live/running session's file out from under omp: it's
+    // the file omp is actively writing to. Tell the user why instead of
+    // silently doing nothing.
+    if (session.filePath === this.activeSessionFile) {
+      await confirmModal({
+        title: "Can't delete active session",
+        message:
+          "This is the session you're currently in. Switch to another session first, then delete this one.",
+        confirmLabel: "OK",
+        cancelLabel: "Close",
+      });
+      return;
+    }
+    if (this.streamingFiles.has(session.filePath)) {
+      await confirmModal({
+        title: "Can't delete session",
+        message:
+          "This session is still streaming a response. Wait for it to finish, then try again.",
+        confirmLabel: "OK",
+        cancelLabel: "Close",
+      });
       return;
     }
     const title = session.name || session.firstMessage || "Empty session";
