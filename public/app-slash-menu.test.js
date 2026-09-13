@@ -63,7 +63,7 @@ describe("slash-command autocomplete (B3)", () => {
 });
 
 describe("thinking-level dropdown (B1)", () => {
-  test("lists all 7 levels with current highlighted, picks via set_thinking_level", async () => {
+  test("falls back to all 7 levels before models load, current highlighted, picks via set_thinking_level", async () => {
     loadBody();
     const rpcCommand = vi.fn().mockResolvedValue({ success: true });
     setupModelPicker({

@@ -7,6 +7,28 @@ import { getPinnedModels, getRecentModels, pushRecentModel, togglePinnedModel } 
 const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
 
 /**
+ * Levels a given model actually supports, derived from its `thinking`
+ * catalog metadata (`{ mode, efforts, ... }`, the shape the server's model
+ * registry serializes over `get_available_models` — see `Model.thinking` in
+ * `@oh-my-pi/pi-ai`). `efforts` lists the tiers the model supports; `off` is
+ * always offered on top. A model without support for a level (e.g. Gemini 3
+ * Pro skips `medium`) must not offer it: picking it would silently clamp
+ * server-side, desyncing the dropdown from reality. `max` is not exclusive
+ * to any particular `mode` — it's just another tier in `efforts` for
+ * whichever models support it. Some callers (the CLI) pass `thinking` as a
+ * flat array of efforts directly; that shape is tolerated too. Falls back
+ * to the full canonical list when the model carries no thinking metadata
+ * yet (still loading, a non-reasoning model, or an empty `efforts`) — fail
+ * open rather than hide the control.
+ */
+export function thinkingLevelsForModel(model) {
+  const t = model?.thinking;
+  const efforts = Array.isArray(t) ? t : t?.efforts;
+  if (!Array.isArray(efforts) || efforts.length === 0) return THINKING_LEVELS;
+  return THINKING_LEVELS.filter((level) => level === "off" || efforts.includes(level));
+}
+
+/**
  * Clave única de un modelo. Los `id` colisionan entre proveedores
  * (`claude-opus-5` existe en `anthropic` y en `opencode-zen`, 53 colisiones
  * en total), así que todo lo que indexe modelos tiene que usar esto y no `id`.
@@ -363,10 +385,12 @@ export function setupModelPicker({
     }
   });
 
-  // Thinking level dropdown — one row per level, current highlighted
+  // Thinking level dropdown — one row per level the current model actually
+  // supports (`thinkingLevelsForModel`), current highlighted.
   function renderThinkingMenu() {
     thinkingDropdownMenu.innerHTML = "";
-    THINKING_LEVELS.forEach((level) => {
+    const model = availableModels.find((m) => modelKey(m) === currentKey());
+    thinkingLevelsForModel(model).forEach((level) => {
       const el = document.createElement("div");
       el.className = `thinking-dropdown-item${level === currentThinkingLevel ? " active" : ""}`;
       el.textContent = level;
