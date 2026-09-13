@@ -20,6 +20,13 @@ describe("MessageRenderer streaming markdown preview", () => {
     expect(content.querySelector("strong")?.textContent).toBe("bold te");
   });
 
+  it("skips null content blocks instead of throwing", () => {
+    const message = { content: [null, { type: "text", text: "hi" }] };
+    expect(() => renderer.renderAssistantMessage(message, false)).not.toThrow();
+    const content = renderer.container.querySelector(".message-content");
+    expect(content.textContent).toContain("hi");
+  });
+
   it("finalizes from the raw text, not the rendered DOM", () => {
     const el = renderer.renderAssistantMessage({ content: "" }, true);
     renderer.updateStreamingMessage(el, "a **bold** word and `code`");

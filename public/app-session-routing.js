@@ -587,12 +587,13 @@ export function setupSessionRouting({
           );
         }
       } else if (msg.role === "assistant") {
-        const thinkingBlocks = (msg.content || []).filter((b) => b.type === "thinking");
-        const toolCalls = (msg.content || []).filter((b) => b.type === "toolCall");
+        const thinkingBlocks = (msg.content || []).filter((b) => b && b.type === "thinking");
+        const toolCalls = (msg.content || []).filter((b) => b && b.type === "toolCall");
 
         // Build content blocks for rendering
         const contentBlocks = [];
         for (const block of msg.content || []) {
+          if (!block) continue;
           if (block.type === "text" || block.type === "thinking") {
             contentBlocks.push(block);
           }

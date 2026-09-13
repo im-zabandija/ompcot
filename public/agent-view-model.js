@@ -14,7 +14,7 @@ export function messageText(message) {
   if (typeof message?.content === "string") return message.content;
   if (!Array.isArray(message?.content)) return "";
   return message.content
-    .filter((block) => block.type === "text")
+    .filter((block) => block?.type === "text")
     .map((block) => block.text || "")
     .join("\n");
 }
@@ -23,7 +23,7 @@ export function messageText(message) {
 export function messageThinking(message) {
   if (!Array.isArray(message?.content)) return "";
   return message.content
-    .filter((block) => block.type === "thinking")
+    .filter((block) => block?.type === "thinking")
     .map((block) => block.thinking || "")
     .join("\n");
 }
@@ -31,7 +31,7 @@ export function messageThinking(message) {
 function imageBlocks(content) {
   if (!Array.isArray(content)) return [];
   return content
-    .filter((block) => block.type === "image")
+    .filter((block) => block?.type === "image")
     .map((block) => ({
       data: block.data || block.source?.data || "",
       mimeType: block.mimeType || block.source?.media_type || block.media_type || "image/png",
@@ -82,7 +82,7 @@ function toolOutput(result) {
   // result sin `content[]`: 25.867/25.867 en el corpus de sesiones.
   if (!Array.isArray(result?.content)) return "";
   return result.content
-    .filter((block) => block.type !== "image")
-    .map((block) => (block.type === "text" ? block.text : JSON.stringify(block)))
+    .filter((block) => block && block.type !== "image")
+    .map((block) => (block?.type === "text" ? block.text : JSON.stringify(block)))
     .join("\n");
 }

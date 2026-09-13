@@ -31,6 +31,13 @@ describe("messageText", () => {
     };
     expect(messageText(message)).toBe("first\nsecond");
   });
+
+  it("skips null blocks instead of throwing", () => {
+    const message = {
+      content: [null, { type: "text", text: "a" }],
+    };
+    expect(messageText(message)).toBe("a");
+  });
 });
 
 describe("messageThinking", () => {
@@ -154,6 +161,11 @@ describe("toolResultView", () => {
 
   it("returns an empty images array when there are no image blocks", () => {
     expect(toolResultView({ content: [{ type: "text", text: "ok" }] }).images).toEqual([]);
+  });
+
+  it("skips null content blocks instead of stringifying them", () => {
+    const view = toolResultView({ content: [null, { type: "text", text: "ok" }] });
+    expect(view.output).toBe("ok");
   });
 
   it("does not flag details.timedOut as an error", () => {

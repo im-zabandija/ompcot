@@ -175,4 +175,27 @@ describe("app session routing history selection guards", () => {
     expect(deps.messageRenderer.clear).not.toHaveBeenCalled();
     expect(deps.messageRenderer.renderSystemMessage).not.toHaveBeenCalled();
   });
+
+  test("a null content block in a historical assistant message does not crash rendering", async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          entries: [
+            {
+              type: "message",
+              message: { role: "assistant", content: [null, { type: "text", text: "hi" }] },
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal("fetch", fetch);
+    const deps = makeDeps();
+    const routing = setupSessionRouting(deps);
+
+    await routing.handleSessionSelectImpl(session, project);
+
+    expect(deps.messageRenderer.renderAssistantMessage).toHaveBeenCalledTimes(1);
+  });
 });
