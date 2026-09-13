@@ -1452,7 +1452,12 @@ export default function (omp: ExtensionAPI) {
               "--thinking",
               "off",
             ],
-            { cwd: os.tmpdir(), timeout: MODEL_TEST_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
+            {
+              cwd: os.tmpdir(),
+              timeout: MODEL_TEST_TIMEOUT_MS,
+              maxBuffer: 4 * 1024 * 1024,
+              windowsHide: true,
+            },
             (err, stdout, stderr) => {
               modelTestInFlight = false;
               const latencyMs = Date.now() - startedAt;
@@ -1732,15 +1737,20 @@ export default function (omp: ExtensionAPI) {
         instances: getRunningInstances(),
         latestCtx,
       });
-      execFile("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd }, (err, stdout) => {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        if (err) {
-          res.end(JSON.stringify({ branch: null }));
-          return;
-        }
-        const branch = stdout.toString().trim();
-        res.end(JSON.stringify({ branch: branch || null }));
-      });
+      execFile(
+        "git",
+        ["rev-parse", "--abbrev-ref", "HEAD"],
+        { cwd, windowsHide: true },
+        (err, stdout) => {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          if (err) {
+            res.end(JSON.stringify({ branch: null }));
+            return;
+          }
+          const branch = stdout.toString().trim();
+          res.end(JSON.stringify({ branch: branch || null }));
+        },
+      );
       return;
     }
 
