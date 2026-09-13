@@ -444,6 +444,27 @@ export function parseModelTestOutput(stdout: string, stderr: string): ModelTestO
   return { ok: false, error: message.slice(0, 300) };
 }
 
+// ─── Plan mode (extension-level tool restriction; not omp native) ───
+// ponytail: NOT omp's native plan mode — this only restricts active tools to a
+// read-only allowlist at the extension level. It does not engage the `plan`
+// model nor inject the planning prompt. Upgrade path: omp exposing
+// setPlanModeState on the ExtensionAPI (currently internal-only).
+const PLAN_MODE_READONLY_TOOLS = ["read", "glob", "grep", "web_search", "todo", "ask"];
+
+// `getAllTools()` returns tool *definitions* (`{ name, description, sourceInfo }`),
+// not bare names — filtering the allowlist against that array directly always
+// came up empty (a string never `===` a tool object), which made plan mode
+// refuse to turn on with "no read-only tools available in this omp build"
+// regardless of the omp build. Extract `.name` first.
+interface ToolDefinition {
+  name: string;
+}
+
+export function planModeReadOnlyTools(allTools: Array<ToolDefinition | string>): string[] {
+  const names = allTools.map((t) => (typeof t === "string" ? t : t.name));
+  return PLAN_MODE_READONLY_TOOLS.filter((t) => names.includes(t));
+}
+
 // MIME types for static file serving
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html",
@@ -796,11 +817,7 @@ export default function (omp: ExtensionAPI) {
   let turnCount = 0;
   let titleSet = false;
   let userMessages: string[] = [];
-  // ponytail: NOT omp's native plan mode — this only restricts active tools to a
-  // read-only allowlist at the extension level. It does not engage the `plan`
-  // model nor inject the planning prompt. Upgrade path: omp exposing
-  // setPlanModeState on the ExtensionAPI (currently internal-only).
-  const PLAN_MODE_READONLY_TOOLS = ["read", "glob", "grep", "web_search", "todo", "ask"];
+
   let planModeEnabled = false;
   let planModePreviousTools: string[] | null = null;
   let modelTestInFlight = false;
@@ -1367,10 +1384,11 @@ export default function (omp: ExtensionAPI) {
               // Capture current tools BEFORE mutating so a failure leaves
               // planModePreviousTools untouched (state stays as it was).
               const prev = a.getActiveTools();
-              const allTools = a.getAllTools();
-              activeTools = PLAN_MODE_READONLY_TOOLS.filter((t) => allTools.includes(t));
+              activeTools = planModeReadOnlyTools(a.getAllTools());
               // Refuse rather than hand the agent an empty toolset: if none of the
-              // allowlist survives, this omp build names its tools differently.
+              // allowlist survives, this omp build doesn't expose any of those tool
+              // names (renamed or disabled) — a getAllTools() shape mismatch is
+              // already handled above, so this is a genuine naming gap.
               if (activeTools.length === 0) {
                 throw new Error("no read-only tools available in this omp build");
               }
