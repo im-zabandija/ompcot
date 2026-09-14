@@ -1,0 +1,113 @@
+/**
+ * Shared design-system primitives (picot-aligned naming). Tokens (colors,
+ * spacing, typography) live in style-theme.css; this file holds reusable
+ * component primitives built on top of them. Additive only — existing
+ * component-specific classes (e.g. .cleanup-overlay/.cleanup-dialog in
+ * style.css) are not renamed or replaced here.
+ */
+
+.ui-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1102;
+  padding: var(--space-5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.ui-dialog {
+  width: min(460px, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--bg-frosted);
+  backdrop-filter: blur(var(--blur-heavy)) saturate(1.5);
+  -webkit-backdrop-filter: blur(var(--blur-heavy)) saturate(1.5);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), var(--shadow-inset);
+  padding: var(--space-6);
+}
+
+.ui-select {
+  position: relative;
+  display: inline-block;
+}
+
+.ui-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 160px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  text-align: left;
+}
+
+.ui-select-trigger:hover {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-hover);
+}
+
+.ui-select-trigger[aria-expanded="true"] {
+  border-color: var(--border-bright);
+}
+
+.ui-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select-popover {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  z-index: 1103;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  background: var(--bg-frosted);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.ui-select-option {
+  padding: var(--space-1-5) var(--space-2-5);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-select-option.is-active {
+  background: var(--bg-glass-hover);
+  color: var(--text-primary);
+}
+
+.ui-select-option.is-selected {
+  color: var(--accent-text);
+}
+
+.ui-select-option[aria-disabled="true"] {
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
