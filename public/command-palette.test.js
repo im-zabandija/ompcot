@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { setupCommandPalette } from "./app-command-palette.js";
+import { t } from "./i18n.js";
 
 function loadBody() {
   const html = readFileSync(join(process.cwd(), "public/index.html"), "utf8");
@@ -37,9 +38,9 @@ describe("command palette status ownership", () => {
     const streaming = true;
     const { rpcCommand, statusText } = setupPalette(() => streaming);
 
-    await rpcCommand({ type: "compact" }, "Compacting...");
+    await rpcCommand({ type: "compact" }, t("app.compacting"));
 
-    expect(statusText.textContent).toBe("Done");
+    expect(statusText.textContent).toBe(t("commandPalette.done"));
     vi.advanceTimersByTime(2000);
     expect(statusText.textContent).toBe("Working...");
   });
@@ -49,9 +50,9 @@ describe("command palette status ownership", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ json: async () => ({ success: true }) }));
     const { rpcCommand, statusText } = setupPalette(() => false);
 
-    await rpcCommand({ type: "compact" }, "Compacting...");
+    await rpcCommand({ type: "compact" }, t("app.compacting"));
 
-    expect(statusText.textContent).toBe("Done");
+    expect(statusText.textContent).toBe(t("commandPalette.done"));
     vi.advanceTimersByTime(2000);
     expect(statusText.textContent).toBe("Connected");
   });
@@ -64,7 +65,7 @@ describe("command palette status ownership", () => {
     );
     const { rpcCommand, statusText } = setupPalette(() => true);
 
-    await rpcCommand({ type: "compact" }, "Compacting...");
+    await rpcCommand({ type: "compact" }, t("app.compacting"));
 
     expect(statusText.textContent).toBe("boom");
     vi.advanceTimersByTime(3000);
@@ -76,10 +77,10 @@ describe("command palette status ownership", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
     const { rpcCommand, statusText } = setupPalette(() => true);
 
-    const result = await rpcCommand({ type: "compact" }, "Compacting...");
+    const result = await rpcCommand({ type: "compact" }, t("app.compacting"));
 
     expect(result).toBeUndefined();
-    expect(statusText.textContent).toBe("Error");
+    expect(statusText.textContent).toBe(t("commandPalette.error"));
     vi.advanceTimersByTime(3000);
     expect(statusText.textContent).toBe("Working...");
   });

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createOmpUpdater } from "./app-omp-updater.js";
+import { t } from "./i18n.js";
 
 async function settle() {
   await Promise.resolve();
@@ -53,10 +54,10 @@ describe("OMP updater restart", () => {
     const { checkBtn, transport } = setupUpdater({ success: true });
     await settle();
 
-    expect(checkBtn.textContent).toBe("Update OMP");
+    expect(checkBtn.textContent).toBe(t("ompUpdater.updateButton"));
     await completeConfirm(checkBtn, ".cleanup-confirm");
 
-    expect(checkBtn.textContent).toBe("Restart Ompcot");
+    expect(checkBtn.textContent).toBe(t("ompUpdater.restartButton"));
     await completeConfirm(checkBtn, ".cleanup-confirm");
 
     expect(transport.relaunchApp).toHaveBeenCalledTimes(1);
@@ -67,12 +68,12 @@ describe("OMP updater restart", () => {
     await settle();
 
     await completeConfirm(checkBtn, ".cleanup-confirm");
-    expect(checkBtn.textContent).toBe("Restart Ompcot");
+    expect(checkBtn.textContent).toBe(t("ompUpdater.restartButton"));
 
     await completeConfirm(checkBtn, ".cleanup-cancel");
 
     expect(transport.relaunchApp).not.toHaveBeenCalled();
-    expect(checkBtn.textContent).toBe("Restart Ompcot");
+    expect(checkBtn.textContent).toBe(t("ompUpdater.restartButton"));
   });
 
   test("reports a failed update and does not offer or perform a restart", async () => {
@@ -84,9 +85,9 @@ describe("OMP updater restart", () => {
 
     await completeConfirm(checkBtn, ".cleanup-confirm");
 
-    expect(checkBtn.textContent).toBe("Update OMP");
+    expect(checkBtn.textContent).toBe(t("ompUpdater.updateButton"));
     expect(statusRow.hidden).toBe(false);
-    expect(statusEl.textContent).toBe("Update failed: boom");
+    expect(statusEl.textContent).toBe(t("ompUpdater.updateFailed", { error: "boom" }));
     expect(statusEl.dataset.tone).toBe("warn");
     expect(transport.relaunchApp).not.toHaveBeenCalled();
   });

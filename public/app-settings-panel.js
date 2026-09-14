@@ -2,7 +2,7 @@ import { createOmpUpdater } from "./app-omp-updater.js";
 import { setupSettingsEditors } from "./app-settings-editors.js";
 import { setupSettingsToggles } from "./app-settings-toggles.js";
 import { createAppUpdater } from "./app-updater.js";
-import { getLocale, setLocale } from "./i18n.js";
+import { getLocale, setLocale, t } from "./i18n.js";
 import {
   clearSettingsSaveMessage,
   setSettingsSaveButtonSaving,
@@ -94,7 +94,7 @@ export function setupSettingsPanel({
     }
   }
 
-  function formatOMPVersionError(err, fallback = "unknown error") {
+  function formatOMPVersionError(err, fallback = t("common.unknownError")) {
     const raw = String(err?.message || err?.error || err || fallback).trim();
     if (!raw) return fallback;
     return raw.length > 56 ? `${raw.slice(0, 56)}...` : raw;
@@ -117,7 +117,7 @@ export function setupSettingsPanel({
             piVersionCache = version;
             piVersionValue.textContent = piVersionCache;
           } else {
-            piVersionValue.textContent = "Unavailable (empty version)";
+            piVersionValue.textContent = t("settings.updates.unavailableEmptyVersion");
           }
         } else {
           const data = await rpcCommand({ type: "get_omp_version" });
@@ -125,15 +125,18 @@ export function setupSettingsPanel({
             piVersionCache = data.data.version;
             piVersionValue.textContent = piVersionCache;
           } else {
-            const reason = formatOMPVersionError(data?.error, "version missing in response");
+            const reason = formatOMPVersionError(
+              data?.error,
+              t("settings.updates.versionMissingInResponse"),
+            );
             console.error("[settings] failed to load omp version:", data);
-            piVersionValue.textContent = `Unavailable (${reason})`;
+            piVersionValue.textContent = t("settings.updates.unavailableReason", { reason });
           }
         }
       } catch (err) {
         const reason = formatOMPVersionError(err);
         console.error("[settings] failed to load omp version:", err);
-        piVersionValue.textContent = `Unavailable (${reason})`;
+        piVersionValue.textContent = t("settings.updates.unavailableReason", { reason });
       } finally {
         piVersionInflight = null;
       }
@@ -290,7 +293,7 @@ export function setupSettingsPanel({
     selectSettingsTab("general");
     buildThemeGrid();
     if (piVersionValue) {
-      piVersionValue.textContent = piVersionCache || "Loading...";
+      piVersionValue.textContent = piVersionCache || t("settingsEditors.loading");
     }
     setTimeout(() => {
       if (!settingsPanel.classList.contains("hidden")) loadOMPVersion();

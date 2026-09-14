@@ -12,6 +12,7 @@
  */
 
 import { confirmModal } from "./confirm-modal.js";
+import { t } from "./i18n.js";
 
 export function createOmpUpdater({
   transport,
@@ -50,15 +51,15 @@ export function createOmpUpdater({
   function setCheckButton(mode) {
     if (!checkBtn) return;
     if (mode === "restart") {
-      checkBtn.textContent = "Restart Ompcot";
+      checkBtn.textContent = t("ompUpdater.restartButton");
       checkBtn.onclick = () => restartNow();
       return;
     }
     if (mode === "update") {
-      checkBtn.textContent = "Update OMP";
+      checkBtn.textContent = t("ompUpdater.updateButton");
       checkBtn.onclick = () => installUpdate();
     } else {
-      checkBtn.textContent = "Check for update";
+      checkBtn.textContent = t("settings.updates.checkForUpdate");
       checkBtn.onclick = () => checkNow({ silent: false });
     }
   }
@@ -68,8 +69,10 @@ export function createOmpUpdater({
     updateAvailable = Boolean(d?.updateAvailable);
 
     if (updateAvailable) {
-      const cur = d?.currentVersion ? ` (current ${d.currentVersion})` : "";
-      if (!silent) setStatus(`OMP update available${cur}.`, "ok");
+      const cur = d?.currentVersion
+        ? t("ompUpdater.currentVersionSuffix", { version: d.currentVersion })
+        : "";
+      if (!silent) setStatus(t("ompUpdater.updateAvailable", { current: cur }), "ok");
       setPill(true);
       setCheckButton("update");
       return;
@@ -83,18 +86,18 @@ export function createOmpUpdater({
     // output verbatim instead of pretending everything is fine. Upgrade path:
     // omp could expose a structured `--check` JSON mode.
     if (!ok) {
-      const raw = String(d?.output || d?.error || "").trim() || "unknown error";
-      if (!silent) setStatus(`Check failed: ${raw}`, "warn");
+      const raw = String(d?.output || d?.error || "").trim() || t("common.unknownError");
+      if (!silent) setStatus(t("ompUpdater.checkFailed", { error: raw }), "warn");
       return;
     }
-    if (!silent) setStatus(String(d?.output || "Already up to date.").trim(), "ok");
+    if (!silent) setStatus(String(d?.output || t("ompUpdater.upToDate")).trim(), "ok");
   }
 
   async function checkNow({ silent = false } = {}) {
     if (busy) return;
     busy = true;
     if (checkBtn) checkBtn.disabled = true;
-    if (!silent) setStatus("Checking for OMP update...", "info");
+    if (!silent) setStatus(t("ompUpdater.checking"), "info");
     try {
       const r = await transport.checkOmpUpdate();
       applyCheckResult(r, { silent });
@@ -109,10 +112,9 @@ export function createOmpUpdater({
   async function installUpdate() {
     if (busy) return;
     const ok = await confirmModal({
-      title: "Update OMP",
-      message:
-        "Download and install the latest omp runtime? Running agents keep the old version until the workspace is restarted.",
-      confirmLabel: "Update",
+      title: t("ompUpdater.updateButton"),
+      message: t("ompUpdater.updateMessage"),
+      confirmLabel: t("ompUpdater.updateConfirmLabel"),
     });
     if (!ok) return;
     // A second click may have opened another confirm while we awaited.
@@ -121,25 +123,25 @@ export function createOmpUpdater({
     busy = true;
     if (checkBtn) {
       checkBtn.disabled = true;
-      checkBtn.textContent = "Updating...";
+      checkBtn.textContent = t("ompUpdater.updating");
     }
-    setStatus("Updating OMP runtime...", "info");
+    setStatus(t("ompUpdater.updatingRuntime"), "info");
     try {
       const d = await transport.updateOmp();
       if (d?.success) {
         // currentVersion is cached process-lifetime in Rust, so the settings
         // version row also stays stale until the whole app restarts.
-        setStatus("Updated — restart Ompcot to apply.", "ok");
+        setStatus(t("ompUpdater.updated"), "ok");
         setPill(false);
         updateAvailable = false;
         restartPending = true;
         setCheckButton("restart");
       } else {
-        const raw = String(d?.output || "unknown error").trim();
-        setStatus(`Update failed: ${raw}`, "warn");
+        const raw = String(d?.output || t("common.unknownError")).trim();
+        setStatus(t("ompUpdater.updateFailed", { error: raw }), "warn");
       }
     } catch (err) {
-      setStatus(`Update failed: ${String(err?.message || err)}`, "warn");
+      setStatus(t("ompUpdater.updateFailed", { error: String(err?.message || err) }), "warn");
     } finally {
       busy = false;
       if (checkBtn) checkBtn.disabled = false;
@@ -151,16 +153,15 @@ export function createOmpUpdater({
   // in-flight turns, so the confirm is mandatory.
   async function restartNow() {
     const ok = await confirmModal({
-      title: "Restart Ompcot",
-      message:
-        "Restart now to run the new omp runtime? Every running agent in every window is stopped.",
-      confirmLabel: "Restart",
+      title: t("ompUpdater.restartButton"),
+      message: t("ompUpdater.restartMessage"),
+      confirmLabel: t("ompUpdater.restartConfirmLabel"),
     });
     if (!ok) return;
     try {
       await transport.relaunchApp();
     } catch (err) {
-      setStatus(`Restart failed: ${String(err?.message || err)}`, "warn");
+      setStatus(t("ompUpdater.restartFailed", { error: String(err?.message || err) }), "warn");
     }
   }
 

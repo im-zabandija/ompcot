@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 /**
  * Command palette (⌘K) — the floating list of session-scoped commands
  * (Compact / Export HTML / Session Stats / Expand-all / Collapse-all)
@@ -23,32 +25,32 @@ export function setupCommandPalette({ statusText, updateUI, messageRenderer, too
   const commands = [
     {
       icon: "🗜️",
-      label: "Compact",
-      desc: "Compact context to save tokens",
-      action: () => rpcCommand({ type: "compact" }, "Compacting..."),
+      label: t("app.compactButton"),
+      desc: t("commandPalette.compactDesc"),
+      action: () => rpcCommand({ type: "compact" }, t("app.compacting")),
     },
     {
       icon: "📋",
-      label: "Export HTML",
-      desc: "Export session as HTML file",
+      label: t("commandPalette.exportHtmlLabel"),
+      desc: t("commandPalette.exportHtmlDesc"),
       action: () => rpcExportHtml(),
     },
     {
       icon: "📊",
-      label: "Session Stats",
-      desc: "Show session statistics",
+      label: t("commandPalette.sessionStatsLabel"),
+      desc: t("commandPalette.sessionStatsDesc"),
       action: () => showSessionStats(),
     },
     {
       icon: "⬇️",
-      label: "Expand All Tools",
-      desc: "Expand all tool cards",
+      label: t("commandPalette.expandAllLabel"),
+      desc: t("commandPalette.expandAllDesc"),
       action: () => toolCardRenderer.expandAll(),
     },
     {
       icon: "⬆️",
-      label: "Collapse All Tools",
-      desc: "Collapse all tool cards",
+      label: t("commandPalette.collapseAllLabel"),
+      desc: t("commandPalette.collapseAllDesc"),
       action: () => toolCardRenderer.collapseAll(),
     },
   ];
@@ -98,15 +100,15 @@ export function setupCommandPalette({ statusText, updateUI, messageRenderer, too
       });
       const data = await resp.json();
       if (data.success) {
-        statusText.textContent = "Done";
+        statusText.textContent = t("commandPalette.done");
         setTimeout(() => updateUI(), 2000);
       } else {
-        statusText.textContent = data.error || "Failed";
+        statusText.textContent = data.error || t("commandPalette.failed");
         setTimeout(() => updateUI(), 3000);
       }
       return data;
     } catch (_e) {
-      statusText.textContent = "Error";
+      statusText.textContent = t("commandPalette.error");
       setTimeout(() => updateUI(), 3000);
     } finally {
       clearTimeout(timer);
@@ -114,24 +116,30 @@ export function setupCommandPalette({ statusText, updateUI, messageRenderer, too
   }
 
   async function rpcExportHtml() {
-    const data = await rpcCommand({ type: "export_html" }, "Exporting...");
+    const data = await rpcCommand({ type: "export_html" }, t("commandPalette.exporting"));
     if (data?.success && data.data?.path) {
-      statusText.textContent = `Exported: ${data.data.path}`;
+      statusText.textContent = t("commandPalette.exported", { path: data.data.path });
       setTimeout(() => updateUI(), 4000);
     }
   }
 
   async function showSessionStats() {
-    const data = await rpcCommand({ type: "get_session_stats" }, "Loading stats...");
+    const data = await rpcCommand({ type: "get_session_stats" }, t("commandPalette.loadingStats"));
     if (data?.success && data.data) {
       const s = data.data;
       const lines = [
-        `📊 Session Stats`,
-        `Messages: ${s.totalMessages} (${s.userMessages} user, ${s.assistantMessages} assistant)`,
-        `Tool calls: ${s.toolCalls}`,
+        t("commandPalette.statsTitle"),
+        t("commandPalette.statsMessages", {
+          total: s.totalMessages,
+          user: s.userMessages,
+          assistant: s.assistantMessages,
+        }),
+        t("commandPalette.statsToolCalls", { count: s.toolCalls }),
       ];
       if (s.tokens) {
-        lines.push(`Context: ~${(s.tokens.input / 1000).toFixed(1)}k tokens`);
+        lines.push(
+          t("commandPalette.statsContext", { tokens: (s.tokens.input / 1000).toFixed(1) }),
+        );
       }
       messageRenderer.renderSystemMessage(lines.join("\n"));
     }

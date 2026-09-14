@@ -5,6 +5,7 @@
  * task lists, images, paragraphs.
  */
 
+import { t } from "./i18n.js";
 import remend from "./vendor/remend.js";
 
 /**
@@ -101,9 +102,9 @@ export function renderMarkdown(text) {
       flushList();
       flushBlockquote();
       const block = codeBlocks[parseInt(codeMatch[1], 10)];
-      const langLabel = block.lang || "code";
+      const langLabel = block.lang || t("markdown.codeLabel");
       html += `<div class="code-block-wrapper">`;
-      html += `<div class="code-block-header"><span>${escapeHtml(langLabel)}</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>`;
+      html += `<div class="code-block-header"><span>${escapeHtml(langLabel)}</span><button class="copy-btn" onclick="copyCode(this)">${t("markdown.copyButton")}</button></div>`;
       const codeLang = (block.lang || "").toLowerCase().replace(/[^a-z0-9+#-]/g, "");
       const codeClass = codeLang ? ` class="language-${codeLang}"` : "";
       html += `<pre><code${codeClass}>${escapeHtml(block.code)}</code></pre></div>`;
@@ -342,10 +343,10 @@ window.copyCode = (btn) => {
   const codeBlock = btn.closest(".code-block-wrapper").querySelector("code");
   const text = codeBlock.textContent;
   navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = "Copied!";
+    btn.textContent = t("markdown.copiedButton");
     btn.classList.add("copied");
     setTimeout(() => {
-      btn.textContent = "Copy";
+      btn.textContent = t("markdown.copyButton");
       btn.classList.remove("copied");
     }, 2000);
   });

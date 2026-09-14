@@ -1,5 +1,6 @@
 import { messageImages, messageText, toolCallView, toolResultView } from "./agent-view-model.js";
 import { anchorHistoryToBottom } from "./history-scroll-anchor.js";
+import { t } from "./i18n.js";
 import { shouldPoll } from "./poll-gating.js";
 import { findPortForSession, isCrossProjectSelection } from "./session-routing.js";
 
@@ -222,7 +223,7 @@ export function setupSessionRouting({
         // another project: switch_session would run B's session with tools
         // rooted in A.
         messageRenderer.renderError(
-          `Failed to open session in its workspace: ${selectedProjectPath}`,
+          t("sessionRouting.failedToOpenSessionInWorkspace", { path: selectedProjectPath }),
         );
         return;
       }
@@ -235,7 +236,7 @@ export function setupSessionRouting({
         await transport.switchSession(session.filePath, foregroundPort);
         wsClient.send({ type: "mirror_sync_request" });
       } catch (e) {
-        messageRenderer.renderError(`Failed to switch session: ${e}`);
+        messageRenderer.renderError(t("sessionRouting.failedToSwitchSession", { error: e }));
       }
       if (isMobile()) {
         sidebarEl.classList.add("collapsed");
@@ -261,7 +262,7 @@ export function setupSessionRouting({
       return;
     }
 
-    messageRenderer.renderSystemMessage("Loading session…");
+    messageRenderer.renderSystemMessage(t("sessionRouting.loadingSession"));
     const dirName = project?.dirName;
     const file = session.file;
     if (!dirName || !file) {
@@ -305,7 +306,7 @@ export function setupSessionRouting({
         selectedSession: session?.filePath,
         error: e,
       });
-      messageRenderer.renderError(`Failed to load session: ${e}`);
+      messageRenderer.renderError(t("sessionRouting.failedToLoadSession", { error: e }));
     }
   }
 
@@ -316,7 +317,7 @@ export function setupSessionRouting({
       toolCardRenderer.clear();
 
       if (sessionFile && session) {
-        messageRenderer.renderSystemMessage("Loading session...");
+        messageRenderer.renderSystemMessage(t("sessionRouting.loadingSession"));
 
         const dirName = project?.dirName;
         const file = session.file;
@@ -379,12 +380,14 @@ export function setupSessionRouting({
 
         if (!res.ok) {
           const err = await res.json();
-          messageRenderer.renderError(`Failed to switch session: ${err.error}`);
+          messageRenderer.renderError(
+            t("sessionRouting.failedToSwitchSession", { error: err.error }),
+          );
         }
       }
     } catch (error) {
       console.error("[App] Failed to switch session:", error);
-      messageRenderer.renderError("Failed to switch session");
+      messageRenderer.renderError(t("sessionRouting.failedToSwitchSessionGeneric"));
     }
   }
 
@@ -550,11 +553,11 @@ export function setupSessionRouting({
     const inputArea = document.querySelector(".input-area");
     if (getViewingActiveSession()) {
       messageInput.disabled = false;
-      messageInput.placeholder = "Message...";
+      messageInput.placeholder = t("sessionRouting.messagePlaceholder");
       inputArea?.classList.remove("mirror-readonly");
     } else {
       messageInput.disabled = true;
-      messageInput.placeholder = "Viewing historical session (read-only)";
+      messageInput.placeholder = t("sessionRouting.viewingHistoricalSessionPlaceholder");
       inputArea?.classList.add("mirror-readonly");
     }
   }

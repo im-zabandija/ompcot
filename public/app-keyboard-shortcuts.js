@@ -9,6 +9,8 @@
  * from the settings panel wired below this) are passed as thunks so
  * the temporal-dead-zone bindings resolve lazily at keydown time.
  */
+import { t } from "./i18n.js";
+
 export function setupKeyboardShortcuts({
   state,
   transport,
@@ -69,7 +71,7 @@ export function setupKeyboardShortcuts({
     if ((e.key === "n" || e.key === "N") && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       newSession().catch((err) => {
-        messageRenderer.renderError(`Failed to start new session: ${err}`);
+        messageRenderer.renderError(t("app.failedToStartNewSession", { error: err }));
       });
     }
 
@@ -78,7 +80,7 @@ export function setupKeyboardShortcuts({
       e.preventDefault();
       if (nativeAvailable()) {
         transport.openDevtools().catch((err) => {
-          messageRenderer.renderError(`Failed to open inspector: ${err}`);
+          messageRenderer.renderError(t("keyboardShortcuts.failedToOpenInspector", { error: err }));
         });
       }
     }

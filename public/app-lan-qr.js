@@ -10,6 +10,8 @@
  * `getConnectionUrls()` to decorate the "connected" pill without
  * having to duplicate the fetch.
  */
+import { t } from "./i18n.js";
+
 export function setupLanQr({ statusText, openExternalLink }) {
   let tailscaleUrl = "";
   let lanUrl = "";
@@ -54,7 +56,7 @@ export function setupLanQr({ statusText, openExternalLink }) {
       }
       if (lanQrLoading) lanQrLoading.style.display = "none";
     } catch {
-      if (lanQrLoading) lanQrLoading.textContent = "QR code unavailable";
+      if (lanQrLoading) lanQrLoading.textContent = t("lanQr.unavailable");
     }
   }
 
@@ -89,10 +91,10 @@ export function setupLanQr({ statusText, openExternalLink }) {
       lanUrl = typeof data?.lanUrl === "string" ? data.lanUrl : "";
       if (!lanUrl && lanUrls.length > 0) lanUrl = lanUrls[0];
       if (tailscaleUrl) {
-        statusText.textContent = "Connected • TS";
+        statusText.textContent = t("lanQr.connectedTs");
         statusText.title = tailscaleUrl;
       } else if (lanUrl) {
-        statusText.textContent = "Connected • LAN";
+        statusText.textContent = t("lanQr.connectedLan");
         statusText.title = lanUrl;
       }
       updateLanQrButton(lanUrl);

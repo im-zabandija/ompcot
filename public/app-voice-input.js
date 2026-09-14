@@ -1,3 +1,4 @@
+import { t } from "./i18n.js";
 import { getVoiceLocale } from "./themes.js";
 
 export function setupVoiceInput({ micBtn, messageInput }) {
@@ -55,7 +56,7 @@ export function setupVoiceInput({ micBtn, messageInput }) {
       isRecording = true;
       recognition.lang = resolveLocale();
       micBtn.classList.add("recording");
-      micBtn.title = "Stop recording";
+      micBtn.title = t("voiceInput.stopRecording");
       recognition.start();
       messageInput.focus();
     }
@@ -63,7 +64,7 @@ export function setupVoiceInput({ micBtn, messageInput }) {
     function stopRecording() {
       isRecording = false;
       micBtn.classList.remove("recording");
-      micBtn.title = "Voice input";
+      micBtn.title = t("composer.voiceInputTitle");
       try {
         recognition.stop();
       } catch {}

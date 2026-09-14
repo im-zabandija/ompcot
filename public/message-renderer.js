@@ -4,6 +4,7 @@
 
 import { clearCaretTrail, updateCaretTrail } from "./caret-trail.js";
 import { getFileIcon } from "./file-browser.js";
+import { t } from "./i18n.js";
 import { openImageLightbox } from "./image-lightbox.js";
 import { resolveImageSrc } from "./image-src.js";
 import { renderMarkdown, renderStreamingMarkdown, renderUserMarkdown } from "./markdown.js";
@@ -142,17 +143,17 @@ export class MessageRenderer {
 
   renderWelcome({ workspacePath } = {}) {
     const workspaceHtml = workspacePath
-      ? `<p class="hint welcome-workspace">Current workspace: <code>${this.escapeHtml(workspacePath)}</code></p>`
+      ? `<p class="hint welcome-workspace">${t("messageRenderer.currentWorkspace")}<code>${this.escapeHtml(workspacePath)}</code></p>`
       : "";
     this.container.innerHTML = `
       <div class="welcome">
-        <div class="welcome-icon"><img src="icons/logo-dark.svg" alt="Ompcot logo" class="ompcot-icon-welcome"></div>
-        <p>Welcome to Ompcot</p>
-        <p class="hint">Type a message below to start chatting with OMP, or select a session from the sidebar.</p>
+        <div class="welcome-icon"><img src="icons/logo-dark.svg" alt="${t("messageRenderer.logoAlt")}" class="ompcot-icon-welcome"></div>
+        <p>${t("chat.welcomeTitle")}</p>
+        <p class="hint">${t("chat.welcomeHint")}</p>
         ${workspaceHtml}
         <div class="shortcuts-hint">
-          <span>/ Focus input</span>
-          <span>Esc Abort</span>
+          <span>${t("chat.shortcutFocusInput")}</span>
+          <span>${t("chat.shortcutAbort")}</span>
         </div>
       </div>
     `;
@@ -175,7 +176,7 @@ export class MessageRenderer {
         message.images
           .map((img) => {
             const src = this.escapeHtml(resolveImageSrc(img));
-            return `<img class="message-image" src="${src}" alt="Attached image" />`;
+            return `<img class="message-image" src="${src}" alt="${t("messageRenderer.attachedImageAlt")}" />`;
           })
           .join("") +
         "</div>";
@@ -183,7 +184,7 @@ export class MessageRenderer {
 
     div.innerHTML = `
       <div class="message-content">${imagesHtml}${renderUserMarkdown(text)}</div>
-      <button class="message-copy-btn" aria-label="Copy message"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      <button class="message-copy-btn" aria-label="${t("messageRenderer.copyMessage")}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
     `;
     if (paths.length > 0) {
       const contentEl = div.querySelector(".message-content");
@@ -257,7 +258,7 @@ export class MessageRenderer {
     div.innerHTML = `
       <div class="message-content${streamingClass}">${contentHtml}</div>
       ${usageHtml}
-      ${!isStreaming ? '<button class="message-copy-btn" aria-label="Copy message"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>' : ""}
+      ${!isStreaming ? `<button class="message-copy-btn" aria-label="${t("messageRenderer.copyMessage")}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>` : ""}
     `;
 
     if (!isStreaming) {
@@ -275,7 +276,7 @@ export class MessageRenderer {
     return `<div class="thinking-block">
 <div class="thinking-toggle" onclick="var c=document.getElementById('${id}');c.classList.toggle('expanded');this.classList.toggle('expanded')">
 <span class="chevron"><svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><path d="M2 1l4 3-4 3z"/></svg></span>
-<span class="thinking-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/><path d="M6.5 9h11"/><path d="M7 13h10"/></svg> Thinking</span>
+<span class="thinking-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/><path d="M6.5 9h11"/><path d="M7 13h10"/></svg> ${t("messageRenderer.thinking")}</span>
 </div>
 <div class="thinking-content" id="${id}">${this.escapeHtml(thinking)}</div>
 </div>`;
@@ -291,7 +292,7 @@ export class MessageRenderer {
       thinkingDiv.innerHTML = `
         <div class="thinking-toggle expanded" onclick="var c=this.nextElementSibling;c.classList.toggle('expanded');this.classList.toggle('expanded')">
           <span class="chevron"><svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><path d="M2 1l4 3-4 3z"/></svg></span>
-          <span class="thinking-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/><path d="M6.5 9h11"/><path d="M7 13h10"/></svg> Thinking</span>
+          <span class="thinking-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/><path d="M6.5 9h11"/><path d="M7 13h10"/></svg> ${t("messageRenderer.thinking")}</span>
         </div>
         <div class="thinking-content expanded"></div>`;
       contentDiv.prepend(thinkingDiv);

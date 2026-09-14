@@ -13,6 +13,7 @@
  */
 
 import { getFileIcon, resolveExistingPaths } from "./file-browser.js";
+import { t } from "./i18n.js";
 import { PLAN_MODE_CLICK_MESSAGE, planModeClickDecision } from "./plan-mode-gating.js";
 import {
   composePromptText,
@@ -490,9 +491,9 @@ export function setupComposer({
       const el = document.createElement("div");
       el.className = "queued-msg";
       el.innerHTML = `
-        <span class="queued-msg-label">Queued</span>
+        <span class="queued-msg-label">${t("composer.queuedLabel")}</span>
         <span class="queued-msg-text">${escapeHtml(cmd.message)}</span>
-        <button class="queued-msg-cancel" title="Cancel">×</button>
+        <button class="queued-msg-cancel" title="${t("common.cancel")}">×</button>
       `;
       el.querySelector(".queued-msg-cancel").addEventListener("click", () => {
         messageQueue.splice(i, 1);
@@ -524,7 +525,7 @@ export function setupComposer({
   // broadcast, never from an optimistic local flip.
   const planToggleBtn = document.getElementById("plan-toggle-btn");
   const planModeBadge = document.getElementById("plan-mode-badge");
-  planToggleBtn.title = "Plan mode: restrict tools to read-only";
+  planToggleBtn.title = t("composer.planModeRestrictTitle");
   let planModeOn = false;
   let planModeInFlight = false;
 
@@ -558,7 +559,7 @@ export function setupComposer({
       // 12s de tope: el POST puede quedar encolado detrás del turno activo.
       const resp = await rpcCommand(
         { type: "set_plan_mode", enabled: !planModeOn },
-        planModeOn ? "Saliendo de Plan mode…" : "Activando Plan mode…",
+        planModeOn ? t("composer.exitingPlanMode") : t("composer.enteringPlanMode"),
         { timeoutMs: 12000 },
       );
       // Si falla, el botón no puede quedar mintiendo: se re-sincroniza contra
