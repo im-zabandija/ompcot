@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from "vitest";
 import { setupComposer } from "./app-composer.js";
 import { setupModelPicker } from "./app-model-picker.js";
 import { setupSlashMenu } from "./app-slash-menu.js";
+import { t } from "./i18n.js";
 
 // Batch B self-check: thinking dropdown (B1), plan toggle (B2), slash menu (B3).
 // The modules under test grab elements via the bare global `document`, so the
@@ -101,9 +102,11 @@ describe("thinking-level dropdown (B1)", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(rpcCommand).toHaveBeenCalledWith(
       { type: "set_thinking_level", level: "high" },
-      "Setting thinking...",
+      t("modelPicker.settingThinking"),
     );
-    expect(document.querySelector("#thinking-dropdown-label").textContent).toBe("Think high");
+    expect(document.querySelector("#thinking-dropdown-label").textContent).toBe(
+      t("modelPicker.thinkingLabelCompact", { level: "high" }),
+    );
     expect(menuEl.classList.contains("hidden")).toBe(true);
 
     // Outside click closes an open dropdown.

@@ -1,3 +1,4 @@
+import { t } from "./i18n.js";
 import { getOnboardingState } from "./onboarding-state.js";
 import { getPinnedModels, getRecentModels, pushRecentModel, togglePinnedModel } from "./themes.js";
 
@@ -100,15 +101,20 @@ export function setupModelPicker({
   let switchingModel = false;
 
   function formatThinkingLevelLabel(level) {
-    return `Thinking: ${level || "off"}`;
+    const lvl = level || "off";
+    return t("modelPicker.thinkingLabel", { level: lvl });
   }
   function formatCompactThinkingLevelLabel(level) {
-    return `Think ${level || "off"}`;
+    const lvl = level || "off";
+    return t("modelPicker.thinkingLabelCompact", { level: lvl });
   }
   function updateThinkingBtn() {
     thinkingDropdownLabel.textContent = formatCompactThinkingLevelLabel(currentThinkingLevel);
-    thinkingBtn.title = "Thinking effort controls reasoning depth.";
-    thinkingBtn.setAttribute("aria-label", `Thinking effort: ${currentThinkingLevel}.`);
+    thinkingBtn.title = t("modelPicker.thinkingTitle");
+    thinkingBtn.setAttribute(
+      "aria-label",
+      t("modelPicker.thinkingAriaLabel", { level: currentThinkingLevel }),
+    );
     thinkingBtn.classList.toggle("off", currentThinkingLevel === "off");
   }
 
@@ -195,7 +201,7 @@ export function setupModelPicker({
 
   function updateModelLabel() {
     const shortName = currentModelId.replace(/^claude-/, "").replace(/-\d{8}$/, "");
-    modelDropdownLabel.textContent = shortName || "model";
+    modelDropdownLabel.textContent = shortName || t("modelPicker.modelFallback");
   }
 
   function toggleModelDropdown() {
@@ -213,7 +219,7 @@ export function setupModelPicker({
     // Search input
     const search = document.createElement("input");
     search.className = "model-dropdown-search";
-    search.placeholder = "Search models…";
+    search.placeholder = t("modelPicker.searchPlaceholder");
     search.type = "text";
     modelDropdownMenu.appendChild(search);
 
@@ -241,7 +247,7 @@ export function setupModelPicker({
       const isPinned = getPinnedModels().includes(key);
       const el = document.createElement("div");
       el.className = `model-dropdown-item${key === currentKey() ? " active" : ""}`;
-      el.innerHTML = `<span>${shortName}${providerLabel}</span><span class="model-dropdown-item-right"><span class="model-dropdown-item-result"></span><button type="button" class="model-dropdown-test" title="Probar este modelo">⚡</button><span class="model-dropdown-item-ctx">${ctxK}</span><button type="button" class="model-dropdown-pin${isPinned ? " pinned" : ""}" title="Pin model">${isPinned ? "★" : "☆"}</button></span>`;
+      el.innerHTML = `<span>${shortName}${providerLabel}</span><span class="model-dropdown-item-right"><span class="model-dropdown-item-result"></span><button type="button" class="model-dropdown-test" title="${t("modelPicker.testModel")}">⚡</button><span class="model-dropdown-item-ctx">${ctxK}</span><button type="button" class="model-dropdown-pin${isPinned ? " pinned" : ""}" title="${t("modelPicker.pinModel")}">${isPinned ? "★" : "☆"}</button></span>`;
       el.querySelector(".model-dropdown-pin").addEventListener("click", (e) => {
         e.stopPropagation();
         togglePinnedModel(key);
@@ -261,16 +267,16 @@ export function setupModelPicker({
           // timeout de adentro, que es el que mata el proceso.
           const data = await rpcCommand(
             { type: "test_model", provider: m.provider, id: m.id },
-            `Probando ${shortName}...`,
+            t("modelPicker.testing", { name: shortName }),
             { timeoutMs: 25000 },
           );
           const d = data?.data;
           if (data?.success && d?.ok) {
-            result.textContent = `${(d.latencyMs / 1000).toFixed(1)}s · ${d.stopReason ?? "ok"}`;
+            result.textContent = `${(d.latencyMs / 1000).toFixed(1)}s · ${d.stopReason ?? t("modelPicker.testOk")}`;
             result.title = `ttft ${d.ttftMs ?? "?"}ms`;
           } else {
-            const msg = d?.error || data?.error || "falló";
-            result.textContent = "error";
+            const msg = d?.error || data?.error || t("modelPicker.testFailed");
+            result.textContent = t("modelPicker.testError");
             result.title = msg;
           }
         } finally {
@@ -282,12 +288,12 @@ export function setupModelPicker({
         switchingModel = true;
         closeModelDropdown();
         const display = m.id.replace(/^claude-/, "").replace(/-\d{8}$/, "");
-        modelDropdownLabel.textContent = `Switching to ${display}…`;
+        modelDropdownLabel.textContent = t("modelPicker.switchingTo", { name: display });
         try {
           // Cap the queued POST at 12s; it can wait behind the active omp turn.
           const data = await rpcCommand(
             { type: "set_model", provider: m.provider, modelId: m.id },
-            `Switching to ${display}...`,
+            t("modelPicker.switchingTo", { name: display }),
             { timeoutMs: 12000 },
           );
           if (!data?.success) return;
@@ -317,9 +323,9 @@ export function setupModelPicker({
         empty.className = "model-dropdown-empty";
         empty.innerHTML = `
           <div style="padding:14px;color:var(--text-dim);font-size:12px;line-height:1.5">
-            <div style="color:var(--text-primary);margin-bottom:6px">No models available</div>
-            <div>No API keys configured. Set a key in Settings &rarr; Configuration.</div>
-            <button type="button" class="btn-primary" style="margin-top:10px">Open Settings</button>
+            <div style="color:var(--text-primary);margin-bottom:6px">${t("modelPicker.noModelsTitle")}</div>
+            <div>${t("modelPicker.noModelsBody")}</div>
+            <button type="button" class="btn-primary" style="margin-top:10px">${t("modelPicker.openSettings")}</button>
           </div>`;
         empty.querySelector("button").addEventListener("click", () => {
           closeModelDropdown();
@@ -331,9 +337,9 @@ export function setupModelPicker({
       if (!query) {
         const top = topModels(getPinnedModels(), getRecentModels(), availableModels);
         if (top.length) {
-          itemsContainer.appendChild(sectionLabel("Pinned & recent"));
+          itemsContainer.appendChild(sectionLabel(t("modelPicker.pinnedRecent")));
           for (const m of top) itemsContainer.appendChild(createModelRow(m));
-          itemsContainer.appendChild(sectionLabel("All models"));
+          itemsContainer.appendChild(sectionLabel(t("modelPicker.allModels")));
         }
       }
       availableModels.forEach((m) => {
@@ -398,7 +404,7 @@ export function setupModelPicker({
         if (level !== currentThinkingLevel) {
           const data = await rpcCommand(
             { type: "set_thinking_level", level },
-            "Setting thinking...",
+            t("modelPicker.settingThinking"),
           );
           if (data?.success) {
             // set_thinking_level returns { success: true } with no payload —

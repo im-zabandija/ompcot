@@ -38,7 +38,7 @@
 <body class="">
   <div class="instance-swap-overlay" id="instance-swap-overlay" aria-hidden="true">
     <div class="instance-swap-overlay__spinner"></div>
-    <div class="instance-swap-overlay__label" id="instance-swap-overlay-label">Starting session…</div>
+    <div class="instance-swap-overlay__label" id="instance-swap-overlay-label" data-i18n="app.startingSession">Starting session…</div>
   </div>
   <script>
     // Flip the body class as early as the body element exists. Done inline
@@ -56,14 +56,16 @@
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header" data-window-drag>
         <div class="mode-toggle" id="mode-toggle">
-          <button type="button" class="mode-link active" id="logo-new-session-btn" title="Nueva sesión" aria-label="Nueva sesión"><img src="icons/logo-dark.svg" alt="Ompcot logo" class="ompcot-icon"><span class="logo-new-session-plus" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+          <button type="button" class="mode-link active" id="logo-new-session-btn" data-i18n-title="sessionSidebar.newSession" data-i18n-aria-label="sessionSidebar.newSession" title="Nueva sesión" aria-label="Nueva sesión"><img src="icons/logo-dark.svg" alt="Ompcot logo" class="ompcot-icon"><span class="logo-new-session-plus" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
         </div>
         <div class="sidebar-search-wrap">
-          <input type="text" id="session-search-input" class="sidebar-search-input" placeholder="Search..." autocomplete="off" />
+          <input type="text" id="session-search-input" class="sidebar-search-input" data-i18n-placeholder="sessionSidebar.searchPlaceholder" placeholder="Search..." autocomplete="off" />
           <button
             type="button"
             id="session-search-clear"
             class="sidebar-search-clear hidden"
+            data-i18n-title="sessionSidebar.clearSearch"
+            data-i18n-aria-label="sessionSidebar.clearSearch"
             title="Clear search"
             aria-label="Clear search"
           >
@@ -74,31 +76,31 @@
           </button>
         </div>
         <div class="sidebar-actions">
-          <button class="icon-btn" id="open-folder-btn" title="Open folder as workspace" aria-label="Open folder"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="M9 13h6"/></svg></button>
-          <button class="icon-btn" id="refresh-sessions-btn" title="Refresh sessions" aria-label="Refresh sessions"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button>
+          <button class="icon-btn" id="open-folder-btn" data-i18n-title="sessionSidebar.openFolderTitle" data-i18n-aria-label="sessionSidebar.openFolderAriaLabel" title="Open folder as workspace" aria-label="Open folder"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="M9 13h6"/></svg></button>
+          <button class="icon-btn" id="refresh-sessions-btn" data-i18n-title="sessionSidebar.refreshSessions" data-i18n-aria-label="sessionSidebar.refreshSessions" title="Refresh sessions" aria-label="Refresh sessions"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button>
           <div class="sort-dropdown" id="session-sort-dropdown">
-            <button type="button" class="icon-btn" id="session-sort-btn" title="Ordenar sesiones" aria-label="Ordenar sesiones" aria-haspopup="listbox" aria-expanded="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h12"/><path d="M3 12h9"/><path d="M3 18h6"/><path d="M18 9l3-3 3 3" transform="translate(-3,0)"/><path d="M18 6v12" transform="translate(-3,0)"/></svg></button>
-            <div class="sort-dropdown-menu hidden" id="session-sort-menu" role="listbox" aria-label="Ordenar sesiones"></div>
+            <button type="button" class="icon-btn" id="session-sort-btn" data-i18n-title="sessionSidebar.sortSessions" data-i18n-aria-label="sessionSidebar.sortSessions" title="Ordenar sesiones" aria-label="Ordenar sesiones" aria-haspopup="listbox" aria-expanded="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h12"/><path d="M3 12h9"/><path d="M3 18h6"/><path d="M18 9l3-3 3 3" transform="translate(-3,0)"/><path d="M18 6v12" transform="translate(-3,0)"/></svg></button>
+            <div class="sort-dropdown-menu hidden" id="session-sort-menu" role="listbox" data-i18n-aria-label="sessionSidebar.sortSessions" aria-label="Ordenar sesiones"></div>
           </div>
         </div>
       </div>
       <div class="session-list" id="session-list">
-        <div class="session-loading">Loading sessions...</div>
+        <div class="session-loading" data-i18n="sessionSidebar.loadingSessions">Loading sessions...</div>
       </div>
       <div class="sidebar-footer">
         <div class="sidebar-settings-row">
-          <button class="sidebar-settings-btn" id="settings-btn" title="Settings" aria-label="Settings">
+          <button class="sidebar-settings-btn" id="settings-btn" data-i18n-title="common.settings" data-i18n-aria-label="common.settings" title="Settings" aria-label="Settings">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-            <span>Settings</span>
+            <span data-i18n="common.settings">Settings</span>
           </button>
-          <button class="sidebar-update-pill hidden" id="sidebar-update-btn" title="Update available" aria-label="Open updates in settings">
-            Update
+          <button class="sidebar-update-pill hidden" id="sidebar-update-btn" data-i18n-title="sidebar.updateAvailableTitle" data-i18n-aria-label="appUpdater.openInSettings" title="Update available" aria-label="Open updates in settings">
+            <span data-i18n="appUpdater.update">Update</span>
           </button>
-          <button class="sidebar-update-pill hidden" id="sidebar-omp-update-btn" title="OMP update available" aria-label="Open OMP update in settings">
-            OMP update
+          <button class="sidebar-update-pill hidden" id="sidebar-omp-update-btn" data-i18n-title="sidebar.ompUpdateAvailableTitle" data-i18n-aria-label="sidebar.ompUpdateAriaLabel" title="OMP update available" aria-label="Open OMP update in settings">
+            <span data-i18n="sidebar.ompUpdateLabel">OMP update</span>
           </button>
-          <button class="sidebar-cleanup-pill hidden" id="sidebar-cleanup-btn" title="Limpiar sesiones abandonadas" aria-label="Limpiar sesiones abandonadas">
-            Limpiar
+          <button class="sidebar-cleanup-pill hidden" id="sidebar-cleanup-btn" data-i18n-title="sessionCleanup.ariaLabel" data-i18n-aria-label="sessionCleanup.ariaLabel" title="Limpiar sesiones abandonadas" aria-label="Limpiar sesiones abandonadas">
+            <span data-i18n="sessionCleanup.pillLabel">Limpiar</span>
           </button>
         </div>
       </div>
@@ -112,21 +114,21 @@
       <!-- Header -->
       <div class="header" data-window-drag>
         <div class="header-left">
-          <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-          <button class="icon-btn lan-qr-btn hidden" id="lan-qr-btn" title="Show mobile QR code" aria-label="Show mobile QR code">
+          <button class="sidebar-toggle" id="sidebar-toggle" data-i18n-title="header.toggleSidebar" data-i18n-aria-label="header.toggleSidebar" title="Toggle sidebar" aria-label="Toggle sidebar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+          <button class="icon-btn lan-qr-btn hidden" id="lan-qr-btn" data-i18n-title="header.showMobileQr" data-i18n-aria-label="header.showMobileQr" title="Show mobile QR code" aria-label="Show mobile QR code">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
           </button>
           <div class="status">
             <span class="status-indicator" id="status-indicator"></span>
-            <span class="status-text" id="status-text">Connecting...</span>
+            <span class="status-text" id="status-text" data-i18n="header.connecting">Connecting...</span>
           </div>
         </div>
         <div class="header-right">
-          <span class="pill session-cost" id="session-cost" title="Session cost"></span>
-          <span class="pill token-usage" id="token-usage" title="Context usage"></span>
+          <span class="pill session-cost" id="session-cost" data-i18n-title="header.sessionCost" title="Session cost"></span>
+          <span class="pill token-usage" id="token-usage" data-i18n-title="header.contextUsage" title="Context usage"></span>
          
           <div class="context-viz hidden" id="context-viz">
-            <div class="context-viz-title">Context Window</div>
+            <div class="context-viz-title" data-i18n="header.contextWindowTitle">Context Window</div>
             <div class="context-bar" id="context-bar"></div>
             <div class="context-legend" id="context-legend"></div>
             <div class="context-viz-footer">
@@ -135,15 +137,15 @@
             </div>
           </div>
           <span class="header-open-app hidden" id="header-open-app" role="group">
-            <button class="header-open-app-btn" id="header-open-app-btn" title="Open workspace" aria-label="Open workspace in app">
+            <button class="header-open-app-btn" id="header-open-app-btn" data-i18n-title="header.openWorkspaceTitle" data-i18n-aria-label="header.openWorkspaceAriaLabel" title="Open workspace" aria-label="Open workspace in app">
               <span class="header-open-app-logo" id="header-open-app-logo" aria-hidden="true"><img src="icons/app-cursor.svg" alt="" class="header-open-app-logo-img"></span>
             </button>
-            <button class="header-open-app-toggle" id="header-open-app-toggle" title="Choose app" aria-label="Choose app to open workspace">
+            <button class="header-open-app-toggle" id="header-open-app-toggle" data-i18n-title="header.chooseAppTitle" data-i18n-aria-label="header.chooseAppAriaLabel" title="Choose app" aria-label="Choose app to open workspace">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="header-open-app-menu hidden" id="header-open-app-menu"></div>
           </span>
-          <button class="icon-btn" id="file-sidebar-toggle" title="Files" aria-label="Toggle file browser">
+          <button class="icon-btn" id="file-sidebar-toggle" data-i18n-title="header.filesTitle" data-i18n-aria-label="header.toggleFileBrowserAriaLabel" title="Files" aria-label="Toggle file browser">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
           </button>
         </div>
@@ -153,18 +155,18 @@
       <div class="messages" id="messages">
         <div class="welcome">
           <div class="welcome-icon"><img src="icons/logo-dark.svg" alt="Ompcot logo" class="ompcot-icon-welcome"></div>
-          <p>Welcome to Ompcot</p>
-          <p class="hint">Type a message below to start chatting with OMP, or select a session from the sidebar.</p>
+          <p data-i18n="chat.welcomeTitle">Welcome to Ompcot</p>
+          <p class="hint" data-i18n="chat.welcomeHint">Type a message below to start chatting with OMP, or select a session from the sidebar.</p>
           <div class="shortcuts-hint">
-            <span>/ Focus input</span>
-            <span>Esc Abort</span>
+            <span data-i18n="chat.shortcutFocusInput">/ Focus input</span>
+            <span data-i18n="chat.shortcutAbort">Esc Abort</span>
           </div>
         </div>
       </div>
 
       <!-- Scroll to bottom + new message indicator -->
       <button class="scroll-bottom-btn hidden" id="scroll-bottom-btn">
-        <span class="scroll-bottom-badge hidden" id="scroll-bottom-badge">New <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
+        <span class="scroll-bottom-badge hidden" id="scroll-bottom-badge"><span data-i18n="chat.newMessagesBadge">New</span> <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
         <span class="scroll-bottom-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span>
       </button>
 
@@ -184,46 +186,47 @@
             <div class="file-chips hidden" id="file-chips"></div>
             <textarea
               id="message-input"
+              data-i18n-placeholder="composer.placeholder"
               placeholder="Type a message..."
               autocomplete="off"
               rows="2"
             ></textarea>
             <div class="composer-toolbar">
               <div class="composer-toolbar-left">
-                <button type="button" class="input-icon-btn" id="attach-btn" title="Attach image" aria-label="Attach image" tabindex="-1">
+                <button type="button" class="input-icon-btn" id="attach-btn" data-i18n-title="composer.attachImage" data-i18n-aria-label="composer.attachImage" title="Attach image" aria-label="Attach image" tabindex="-1">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
-                <button type="button" class="input-icon-btn" id="command-btn" title="Commands" aria-label="Open commands" tabindex="-1">
+                <button type="button" class="input-icon-btn" id="command-btn" data-i18n-title="composer.commandsTitle" data-i18n-aria-label="composer.openCommandsAriaLabel" title="Commands" aria-label="Open commands" tabindex="-1">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>
                 </button>
-                <button type="button" class="input-icon-btn plan-toggle-btn" id="plan-toggle-btn" title="Plan mode (toggle)" aria-pressed="false" tabindex="-1">
+                <button type="button" class="input-icon-btn plan-toggle-btn" id="plan-toggle-btn" data-i18n-title="composer.planModeTitle" title="Plan mode (toggle)" aria-pressed="false" tabindex="-1">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 </button>
-                <span class="plan-mode-badge hidden" id="plan-mode-badge">Plan mode</span>
+                <span class="plan-mode-badge hidden" id="plan-mode-badge" data-i18n="composer.planModeBadge">Plan mode</span>
                 <input type="file" id="image-input" accept="image/*" multiple style="display:none" />
               </div>
               <div class="composer-toolbar-right">
                 <div class="model-dropdown" id="model-dropdown">
-                  <button type="button" class="model-dropdown-btn" id="model-dropdown-btn" title="Switch model" tabindex="-1">
-                    <span class="model-dropdown-label" id="model-dropdown-label">model</span>
+                  <button type="button" class="model-dropdown-btn" id="model-dropdown-btn" data-i18n-title="composer.switchModel" title="Switch model" tabindex="-1">
+                    <span class="model-dropdown-label" id="model-dropdown-label" data-i18n="composer.modelLabelPlaceholder">model</span>
                     <svg class="model-dropdown-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
                   <div class="model-dropdown-menu hidden" id="model-dropdown-menu"></div>
                 </div>
                 <div class="thinking-dropdown" id="thinking-dropdown">
-                  <button type="button" class="thinking-dropdown-btn thinking-tag off" id="thinking-btn" title="Thinking effort" aria-label="Thinking effort" tabindex="-1">
-                    <span id="thinking-dropdown-label">Think off</span>
+                  <button type="button" class="thinking-dropdown-btn thinking-tag off" id="thinking-btn" data-i18n-title="composer.thinkingEffortTitle" data-i18n-aria-label="composer.thinkingEffortTitle" title="Thinking effort" aria-label="Thinking effort" tabindex="-1">
+                    <span id="thinking-dropdown-label" data-i18n="composer.thinkOff">Think off</span>
                     <svg class="model-dropdown-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
                   <div class="thinking-dropdown-menu hidden" id="thinking-dropdown-menu"></div>
                 </div>
-                <button type="button" class="input-mic-btn" id="mic-btn" title="Voice input" tabindex="-1">
+                <button type="button" class="input-mic-btn" id="mic-btn" data-i18n-title="composer.voiceInputTitle" title="Voice input" tabindex="-1">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
                 </button>
-                <button type="submit" id="send-btn" title="Send message" tabindex="-1">
+                <button type="submit" id="send-btn" data-i18n-title="composer.sendMessageTitle" title="Send message" tabindex="-1">
                   <span class="send-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></span>
                 </button>
-                <button type="button" id="abort-btn" class="hidden" title="Abort (Esc)" tabindex="-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></button>
+                <button type="button" id="abort-btn" class="hidden" data-i18n-title="composer.abortTitle" title="Abort (Esc)" tabindex="-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></button>
               </div>
             </div>
           </div>
@@ -234,14 +237,14 @@
     <!-- File Browser (right sidebar) -->
     <div class="file-sidebar collapsed" id="file-sidebar">
       <div class="file-sidebar-header">
-        <span class="file-sidebar-title" id="file-sidebar-title">Files</span>
-        <button class="icon-btn" id="file-sidebar-up" title="Parent directory">
+        <span class="file-sidebar-title" id="file-sidebar-title" data-i18n="header.filesTitle">Files</span>
+        <button class="icon-btn" id="file-sidebar-up" data-i18n-title="fileSidebar.parentDirectory" title="Parent directory">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
         </button>
-        <button class="icon-btn" id="file-sidebar-finder" title="Open in file manager">
+        <button class="icon-btn" id="file-sidebar-finder" data-i18n-title="fileSidebar.openInFileManager" title="Open in file manager">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
         </button>
-        <button class="icon-btn" id="file-sidebar-close" title="Close" aria-label="Close file browser"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <button class="icon-btn" id="file-sidebar-close" data-i18n-title="common.close" data-i18n-aria-label="fileSidebar.closeAriaLabel" title="Close" aria-label="Close file browser"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <div class="file-sidebar-path" id="file-sidebar-path" title=""></div>
       <div class="file-list" id="file-list"></div>
@@ -249,14 +252,14 @@
   </div>
 
   <div class="window-controls" id="window-controls">
-    <button type="button" class="window-control" id="window-minimize" title="Minimize" aria-label="Minimize window">
+    <button type="button" class="window-control" id="window-minimize" data-i18n-title="windowControls.minimizeTitle" data-i18n-aria-label="windowControls.minimizeAriaLabel" title="Minimize" aria-label="Minimize window">
       <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="4.5" width="8" height="1" fill="currentColor"/></svg>
     </button>
-    <button type="button" class="window-control" id="window-maximize" title="Maximize" aria-label="Maximize window">
+    <button type="button" class="window-control" id="window-maximize" data-i18n-title="windowControls.maximizeTitle" data-i18n-aria-label="windowControls.maximizeAriaLabel" title="Maximize" aria-label="Maximize window">
       <svg class="wc-max" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1"/></svg>
       <svg class="wc-restore" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="3.5" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1"/><path d="M3.5 3.5V1.5h5v5h-2" fill="none" stroke="currentColor" stroke-width="1"/></svg>
     </button>
-    <button type="button" class="window-control window-control-close" id="window-close" title="Close" aria-label="Close window">
+    <button type="button" class="window-control window-control-close" id="window-close" data-i18n-title="common.close" data-i18n-aria-label="windowControls.closeAriaLabel" title="Close" aria-label="Close window">
       <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
     </button>
   </div>
@@ -275,21 +278,21 @@
 
   <div class="settings-panel hidden" id="settings-panel">
     <aside class="settings-nav" data-window-drag>
-      <div class="settings-nav-title">Settings</div>
-      <button class="settings-nav-item active" data-settings-tab="general">General</button>
-      <button class="settings-nav-item" data-settings-tab="extensions">Extensions</button>
-      <button class="settings-nav-item" data-settings-tab="usage">Usage</button>
-      <button class="settings-nav-item" data-settings-tab="configuration">Configuration</button>
-      <button class="settings-nav-back" id="settings-close"><span class="settings-nav-back-icon">‹</span> Back to chat</button>
+      <div class="settings-nav-title" data-i18n="common.settings">Settings</div>
+      <button class="settings-nav-item active" data-settings-tab="general" data-i18n="settings.nav.general">General</button>
+      <button class="settings-nav-item" data-settings-tab="extensions" data-i18n="settings.nav.extensions">Extensions</button>
+      <button class="settings-nav-item" data-settings-tab="usage" data-i18n="settings.nav.usage">Usage</button>
+      <button class="settings-nav-item" data-settings-tab="configuration" data-i18n="settings.nav.configuration">Configuration</button>
+      <button class="settings-nav-back" id="settings-close"><span class="settings-nav-back-icon">‹</span> <span data-i18n="settings.nav.backToChat">Back to chat</span></button>
     </aside>
     <section class="settings-content">
       <div class="settings-tab active" data-settings-panel="general">
         <div class="settings-header">
-          <h3>General</h3>
+          <h3 data-i18n="settings.nav.general">General</h3>
         </div>
         <div class="settings-body">
           <div class="settings-section">
-            <div class="settings-section-title">Appearance</div>
+            <div class="settings-section-title" data-i18n="settings.appearance.sectionTitle">Appearance</div>
             <div class="theme-grid" id="theme-grid"></div>
             <div class="settings-row">
               <span class="settings-label settings-label-stack">
@@ -302,82 +305,82 @@
               </select>
             </div>
             <div class="settings-row">
-              <span class="settings-label">Accent color</span>
+              <span class="settings-label" data-i18n="settings.appearance.accentColor">Accent color</span>
               <span class="settings-btn-group">
                 <input type="color" id="setting-accent-color" value="#000000" />
-                <button class="settings-value-btn" id="setting-accent-reset">Reset</button>
+                <button class="settings-value-btn" id="setting-accent-reset" data-i18n="settings.appearance.resetButton">Reset</button>
               </span>
             </div>
             <div class="settings-row">
-              <span class="settings-label">Font size</span>
+              <span class="settings-label" data-i18n="settings.appearance.fontSize">Font size</span>
               <span class="settings-btn-group" id="setting-font-size">
-                <button class="settings-value-btn" data-font-size="small">S</button>
-                <button class="settings-value-btn" data-font-size="medium">M</button>
-                <button class="settings-value-btn" data-font-size="large">L</button>
+                <button class="settings-value-btn" data-font-size="small" data-i18n="settings.appearance.fontSizeSmall">S</button>
+                <button class="settings-value-btn" data-font-size="medium" data-i18n="settings.appearance.fontSizeMedium">M</button>
+                <button class="settings-value-btn" data-font-size="large" data-i18n="settings.appearance.fontSizeLarge">L</button>
               </span>
             </div>
             <div class="settings-row">
-              <span class="settings-label">Compact density</span>
+              <span class="settings-label" data-i18n="settings.appearance.compactDensity">Compact density</span>
               <button class="settings-toggle" id="setting-density-toggle"></button>
             </div>
             <div class="settings-row">
-              <span class="settings-label">Sidebar width</span>
+              <span class="settings-label" data-i18n="settings.appearance.sidebarWidth">Sidebar width</span>
               <input type="range" id="setting-sidebar-width" min="220" max="360" step="1" />
             </div>
             <div class="settings-row">
-              <span class="settings-label">Motion</span>
+              <span class="settings-label" data-i18n="settings.appearance.motion">Motion</span>
               <span class="settings-btn-group" id="setting-motion">
-                <button class="settings-value-btn" data-motion="auto">Auto</button>
-                <button class="settings-value-btn" data-motion="reduced">Reducido</button>
-                <button class="settings-value-btn" data-motion="full">Completo</button>
+                <button class="settings-value-btn" data-motion="auto" data-i18n="settings.appearance.motionAuto">Auto</button>
+                <button class="settings-value-btn" data-motion="reduced" data-i18n="settings.appearance.motionReduced">Reducido</button>
+                <button class="settings-value-btn" data-motion="full" data-i18n="settings.appearance.motionFull">Completo</button>
               </span>
             </div>
             <div class="settings-row">
               <span class="settings-label settings-label-stack">
-                <span class="settings-label-main">Caret de tipeo</span>
-                <span class="settings-label-sub">Barra en el borde de escritura</span>
+                <span class="settings-label-main" data-i18n="settings.appearance.typingCaretLabel">Caret de tipeo</span>
+                <span class="settings-label-sub" data-i18n="settings.appearance.typingCaretSub">Barra en el borde de escritura</span>
               </span>
               <button class="settings-toggle" id="setting-typing-fx-caret"></button>
             </div>
             <div class="settings-row">
               <span class="settings-label settings-label-stack">
-                <span class="settings-label-main">Borde blando</span>
-                <span class="settings-label-sub">La palabra en curso entra atenuada</span>
+                <span class="settings-label-main" data-i18n="settings.appearance.typingTailLabel">Borde blando</span>
+                <span class="settings-label-sub" data-i18n="settings.appearance.typingTailSub">La palabra en curso entra atenuada</span>
               </span>
               <button class="settings-toggle" id="setting-typing-fx-tail"></button>
             </div>
             <div class="settings-row">
               <span class="settings-label settings-label-stack">
-                <span class="settings-label-main">Estela del caret</span>
-                <span class="settings-label-sub">Rastro que persigue la escritura</span>
+                <span class="settings-label-main" data-i18n="settings.appearance.typingTrailLabel">Estela del caret</span>
+                <span class="settings-label-sub" data-i18n="settings.appearance.typingTrailSub">Rastro que persigue la escritura</span>
               </span>
               <button class="settings-toggle" id="setting-typing-fx-trail"></button>
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">Agent</div>
+            <div class="settings-section-title" data-i18n="settings.agent.sectionTitle">Agent</div>
             <div class="settings-row" id="setting-auto-compact">
-              <span class="settings-label">Auto-compaction</span>
+              <span class="settings-label" data-i18n="settings.agent.autoCompaction">Auto-compaction</span>
               <button class="settings-toggle" id="toggle-auto-compact"></button>
             </div>
             <div class="settings-row" id="setting-thinking">
               <span class="settings-label settings-label-stack">
-                <span class="settings-label-main">Thinking effort</span>
-                <span class="settings-label-sub">Reasoning depth</span>
+                <span class="settings-label-main" data-i18n="settings.agent.thinkingEffortLabel">Thinking effort</span>
+                <span class="settings-label-sub" data-i18n="settings.agent.thinkingEffortSub">Reasoning depth</span>
               </span>
-              <button class="settings-value-btn" id="btn-thinking-level" title="Click to cycle: off, minimal, low, medium, high">Thinking: off</button>
+              <button class="settings-value-btn" id="btn-thinking-level" data-i18n-title="settings.agent.thinkingLevelTitle" title="Click to cycle: off, minimal, low, medium, high" data-i18n="settings.agent.thinkingLevelOff">Thinking: off</button>
             </div>
             <div class="settings-row">
-              <span class="settings-label">Show thinking</span>
+              <span class="settings-label" data-i18n="settings.agent.showThinking">Show thinking</span>
               <button class="settings-toggle on" id="toggle-show-thinking"></button>
             </div>
             <div class="settings-row">
               <span class="settings-label settings-label-stack">
-                <span class="settings-label-main">Voice input locale</span>
-                <span class="settings-label-sub">Speech recognition language</span>
+                <span class="settings-label-main" data-i18n="settings.agent.voiceLocaleLabel">Voice input locale</span>
+                <span class="settings-label-sub" data-i18n="settings.agent.voiceLocaleSub">Speech recognition language</span>
               </span>
               <select class="settings-value-btn" id="setting-voice-locale">
-                <option value="">System default</option>
+                <option value="" data-i18n="settings.agent.voiceLocaleSystemDefault">System default</option>
                 <option value="en-US">English (US)</option>
                 <option value="en-GB">English (UK)</option>
                 <option value="en-AU">English (AU)</option>
@@ -393,45 +396,45 @@
             </div>
           </div>
           <div class="settings-section" id="setting-updater-section">
-            <div class="settings-section-title">Updates</div>
+            <div class="settings-section-title" data-i18n="settings.updates.sectionTitle">Updates</div>
             <div class="settings-row" id="setting-omp-version">
-              <span class="settings-label">OMP version</span>
-              <span class="settings-static-value" id="setting-omp-version-value">Loading...</span>
+              <span class="settings-label" data-i18n="settings.updates.ompVersionLabel">OMP version</span>
+              <span class="settings-static-value" id="setting-omp-version-value" data-i18n="settingsEditors.loading">Loading...</span>
             </div>
             <div class="settings-row" id="setting-omp-update-row">
-              <span class="settings-label">OMP runtime</span>
-              <button class="settings-value-btn" id="btn-omp-update">Check for update</button>
+              <span class="settings-label" data-i18n="settings.updates.ompRuntimeLabel">OMP runtime</span>
+              <button class="settings-value-btn" id="btn-omp-update" data-i18n="settings.updates.checkForUpdate">Check for update</button>
             </div>
             <div class="settings-row" id="setting-omp-update-status-row" hidden>
-              <span class="settings-label">Status</span>
+              <span class="settings-label" data-i18n="settings.updates.statusLabel">Status</span>
               <span class="settings-static-value" id="setting-omp-update-status"></span>
             </div>
             <div class="settings-row">
-              <span class="settings-label">Ompcot version</span>
-              <span class="settings-static-value" id="setting-app-version-value">Loading...</span>
+              <span class="settings-label" data-i18n="settings.updates.appVersionLabel">Ompcot version</span>
+              <span class="settings-static-value" id="setting-app-version-value" data-i18n="settingsEditors.loading">Loading...</span>
             </div>
             <div class="settings-row">
-              <span class="settings-label">Check for updates</span>
-              <button class="settings-value-btn" id="btn-check-updates">Check now</button>
+              <span class="settings-label" data-i18n="settings.updates.checkForUpdates">Check for updates</span>
+              <button class="settings-value-btn" id="btn-check-updates" data-i18n="appUpdater.checkNow">Check now</button>
             </div>
             <div class="settings-row" id="setting-update-status-row" hidden>
-              <span class="settings-label">Status</span>
+              <span class="settings-label" data-i18n="settings.updates.statusLabel">Status</span>
               <span class="settings-static-value" id="setting-update-status"></span>
             </div>
             <div class="settings-row" id="setting-update-install-row" hidden>
-              <span class="settings-label" id="setting-update-install-label">Update available</span>
-              <button class="settings-value-btn" id="btn-install-update">Download &amp; install</button>
+              <span class="settings-label" id="setting-update-install-label" data-i18n="settings.updates.updateAvailableLabel">Update available</span>
+              <button class="settings-value-btn" id="btn-install-update" data-i18n="appUpdater.downloadAndInstall">Download &amp; install</button>
             </div>
           </div>
         </div>
       </div>
 
       <div class="settings-tab" data-settings-panel="extensions">
-        <div class="settings-header"><h3>Extensions</h3></div>
+        <div class="settings-header"><h3 data-i18n="settings.nav.extensions">Extensions</h3></div>
         <div class="settings-body">
           <div class="settings-section">
-            <div class="settings-section-title">Browse Community Packages</div>
-            <p class="settings-help">
+            <div class="settings-section-title" data-i18n="settings.extensions.sectionTitle">Browse Community Packages</div>
+            <p class="settings-help" data-i18n="settings.extensions.helpText">
               Discover extensions, skills, themes, and prompts from the OMP ecosystem. Install with one click.
             </p>
             <div class="pkg-browse-filters">
@@ -439,25 +442,26 @@
                 type="text"
                 id="pkg-browse-search"
                 class="pkg-browse-search"
+                data-i18n-placeholder="settings.extensions.searchPlaceholder"
                 placeholder="Search packages..."
                 autocomplete="off"
                 spellcheck="false"
               />
               <div class="pkg-browse-pills" id="pkg-browse-pills">
-                <button type="button" class="pkg-browse-pill active" data-pkg-type="all">All</button>
-                <button type="button" class="pkg-browse-pill" data-pkg-type="extension">Extensions</button>
-                <button type="button" class="pkg-browse-pill" data-pkg-type="skill">Skills</button>
-                <button type="button" class="pkg-browse-pill" data-pkg-type="theme">Themes</button>
-                <button type="button" class="pkg-browse-pill" data-pkg-type="prompt">Prompts</button>
+                <button type="button" class="pkg-browse-pill active" data-pkg-type="all" data-i18n="settings.extensions.filterAll">All</button>
+                <button type="button" class="pkg-browse-pill" data-pkg-type="extension" data-i18n="settings.nav.extensions">Extensions</button>
+                <button type="button" class="pkg-browse-pill" data-pkg-type="skill" data-i18n="settings.extensions.filterSkills">Skills</button>
+                <button type="button" class="pkg-browse-pill" data-pkg-type="theme" data-i18n="settings.extensions.filterThemes">Themes</button>
+                <button type="button" class="pkg-browse-pill" data-pkg-type="prompt" data-i18n="settings.extensions.filterPrompts">Prompts</button>
               </div>
               <label class="pkg-browse-installed-toggle">
                 <input type="checkbox" id="pkg-browse-installed-only" />
-                <span>Installed only</span>
+                <span data-i18n="settings.extensions.installedOnly">Installed only</span>
               </label>
-              <select id="pkg-browse-sort" class="pkg-browse-sort" aria-label="Sort packages">
-                <option value="downloads">Most downloads</option>
-                <option value="name">Name (A–Z)</option>
-                <option value="updated">Recently updated</option>
+              <select id="pkg-browse-sort" class="pkg-browse-sort" data-i18n-aria-label="settings.extensions.sortAriaLabel" aria-label="Sort packages">
+                <option value="downloads" data-i18n="settings.extensions.sortMostDownloads">Most downloads</option>
+                <option value="name" data-i18n="settings.extensions.sortNameAZ">Name (A–Z)</option>
+                <option value="updated" data-i18n="settings.extensions.sortRecentlyUpdated">Recently updated</option>
               </select>
               <span class="pkg-browse-count" id="pkg-browse-count"></span>
             </div>
@@ -468,69 +472,64 @@
       </div>
 
       <div class="settings-tab" data-settings-panel="usage">
-        <div class="settings-header"><h3>Usage</h3></div>
+        <div class="settings-header"><h3 data-i18n="settings.nav.usage">Usage</h3></div>
         <div class="settings-usage-embed">
-          <iframe src="/cost" title="Cost Dashboard" class="settings-usage-iframe" scrolling="yes"></iframe>
+          <iframe src="/cost" title="Cost Dashboard" data-i18n-title="settings.usage.iframeTitle" class="settings-usage-iframe" scrolling="yes"></iframe>
         </div>
       </div>
 
       <div class="settings-tab" data-settings-panel="configuration">
-        <div class="settings-header"><h3>Configuration</h3></div>
+        <div class="settings-header"><h3 data-i18n="settings.nav.configuration">Configuration</h3></div>
         <div class="settings-body">
           <div class="settings-section">
-            <div class="settings-section-title">Authentication</div>
+            <div class="settings-section-title" data-i18n="settings.configuration.authenticationTitle">Authentication</div>
             <p class="settings-help">
-              Keys are stored locally in <code>~/.omp/agent/auth.json</code> (chmod 600).
-              Ompcot launched from Finder does not read shell environment
-              variables, so set keys here for them to stick across launches.
+              <span data-i18n="settings.configuration.authHelpPre">Keys are stored locally in</span> <code>~/.omp/agent/auth.json</code> <span data-i18n="settings.configuration.authHelpPost">(chmod 600). Ompcot launched from Finder does not read shell environment variables, so set keys here for them to stick across launches.</span>
             </p>
             <div class="settings-api-keys" id="settings-api-keys">
-              <div class="settings-api-keys-loading">Loading providers…</div>
+              <div class="settings-api-keys-loading" data-i18n="settingsEditors.loadingProviders">Loading providers…</div>
             </div>
           </div>
           <div class="settings-section" id="settings-auth-section" style="display:none">
-            <div class="settings-section-title">Protection</div>
+            <div class="settings-section-title" data-i18n="settings.configuration.protectionTitle">Protection</div>
             <div class="settings-row">
-              <span class="settings-label">Require login</span>
+              <span class="settings-label" data-i18n="settings.configuration.requireLogin">Require login</span>
               <button class="settings-toggle" id="toggle-auth"></button>
             </div>
           </div>
 
           <div class="settings-section">
-            <div class="settings-section-title">Agent</div>
+            <div class="settings-section-title" data-i18n="settings.agent.sectionTitle">Agent</div>
             <div class="settings-config-meta">
-              <span class="settings-label">Agent config file</span>
+              <span class="settings-label" data-i18n="settings.configuration.agentConfigFileLabel">Agent config file</span>
               <span class="settings-static-value" id="inline-config-path"></span>
             </div>
             <textarea class="config-editor-textarea settings-config-textarea" id="inline-config-textarea" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
             <div class="settings-config-actions">
               <div class="config-editor-error settings-save-status hidden" id="inline-config-error"></div>
               <div class="settings-config-button-group">
-                <button class="btn-primary" id="inline-config-save">Save</button>
+                <button class="btn-primary" id="inline-config-save" data-i18n="settingsEditors.save">Save</button>
               </div>
             </div>
           </div>
 
           <div class="settings-section">
-            <div class="settings-section-title">LLM providers</div>
+            <div class="settings-section-title" data-i18n="settings.configuration.llmProvidersTitle">LLM providers</div>
             <p class="settings-help">
-              Edit <code>~/.omp/agent/models.json</code> to add custom providers
-              (Ollama, vLLM, LM Studio, OpenAI-compatible proxies, OpenRouter
-              routing overrides, etc). See the
-              <a href="#" id="models-config-docs-link">models.json docs</a>
-              for the full schema. Changes are picked up immediately — no
-              restart needed.
+              <span data-i18n="settings.configuration.llmProvidersHelpPre">Edit</span> <code>~/.omp/agent/models.json</code> <span data-i18n="settings.configuration.llmProvidersHelpMid">to add custom providers (Ollama, vLLM, LM Studio, OpenAI-compatible proxies, OpenRouter routing overrides, etc). See the</span>
+              <a href="#" id="models-config-docs-link" data-i18n="settings.configuration.llmProvidersDocsLink">models.json docs</a>
+              <span data-i18n="settings.configuration.llmProvidersHelpPost">for the full schema. Changes are picked up immediately — no restart needed.</span>
             </p>
             <div class="settings-config-meta">
-              <span class="settings-label">Providers file</span>
+              <span class="settings-label" data-i18n="settings.configuration.providersFileLabel">Providers file</span>
               <span class="settings-static-value" id="inline-models-path"></span>
             </div>
             <textarea class="config-editor-textarea settings-config-textarea" id="inline-models-textarea" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder='{ "providers": { ... } }'></textarea>
             <div class="settings-config-actions">
               <div class="config-editor-error settings-save-status hidden" id="inline-models-error"></div>
               <div class="settings-config-button-group">
-                <button class="settings-value-btn" id="inline-models-insert-example">Insert example</button>
-                <button class="btn-primary" id="inline-models-save">Save</button>
+                <button class="settings-value-btn" id="inline-models-insert-example" data-i18n="settings.configuration.insertExample">Insert example</button>
+                <button class="btn-primary" id="inline-models-save" data-i18n="settingsEditors.save">Save</button>
               </div>
             </div>
           </div>
@@ -544,7 +543,7 @@
   <div class="config-editor-modal hidden" id="config-editor-modal">
     <div class="config-editor-header">
       <div class="config-editor-title-group">
-        <h3>Agent Configuration</h3>
+        <h3 data-i18n="configEditor.title">Agent Configuration</h3>
         <span class="config-editor-path" id="config-editor-path"></span>
       </div>
       <button class="settings-close" id="config-editor-close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -554,35 +553,35 @@
       <div class="config-editor-error hidden" id="config-editor-error"></div>
     </div>
     <div class="config-editor-footer">
-      <button class="config-editor-cancel" id="config-editor-cancel">Cancel</button>
-      <button class="btn-primary" id="config-editor-save">Save</button>
+      <button class="config-editor-cancel" id="config-editor-cancel" data-i18n="common.cancel">Cancel</button>
+      <button class="btn-primary" id="config-editor-save" data-i18n="settingsEditors.save">Save</button>
     </div>
   </div>
 
   <!-- Command Palette -->
   <div class="command-palette-overlay hidden" id="command-palette-overlay"></div>
   <div class="command-palette hidden" id="command-palette">
-    <div class="command-palette-header">Commands</div>
+    <div class="command-palette-header" data-i18n="composer.commandsTitle">Commands</div>
     <div class="command-list" id="command-list"></div>
   </div>
 
   <!-- LAN QR Code Modal -->
-  <div class="lan-qr-modal hidden" id="lan-qr-modal" role="dialog" aria-modal="true" aria-label="Mobile QR code">
+  <div class="lan-qr-modal hidden" id="lan-qr-modal" role="dialog" aria-modal="true" data-i18n-aria-label="lanQr.ariaLabel" aria-label="Mobile QR code">
     <div class="lan-qr-modal-backdrop" id="lan-qr-modal-backdrop"></div>
     <div class="lan-qr-modal-content">
       <div class="lan-qr-modal-header">
-        <span class="lan-qr-modal-title">Open on Mobile</span>
-        <button class="lan-qr-modal-close icon-btn" id="lan-qr-modal-close" aria-label="Close">
+        <span class="lan-qr-modal-title" data-i18n="lanQr.title">Open on Mobile</span>
+        <button class="lan-qr-modal-close icon-btn" id="lan-qr-modal-close" data-i18n-aria-label="common.close" aria-label="Close">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div class="lan-qr-modal-body">
-        <div class="lan-qr-loading" id="lan-qr-loading">Generating QR code…</div>
+        <div class="lan-qr-loading" id="lan-qr-loading" data-i18n="lanQr.generating">Generating QR code…</div>
         <img class="lan-qr-image hidden" id="lan-qr-image" alt="QR code for mobile access">
-        <div class="lan-qr-hint">Scan with your phone to open Ompcot on the same network</div>
+        <div class="lan-qr-hint" data-i18n="lanQr.hint">Scan with your phone to open Ompcot on the same network</div>
         <button class="lan-qr-open-link hidden" id="lan-qr-open-link" type="button">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          <span>Open Link</span>
+          <span data-i18n="lanQr.openLink">Open Link</span>
         </button>
       </div>
     </div>

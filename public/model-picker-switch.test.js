@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { setupModelPicker } from "./app-model-picker.js";
+import { t } from "./i18n.js";
 
 function loadBody() {
   const html = readFileSync(join(process.cwd(), "public/index.html"), "utf8");
@@ -83,10 +84,10 @@ describe("model picker switching", () => {
 
     row.click();
 
-    expect(labelAtRpc).toBe("Switching to glm-4.6…");
+    expect(labelAtRpc).toBe(t("modelPicker.switchingTo", { name: "glm-4.6" }));
     expect(rpcCommand).toHaveBeenCalledWith(
       { type: "set_model", provider: "zai", modelId: "glm-4.6" },
-      "Switching to glm-4.6...",
+      t("modelPicker.switchingTo", { name: "glm-4.6" }),
       { timeoutMs: 12000 },
     );
     await new Promise((resolve) => setTimeout(resolve, 0));

@@ -1,3 +1,4 @@
+import { t } from "./i18n.js";
 import { getWorkspacePathForPort } from "./session-routing.js";
 
 /**
@@ -37,7 +38,7 @@ export function setupWorkspaceHeader({
   const gitBranchEl = document.createElement("div");
   gitBranchEl.id = "git-branch-indicator";
   gitBranchEl.className = "pill git-branch-indicator hidden";
-  gitBranchEl.title = "Current git branch";
+  gitBranchEl.title = t("workspaceHeader.gitBranchTitle");
   document
     .querySelector(".header-right")
     ?.insertBefore(gitBranchEl, document.querySelector("#context-viz"));
@@ -51,7 +52,7 @@ export function setupWorkspaceHeader({
     }
     gitBranchEl.classList.remove("hidden");
     gitBranchEl.textContent = name;
-    gitBranchEl.title = `Branch: ${name}`;
+    gitBranchEl.title = t("workspaceHeader.branchLabel", { branch: name });
   }
 
   async function refreshGitBranch() {
@@ -138,7 +139,9 @@ export function setupWorkspaceHeader({
     if (openFolderBtn) {
       openFolderBtn.disabled = inProgress;
       openFolderBtn.setAttribute("aria-busy", inProgress ? "true" : "false");
-      openFolderBtn.title = inProgress ? "Opening workspace..." : "Open folder as workspace";
+      openFolderBtn.title = inProgress
+        ? t("workspaceHeader.openingWorkspace")
+        : t("workspaceHeader.openFolderTitle");
     }
   }
 
@@ -213,8 +216,11 @@ export function setupWorkspaceHeader({
     }
     headerOpenApp.el.classList.remove("hidden");
     if (headerOpenApp.logo) headerOpenApp.logo.innerHTML = renderOpenAppLogo(selected);
-    headerOpenApp.btn.title = `Open ${path} in ${selected.label}`;
-    headerOpenApp.btn.setAttribute("aria-label", `Open workspace in ${selected.label}`);
+    headerOpenApp.btn.title = t("workspaceHeader.openPathInApp", { path, app: selected.label });
+    headerOpenApp.btn.setAttribute(
+      "aria-label",
+      t("workspaceHeader.openWorkspaceInApp", { app: selected.label }),
+    );
   }
 
   async function openWorkspaceInApp(app) {
@@ -250,8 +256,8 @@ export function setupWorkspaceHeader({
       row.type = "button";
       row.className = "header-open-app-menu-item";
       if (app.id === headerOpenApp.selectedId) row.classList.add("active");
-      row.title = `Open in ${app.label}`;
-      row.setAttribute("aria-label", `Open in ${app.label}`);
+      row.title = t("workspaceHeader.openInApp", { app: app.label });
+      row.setAttribute("aria-label", t("workspaceHeader.openInApp", { app: app.label }));
       row.innerHTML = `<span class="header-open-app-logo" aria-hidden="true">${renderOpenAppLogo(app)}</span><span>${app.label}</span>`;
       row.addEventListener("click", (ev) => {
         ev.stopPropagation();
