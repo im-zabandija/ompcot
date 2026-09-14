@@ -3,6 +3,7 @@
  */
 
 import { appendAccessToken, resolveAccessToken } from "./access-control.js";
+import { t } from "./i18n.js";
 
 const BROKER_WS_STORAGE_KEY = "ompcot:broker-ws-url";
 
@@ -302,7 +303,7 @@ export class WebSocketClient extends EventTarget {
     this.pendingControls.delete(requestId);
     if (pending.timer) clearTimeout(pending.timer);
     if (message.ok === false) {
-      pending.reject(new Error(message.error || "Control command failed"));
+      pending.reject(new Error(message.error || t("common.controlCommandFailed")));
     } else {
       pending.resolve(message.result);
     }

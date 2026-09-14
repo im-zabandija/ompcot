@@ -399,5 +399,16 @@
   "workspaceActions.openFolderRequiresNativeHost": "Open folder is only supported with a native host.",
   "workspaceActions.failedToOpenFolder": "Failed to open folder: {error}",
   "keyboardShortcuts.failedToOpenInspector": "Failed to open inspector: {error}",
-  "markdown.codeLabel": "code"
+  "markdown.codeLabel": "code",
+  "fileBrowser.loading": "Loading…",
+  "fileBrowser.failedToLoad": "Failed to load",
+  "fileBrowser.emptyDirectory": "Empty directory",
+  "packageBrowser.loading": "Loading packages...",
+  "packageBrowser.failedToLoad": "Failed to load packages",
+  "packageBrowser.noMatches": "No packages match your filters.",
+  "packageBrowser.countNone": "0 of {total}",
+  "packageBrowser.countRange": "{start}–{end} of {total}",
+  "packageBrowser.downloadsPerMonth": "{count}/mo",
+  "common.confirm": "Confirm",
+  "common.controlCommandFailed": "Control command failed"
 }

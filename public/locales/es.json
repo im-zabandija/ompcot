@@ -399,5 +399,16 @@
   "workspaceActions.failedToOpenProject": "Error al abrir el proyecto: {error}",
   "workspaceActions.openFolderRequiresNativeHost": "Abrir carpeta solo se admite con un host nativo.",
   "workspaceActions.failedToOpenFolder": "Error al abrir la carpeta: {error}",
-  "keyboardShortcuts.failedToOpenInspector": "Error al abrir el inspector: {error}"
+  "keyboardShortcuts.failedToOpenInspector": "Error al abrir el inspector: {error}",
+  "fileBrowser.loading": "Cargando…",
+  "fileBrowser.failedToLoad": "Error al cargar",
+  "fileBrowser.emptyDirectory": "Directorio vacío",
+  "packageBrowser.loading": "Cargando paquetes...",
+  "packageBrowser.failedToLoad": "Error al cargar los paquetes",
+  "packageBrowser.noMatches": "Ningún paquete coincide con tus filtros.",
+  "packageBrowser.countNone": "0 de {total}",
+  "packageBrowser.countRange": "{start}–{end} de {total}",
+  "packageBrowser.downloadsPerMonth": "{count}/mes",
+  "common.confirm": "Confirmar",
+  "common.controlCommandFailed": "Falló el comando de control"
 }

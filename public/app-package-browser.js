@@ -1,3 +1,4 @@
+import { t } from "./i18n.js";
 import { renderPackageInstallFailure } from "./package-install-status.js";
 
 /**
@@ -62,8 +63,7 @@ export function setupPackageBrowser({ transport, nativeAvailable, escapeHtml, op
       return;
     }
     browseLoading = true;
-    browseListEl.innerHTML =
-      '<div class="settings-api-keys-loading pkg-browse-full-row">Loading packages...</div>';
+    browseListEl.innerHTML = `<div class="settings-api-keys-loading pkg-browse-full-row">${t("packageBrowser.loading")}</div>`;
     try {
       const [packages, installed] = await Promise.all([
         fetchBrowsePackages(),
@@ -74,8 +74,8 @@ export function setupPackageBrowser({ transport, nativeAvailable, escapeHtml, op
       browseLoaded = true;
       renderBrowsePackages();
     } catch (err) {
-      const message = String(err?.message || err || "Failed to load packages");
-      browseListEl.innerHTML = `<div class="settings-api-keys-empty pkg-browse-full-row">${escapeHtml(message)} <button type="button" class="settings-value-btn" id="pkg-browse-retry">Retry</button></div>`;
+      const message = String(err?.message || err || t("packageBrowser.failedToLoad"));
+      browseListEl.innerHTML = `<div class="settings-api-keys-empty pkg-browse-full-row">${escapeHtml(message)} <button type="button" class="settings-value-btn" id="pkg-browse-retry">${escapeHtml(t("settingsEditors.retry"))}</button></div>`;
       const retry = document.getElementById("pkg-browse-retry");
       if (retry) retry.addEventListener("click", () => loadBrowsePackages(true));
     } finally {
@@ -222,18 +222,21 @@ export function setupPackageBrowser({ transport, nativeAvailable, escapeHtml, op
 
     if (browseCountEl) {
       if (results.length === 0) {
-        browseCountEl.textContent = `0 of ${results.length}`;
+        browseCountEl.textContent = t("packageBrowser.countNone", { total: results.length });
       } else {
         const rangeStart = start + 1;
         const rangeEnd = start + pageResults.length;
-        browseCountEl.textContent = `${rangeStart}–${rangeEnd} of ${results.length}`;
+        browseCountEl.textContent = t("packageBrowser.countRange", {
+          start: rangeStart,
+          end: rangeEnd,
+          total: results.length,
+        });
       }
     }
 
     browseListEl.innerHTML = "";
     if (!results.length) {
-      browseListEl.innerHTML =
-        '<div class="settings-api-keys-empty pkg-browse-full-row">No packages match your filters.</div>';
+      browseListEl.innerHTML = `<div class="settings-api-keys-empty pkg-browse-full-row">${t("packageBrowser.noMatches")}</div>`;
       renderBrowsePagination(totalPages);
       return;
     }
@@ -328,7 +331,9 @@ export function setupPackageBrowser({ transport, nativeAvailable, escapeHtml, op
     }
     const downloads = document.createElement("span");
     downloads.className = "pkg-browse-meta";
-    downloads.textContent = `${(pkg.downloads || 0).toLocaleString()}/mo`;
+    downloads.textContent = t("packageBrowser.downloadsPerMonth", {
+      count: (pkg.downloads || 0).toLocaleString(),
+    });
     badges.appendChild(downloads);
     info.appendChild(badges);
 

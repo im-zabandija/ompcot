@@ -1,6 +1,7 @@
 /**
  * File Browser — right sidebar file tree with drag-and-drop
  */
+import { t } from "./i18n.js";
 
 const FILE_ICONS = {
   // Folders
@@ -93,7 +94,7 @@ export class FileBrowser {
   }
 
   async load(dirPath) {
-    this.container.innerHTML = '<div class="file-loading">Loading…</div>';
+    this.container.innerHTML = `<div class="file-loading">${t("fileBrowser.loading")}</div>`;
 
     try {
       const url = dirPath ? `/api/files?path=${encodeURIComponent(dirPath)}` : "/api/files";
@@ -110,7 +111,7 @@ export class FileBrowser {
       this.pathEl.title = data.path;
       this.render(data.items);
     } catch (_err) {
-      this.container.innerHTML = '<div class="file-loading">Failed to load</div>';
+      this.container.innerHTML = `<div class="file-loading">${t("fileBrowser.failedToLoad")}</div>`;
     }
   }
 
@@ -125,7 +126,7 @@ export class FileBrowser {
     this.container.innerHTML = "";
 
     if (items.length === 0) {
-      this.container.innerHTML = '<div class="file-loading">Empty directory</div>';
+      this.container.innerHTML = `<div class="file-loading">${t("fileBrowser.emptyDirectory")}</div>`;
       return;
     }
 

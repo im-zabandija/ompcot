@@ -2,6 +2,7 @@
  * Generic promise-based confirm dialog. Reuses the `.cleanup-*` overlay styles
  * so it needs no CSS of its own.
  */
+import { t } from "./i18n.js";
 
 // Resolves true on confirm, false on cancel / overlay click / Escape.
 export function confirmModal({
@@ -19,7 +20,7 @@ export function confirmModal({
     dialog.className = "cleanup-dialog";
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
-    dialog.setAttribute("aria-label", title || "Confirm");
+    dialog.setAttribute("aria-label", title || t("common.confirm"));
 
     const titleEl = document.createElement("div");
     titleEl.className = "cleanup-title";
