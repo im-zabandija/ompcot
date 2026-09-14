@@ -18,7 +18,7 @@ import { setupSwapOverlay } from "./app-swap-overlay.js";
 import { setupVoiceInput } from "./app-voice-input.js";
 import { setupWorkspaceHeader } from "./app-workspace-header.js";
 import { FileBrowser } from "./file-browser.js";
-import { applyI18n } from "./i18n.js";
+import { applyI18n, t } from "./i18n.js";
 import { setupMessagesInsets } from "./layout-insets.js";
 import { MessageRenderer } from "./message-renderer.js";
 import { openAbandonedCleanup, refreshCleanupPill } from "./session-cleanup.js";
@@ -366,7 +366,7 @@ wsClient.addEventListener("disconnected", () => {
 
 wsClient.addEventListener("reconnectFailed", () => {
   updateConnectionStatus("disconnected");
-  messageRenderer.renderError("Connection lost. Please refresh the page.");
+  messageRenderer.renderError(t("app.connectionLost"));
 });
 
 wsClient.addEventListener("rpcEvent", (e) => {
@@ -391,13 +391,8 @@ wsClient.addEventListener("commandUndeliverable", (e) => {
   deleteInFlightPrompt(requestId);
   state.setStreaming(false);
   showTypingIndicator(false);
-  const detail =
-    reason === "no_route"
-      ? "no running session to receive it"
-      : "the session process is no longer reachable";
-  messageRenderer.renderError(
-    `Message not delivered (${detail}). The session may have closed — start a new chat or try again.`,
-  );
+  const detail = reason === "no_route" ? t("app.reasonNoRoute") : t("app.reasonUnreachable");
+  messageRenderer.renderError(t("app.messageNotDelivered", { detail }));
   if (pending.message && !messageInput.value.trim()) {
     messageInput.value = pending.message;
     messageInput.style.height = "auto";
@@ -601,9 +596,9 @@ const sortBtn = document.getElementById("session-sort-btn");
 const sortMenu = document.getElementById("session-sort-menu");
 if (sortDropdown && sortBtn && sortMenu) {
   const SORT_MODES = [
-    { value: "recent", label: "Recientes" },
-    { value: "oldest", label: "Más viejas" },
-    { value: "name", label: "Nombre A→Z" },
+    { value: "recent", label: t("app.sortRecent") },
+    { value: "oldest", label: t("app.sortOldest") },
+    { value: "name", label: t("app.sortNameAZ") },
   ];
   // The OS tooltip from `title` is a native window in WebKitGTK, so it paints
   // over the popup regardless of z-index. Pull it while the menu is open and
@@ -833,7 +828,7 @@ async function newSession() {
       await transport.newSession(getActivePort());
       await resetUiForNewSession();
     } catch (err) {
-      messageRenderer.renderError(`Failed to start new session: ${err}`);
+      messageRenderer.renderError(t("app.failedToStartNewSession", { error: err }));
       return;
     }
     if (isMobile()) {
@@ -849,9 +844,9 @@ async function newSession() {
   lastInputTokens = 0;
   updateCostDisplay();
   updateTokenUsage();
-  const data = await rpcCommand({ type: "new_session" }, "Starting new session...");
+  const data = await rpcCommand({ type: "new_session" }, t("app.startingNewSession"));
   if (data?.success === false || data?.data?.cancelled) {
-    messageRenderer.renderError(data?.error || "New session was cancelled");
+    messageRenderer.renderError(data?.error || t("app.newSessionCancelled"));
     return;
   }
   await resetUiForNewSession();
@@ -881,9 +876,7 @@ async function handleNewProjectChat(project) {
       if (isCurrentProject) {
         await newSession();
       } else {
-        messageRenderer.renderError(
-          "Starting a new chat in another project requires the desktop broker. Reopen the mobile QR code.",
-        );
+        messageRenderer.renderError(t("app.newChatRequiresDesktop"));
       }
       if (isMobile()) {
         sidebarEl.classList.add("collapsed");
@@ -1027,7 +1020,7 @@ function showTypingIndicator(show) {
 
 function abortCurrentRun() {
   wsClient.send({ type: "abort" });
-  messageRenderer.renderError("Aborted by user");
+  messageRenderer.renderError(t("app.abortedByUser"));
   showTypingIndicator(false);
 
   // In some abort paths, backend agent_end can be delayed or missing.
@@ -1059,7 +1052,10 @@ function updateTokenUsage() {
     } else if (pct >= 60) {
       tokenUsageEl.classList.add("warning");
     }
-    tokenUsageEl.title = `Context: ${(lastInputTokens / 1000).toFixed(1)}k / ${(contextWindowSize / 1000).toFixed(0)}k tokens`;
+    tokenUsageEl.title = t("app.contextTokensTitle", {
+      used: (lastInputTokens / 1000).toFixed(1),
+      max: (contextWindowSize / 1000).toFixed(0),
+    });
     if (pct >= 80) {
       showCompactButton();
     } else {
@@ -1078,10 +1074,10 @@ function showCompactButton() {
   const btn = document.createElement("button");
   btn.id = "compact-btn";
   btn.className = "compact-btn";
-  btn.textContent = "Compact";
-  btn.title = "Context is over 80% — compact to save tokens";
+  btn.textContent = t("app.compactButton");
+  btn.title = t("app.compactButtonTitle");
   btn.addEventListener("click", () => {
-    rpcCommand({ type: "compact" }, "Compacting...");
+    rpcCommand({ type: "compact" }, t("app.compacting"));
     hideCompactButton();
   });
   // Insert next to token usage in header
@@ -1128,7 +1124,7 @@ function updateConnectionStatus(status) {
       void refreshLanUrl();
     }
   } else if (status === "disconnected") {
-    statusText.textContent = "Disconnected";
+    statusText.textContent = t("app.disconnected");
   }
 }
 
@@ -1161,9 +1157,9 @@ function updateUI() {
     messageInput.disabled = true;
     sendBtn.disabled = true;
     abortBtn.classList.add("hidden");
-    messageInput.placeholder = "Waiting for current session to finish…";
+    messageInput.placeholder = t("app.waitingForSession");
   } else if (onboarding.canQuery) {
-    messageInput.placeholder = "Type a message...";
+    messageInput.placeholder = t("composer.placeholder");
   }
 }
 
@@ -1275,7 +1271,7 @@ if (isMobile()) {
 document.getElementById("logo-new-session-btn")?.addEventListener("click", () => {
   closeSettings();
   newSession().catch((err) => {
-    messageRenderer.renderError(`Failed to start new session: ${err}`);
+    messageRenderer.renderError(t("app.failedToStartNewSession", { error: err }));
   });
 });
 
