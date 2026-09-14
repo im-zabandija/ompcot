@@ -6,6 +6,7 @@ import {
   renderInfobarProjects,
   renderInfobarToolCost,
 } from "./cost-infobar.js";
+import { t } from "./i18n.js";
 
 describe("cost infobar renderers", () => {
   it("renders overview cards", () => {
@@ -33,12 +34,12 @@ describe("cost infobar renderers", () => {
     );
 
     expect(target.querySelectorAll(".infobar-stat-card")).toHaveLength(12);
-    expect(target.textContent).toContain("Total cost");
+    expect(target.textContent).toContain(t("costInfobar.statTotalCost"));
     expect(target.textContent).toContain("$9.00");
     expect(target.textContent).not.toContain("Peak hour");
-    expect(target.textContent).toContain("Sessions");
-    expect(target.textContent).toContain("Messages");
-    expect(target.textContent).toContain("Tool Calls");
+    expect(target.textContent).toContain(t("costInfobar.statSessions"));
+    expect(target.textContent).toContain(t("costInfobar.statMessages"));
+    expect(target.textContent).toContain(t("costInfobar.statToolCalls"));
   });
 
   it("renders ranked model and project rows plus tool cost", () => {
@@ -103,7 +104,7 @@ describe("cost infobar renderers", () => {
       expect(models.querySelectorAll(".infobar-model-legend-row")).toHaveLength(2);
       expect(projects.querySelector(".infobar-projects-chart")).not.toBeNull();
       expect(toolCost.textContent).toContain("read_file");
-      expect(toolCostMeta.textContent).toContain("2 tracked");
+      expect(toolCostMeta.textContent).toBe(t("costInfobar.toolsTracked", { count: "2" }));
     } finally {
       window.Chart = OriginalChart;
     }
@@ -271,14 +272,18 @@ describe("cost infobar renderers", () => {
     });
 
     expect(section.querySelectorAll("#infobar-overview-grid .infobar-stat-card")).toHaveLength(12);
-    expect(section.querySelector("#infobar-overview-grid").textContent).toContain("Total cost");
+    expect(section.querySelector("#infobar-overview-grid").textContent).toContain(
+      t("costInfobar.statTotalCost"),
+    );
     expect(section.querySelector("#infobar-overview-grid").textContent).toContain("$9.00");
     expect(section.querySelector("#infobar-overview-grid").textContent).not.toContain("Peak hour");
     expect(
       section.querySelector("#infobar-activity-panel").querySelectorAll(".infobar-activity-cell")
         .length,
     ).toBeGreaterThan(0);
-    expect(section.querySelector("#infobar-overview-note").textContent).toContain("War and Peace");
+    expect(section.querySelector("#infobar-overview-note").textContent).toBe(
+      t("costInfobar.comparison", { multiplier: 1 }),
+    );
     expect(section.querySelector("#infobar-models-list").textContent).toContain("gpt-4.1");
     expect(section.querySelector("#infobar-tool-cost-panel").textContent).toContain("read_file");
     expect(section.querySelector("#infobar-sessions-panel").textContent).toContain("Session 1");

@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 export function createAppUpdater({
   transport,
   appVersionValue,
@@ -28,18 +30,18 @@ export function createAppUpdater({
 
   function setSidebarUpdateButton({
     visible,
-    label = "Update",
+    label = t("appUpdater.update"),
     tone = "ok",
-    title = "Open updates in settings",
+    title = t("appUpdater.openInSettings"),
     disabled = false,
   }) {
     if (!sidebarUpdateBtn) return;
     sidebarUpdateBtn.classList.toggle("hidden", !visible);
     if (!visible) {
-      sidebarUpdateBtn.textContent = "Update";
+      sidebarUpdateBtn.textContent = t("appUpdater.update");
       sidebarUpdateBtn.dataset.tone = "";
       sidebarUpdateBtn.disabled = false;
-      sidebarUpdateBtn.title = "Open updates in settings";
+      sidebarUpdateBtn.title = t("appUpdater.openInSettings");
       return;
     }
     sidebarUpdateBtn.textContent = label;
@@ -52,9 +54,9 @@ export function createAppUpdater({
     if (updaterBusy) {
       setSidebarUpdateButton({
         visible: true,
-        label: "Updating...",
+        label: t("appUpdater.updating"),
         tone: "warn",
-        title: "Update is in progress",
+        title: t("appUpdater.updateInProgress"),
         disabled: true,
       });
       return;
@@ -62,18 +64,18 @@ export function createAppUpdater({
     if (pendingUpdate) {
       setSidebarUpdateButton({
         visible: true,
-        label: "Update",
+        label: t("appUpdater.update"),
         tone: "ok",
-        title: `Update available: ${pendingUpdate.version}`,
+        title: t("appUpdater.updateAvailable", { version: pendingUpdate.version }),
       });
       return;
     }
     if (updateCheckFailed) {
       setSidebarUpdateButton({
         visible: true,
-        label: "Retry",
+        label: t("appUpdater.retry"),
         tone: "error",
-        title: "Last update check failed. Open settings to retry.",
+        title: t("appUpdater.checkFailedRetry"),
       });
       return;
     }
@@ -100,10 +102,12 @@ export function createAppUpdater({
       return;
     }
     updateInstallRow.hidden = false;
-    const from = update.currentVersion ? ` (from ${update.currentVersion})` : "";
-    updateInstallLabel.textContent = `Ompcot ${update.version}${from}`;
+    const from = update.currentVersion
+      ? t("appUpdater.fromVersion", { version: update.currentVersion })
+      : "";
+    updateInstallLabel.textContent = t("appUpdater.updateLabel", { version: update.version, from });
     installUpdateBtn.disabled = false;
-    installUpdateBtn.textContent = "Download & install";
+    installUpdateBtn.textContent = t("appUpdater.downloadAndInstall");
   }
 
   function isIgnoredPrereleaseVersion(version) {
@@ -135,24 +139,20 @@ export function createAppUpdater({
     } catch (err) {
       console.warn("[updater] unable to read app version:", err);
     }
-    appVersionValue.textContent = "unknown";
-    currentAppVersion = "unknown";
+    appVersionValue.textContent = t("appUpdater.unknownVersion");
+    currentAppVersion = t("appUpdater.unknownVersion");
     return currentAppVersion;
   }
 
   function explainUpdateError(rawMessage) {
     const msg = String(rawMessage || "");
     if (/Could not fetch a valid release JSON/i.test(msg)) {
-      return (
-        "No update manifest published yet. Either the latest GitHub release " +
-        "doesn't include `latest.json`, or it has no entry for this platform. " +
-        "See docs/AUTO_UPDATER.md."
-      );
+      return t("appUpdater.noManifest");
     }
     if (/pubkey|public key|signature/i.test(msg)) {
-      return "Updater public key is missing or the bundle signature is invalid. See docs/AUTO_UPDATER.md.";
+      return t("appUpdater.invalidSignature");
     }
-    return msg || "Unknown updater error";
+    return msg || t("appUpdater.unknownError");
   }
 
   async function checkForUpdates({ silent = false } = {}) {
@@ -160,10 +160,7 @@ export function createAppUpdater({
 
     if (isLocalPrereleaseBuild(currentAppVersion)) {
       if (!silent) {
-        setUpdateStatus(
-          `Pre-release build (${currentAppVersion}) — auto-update is disabled for this build.`,
-          "info",
-        );
+        setUpdateStatus(t("appUpdater.preReleaseBuild", { version: currentAppVersion }), "info");
       }
       pendingUpdate = null;
       updateCheckFailed = false;
@@ -173,7 +170,7 @@ export function createAppUpdater({
     }
 
     if (!transport?.hasUpdater) {
-      if (!silent) setUpdateStatus("Auto-updates are only available in the desktop app.", "warn");
+      if (!silent) setUpdateStatus(t("appUpdater.desktopOnly"), "warn");
       if (updaterSection && !transport?.capabilities?.native) updaterSection.hidden = true;
       setSidebarUpdateButton({ visible: false });
       return null;
@@ -183,9 +180,9 @@ export function createAppUpdater({
     syncSidebarUpdateButton();
     if (checkUpdatesBtn) {
       checkUpdatesBtn.disabled = true;
-      checkUpdatesBtn.textContent = "Checking...";
+      checkUpdatesBtn.textContent = t("appUpdater.checking");
     }
-    if (!silent) setUpdateStatus("Checking for updates...", "info");
+    if (!silent) setUpdateStatus(t("appUpdater.checkingForUpdates"), "info");
 
     try {
       const update = await transport.checkForUpdate();
@@ -193,7 +190,7 @@ export function createAppUpdater({
         pendingUpdate = null;
         updateCheckFailed = false;
         showInstallButton(null);
-        setUpdateStatus("You're on the latest version.", "ok");
+        setUpdateStatus(t("appUpdater.latestVersion"), "ok");
         syncSidebarUpdateButton();
         return null;
       }
@@ -203,7 +200,7 @@ export function createAppUpdater({
         pendingUpdate = null;
         updateCheckFailed = false;
         showInstallButton(null);
-        setUpdateStatus("You're on the latest stable version.", "ok");
+        setUpdateStatus(t("appUpdater.latestStableVersion"), "ok");
         syncSidebarUpdateButton();
         return null;
       }
@@ -211,7 +208,7 @@ export function createAppUpdater({
       pendingUpdate = update;
       updateCheckFailed = false;
       showInstallButton(update);
-      setUpdateStatus(`Update available: ${update.version}`, "ok");
+      setUpdateStatus(t("appUpdater.updateAvailable", { version: update.version }), "ok");
       syncSidebarUpdateButton();
       return update;
     } catch (err) {
@@ -228,7 +225,7 @@ export function createAppUpdater({
       syncSidebarUpdateButton();
       if (checkUpdatesBtn) {
         checkUpdatesBtn.disabled = false;
-        checkUpdatesBtn.textContent = "Check now";
+        checkUpdatesBtn.textContent = t("appUpdater.checkNow");
       }
     }
   }
@@ -241,7 +238,7 @@ export function createAppUpdater({
     syncSidebarUpdateButton();
     if (installUpdateBtn) {
       installUpdateBtn.disabled = true;
-      installUpdateBtn.textContent = "Downloading...";
+      installUpdateBtn.textContent = t("appUpdater.downloadingEllipsis");
     }
     if (checkUpdatesBtn) checkUpdatesBtn.disabled = true;
 
@@ -250,27 +247,28 @@ export function createAppUpdater({
         if (evt.phase === "started") {
           setUpdateStatus(
             evt.contentLength
-              ? `Downloading ${(evt.contentLength / 1_048_576).toFixed(1)} MB...`
-              : "Downloading...",
+              ? t("appUpdater.downloadingMb", { mb: (evt.contentLength / 1_048_576).toFixed(1) })
+              : t("appUpdater.downloadingEllipsis"),
             "info",
           );
         } else if (evt.phase === "progress" && evt.contentLength) {
           const pct = Math.min(100, Math.round((evt.downloaded / evt.contentLength) * 100));
-          if (installUpdateBtn) installUpdateBtn.textContent = `Downloading ${pct}%`;
+          if (installUpdateBtn)
+            installUpdateBtn.textContent = t("appUpdater.downloading", { percent: pct });
         } else if (evt.phase === "finished") {
-          if (installUpdateBtn) installUpdateBtn.textContent = "Installing...";
-          setUpdateStatus("Installing...", "info");
+          if (installUpdateBtn) installUpdateBtn.textContent = t("appUpdater.installing");
+          setUpdateStatus(t("appUpdater.installing"), "info");
         }
       });
 
-      setUpdateStatus("Update installed. Restarting...", "ok");
+      setUpdateStatus(t("appUpdater.installedRestarting"), "ok");
       pendingUpdate = null;
       updateCheckFailed = false;
       syncSidebarUpdateButton();
       setTimeout(() => {
         transport?.relaunchApp?.().catch((err) => {
           console.error("[updater] relaunch failed:", err);
-          setUpdateStatus("Please restart Ompcot to finish updating.", "warn");
+          setUpdateStatus(t("appUpdater.restartManually"), "warn");
           updateCheckFailed = true;
           syncSidebarUpdateButton();
         });
@@ -278,10 +276,10 @@ export function createAppUpdater({
     } catch (err) {
       const msg = String(err?.message || err || "unknown error");
       console.error("[updater] install failed:", err);
-      setUpdateStatus(`Update failed: ${msg}`, "error");
+      setUpdateStatus(t("appUpdater.updateFailed", { message: msg }), "error");
       if (installUpdateBtn) {
         installUpdateBtn.disabled = false;
-        installUpdateBtn.textContent = "Retry";
+        installUpdateBtn.textContent = t("appUpdater.retry");
       }
       updateCheckFailed = true;
       syncSidebarUpdateButton();
@@ -318,17 +316,14 @@ export function createAppUpdater({
     const appVersion = await loadAppVersion();
 
     if (await isDevBuild()) {
-      setUpdateStatus("Dev build — updates are checked only in packaged releases.", "info");
+      setUpdateStatus(t("appUpdater.devBuild"), "info");
       if (checkUpdatesBtn) checkUpdatesBtn.disabled = true;
       syncSidebarUpdateButton();
       return;
     }
 
     if (isLocalPrereleaseBuild(appVersion)) {
-      setUpdateStatus(
-        `Pre-release build (${appVersion}) — auto-update is disabled for this build.`,
-        "info",
-      );
+      setUpdateStatus(t("appUpdater.preReleaseBuild", { version: appVersion }), "info");
       if (checkUpdatesBtn) checkUpdatesBtn.disabled = true;
       if (installUpdateBtn) installUpdateBtn.disabled = true;
       showInstallButton(null);

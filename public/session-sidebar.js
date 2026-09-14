@@ -3,6 +3,7 @@
  */
 
 import { confirmModal } from "./confirm-modal.js";
+import { t } from "./i18n.js";
 
 export class SessionSidebar {
   constructor(container, onSessionSelect, onNewChat, options = {}) {
@@ -68,7 +69,7 @@ export class SessionSidebar {
   }
 
   sortSessions(sessions) {
-    const key = (s) => s.name || s.firstMessage || "Empty session";
+    const key = (s) => s.name || s.firstMessage || t("sessionSidebar.emptySession");
     const ts = (s) => {
       const t = s.timestamp ? new Date(s.timestamp).getTime() : s.ctime || 0;
       return Number.isFinite(t) ? t : s.ctime || 0;
@@ -196,7 +197,12 @@ export class SessionSidebar {
   }
 
   async confirmArchivedDeletion(count) {
-    const message = `Delete ${count} archived session${count === 1 ? "" : "s"} permanently? This cannot be undone.`;
+    const message = t(
+      count === 1
+        ? "sessionSidebar.confirmArchivedDeletionOne"
+        : "sessionSidebar.confirmArchivedDeletionOther",
+      { count },
+    );
     return this.showFallbackConfirmDialog(message);
   }
 
@@ -205,11 +211,11 @@ export class SessionSidebar {
       const overlay = document.createElement("div");
       overlay.className = "sidebar-confirm-overlay";
       overlay.innerHTML = `
-        <div class="sidebar-confirm-dialog" role="dialog" aria-modal="true" aria-label="Delete archived sessions">
+        <div class="sidebar-confirm-dialog" role="dialog" aria-modal="true" aria-label="${this.escapeHtml(t("sessionSidebar.deleteArchivedDialogAriaLabel"))}">
           <div class="sidebar-confirm-message">${this.escapeHtml(message)}</div>
           <div class="sidebar-confirm-actions">
-            <button type="button" class="sidebar-confirm-no">Cancel</button>
-            <button type="button" class="sidebar-confirm-yes">Delete</button>
+            <button type="button" class="sidebar-confirm-no">${this.escapeHtml(t("common.cancel"))}</button>
+            <button type="button" class="sidebar-confirm-yes">${this.escapeHtml(t("sessionSidebar.delete"))}</button>
           </div>
         </div>
       `;
@@ -274,9 +280,9 @@ export class SessionSidebar {
       reason.includes("networkerror") ||
       reason.includes("load failed");
     const message = likelyRuntimeDown
-      ? "Failed to load sessions. OMP runtime may be unavailable."
-      : "Failed to load sessions.";
-    this.container.innerHTML = `<div class="session-loading">${message} <button class="retry-link" id="retry-load-sessions">Retry</button></div>`;
+      ? t("sessionSidebar.failedToLoadSessionsRuntimeDown")
+      : t("sessionSidebar.failedToLoadSessions");
+    this.container.innerHTML = `<div class="session-loading">${this.escapeHtml(message)} <button class="retry-link" id="retry-load-sessions">${this.escapeHtml(t("sessionSidebar.retry"))}</button></div>`;
     const retryBtn = this.container.querySelector("#retry-load-sessions");
     if (retryBtn) {
       retryBtn.addEventListener("click", () => this.loadSessions());
@@ -332,7 +338,7 @@ export class SessionSidebar {
 
     const header = document.createElement("div");
     header.className = "project-header search-results-header";
-    header.innerHTML = `<span>🔍</span> <span>Message matches</span> <span class="project-count">${this._searchResults.length}</span>`;
+    header.innerHTML = `<span>🔍</span> <span>${this.escapeHtml(t("sessionSidebar.messageMatches"))}</span> <span class="project-count">${this._searchResults.length}</span>`;
     group.appendChild(header);
 
     const sessionsDiv = document.createElement("div");
@@ -347,7 +353,8 @@ export class SessionSidebar {
         item.classList.add("active");
       }
 
-      const title = result.sessionName || result.firstMessage || "Untitled";
+      const title =
+        result.sessionName || result.firstMessage || t("sessionSidebar.untitledSession");
       const snippet = result.matches[0]?.snippet || "";
       const matchCount = result.matches.length;
       const time = this.formatTime(result.sessionTimestamp);
@@ -357,7 +364,7 @@ export class SessionSidebar {
           <div class="session-title" title="${this.escapeHtml(title)}">${this.escapeHtml(title)}</div>
         </div>
         <div class="search-snippet">${this.highlightMatch(snippet, this.searchQuery)}</div>
-        <div class="session-meta">${time}${matchCount > 1 ? ` · ${matchCount} matches` : ""}</div>
+        <div class="session-meta">${time}${matchCount > 1 ? this.escapeHtml(t("sessionSidebar.matchCountSuffix", { count: matchCount })) : ""}</div>
       `;
 
       // Find the matching project/session to pass to onSessionSelect
@@ -474,12 +481,12 @@ export class SessionSidebar {
     const items = [
       {
         icon: isArchived ? "📤" : "🗄️",
-        label: isArchived ? "Unarchive" : "Archive",
+        label: isArchived ? t("sessionSidebar.unarchive") : t("sessionSidebar.archive"),
         action: () => this.toggleArchived(session.filePath),
       },
       {
         icon: "🗑️",
-        label: "Delete",
+        label: t("sessionSidebar.delete"),
         danger: true,
         action: () => this.deleteSession(session),
       },
@@ -516,29 +523,27 @@ export class SessionSidebar {
     // silently doing nothing.
     if (session.filePath === this.activeSessionFile) {
       await confirmModal({
-        title: "Can't delete active session",
-        message:
-          "This is the session you're currently in. Switch to another session first, then delete this one.",
-        confirmLabel: "OK",
-        cancelLabel: "Close",
+        title: t("sessionSidebar.cantDeleteActiveTitle"),
+        message: t("sessionSidebar.cantDeleteActiveMessage"),
+        confirmLabel: t("sessionSidebar.ok"),
+        cancelLabel: t("sessionSidebar.close"),
       });
       return;
     }
     if (this.streamingFiles.has(session.filePath)) {
       await confirmModal({
-        title: "Can't delete session",
-        message:
-          "This session is still streaming a response. Wait for it to finish, then try again.",
-        confirmLabel: "OK",
-        cancelLabel: "Close",
+        title: t("sessionSidebar.cantDeleteStreamingTitle"),
+        message: t("sessionSidebar.cantDeleteStreamingMessage"),
+        confirmLabel: t("sessionSidebar.ok"),
+        cancelLabel: t("sessionSidebar.close"),
       });
       return;
     }
-    const title = session.name || session.firstMessage || "Empty session";
+    const title = session.name || session.firstMessage || t("sessionSidebar.emptySession");
     const ok = await confirmModal({
-      title: "Delete session",
-      message: `Delete "${title}"? This permanently removes its .jsonl file.`,
-      confirmLabel: "Delete",
+      title: t("sessionSidebar.deleteSessionTitle"),
+      message: t("sessionSidebar.deleteSessionMessage", { title }),
+      confirmLabel: t("sessionSidebar.delete"),
       danger: true,
     });
     if (!ok) return;
@@ -561,18 +566,18 @@ export class SessionSidebar {
         await this.loadSessions();
       } else {
         await confirmModal({
-          title: "Delete failed",
-          message: "Could not delete that session file.",
-          confirmLabel: "OK",
-          cancelLabel: "Close",
+          title: t("sessionSidebar.deleteFailedTitle"),
+          message: t("sessionSidebar.deleteFailedMessage"),
+          confirmLabel: t("sessionSidebar.ok"),
+          cancelLabel: t("sessionSidebar.close"),
         });
       }
     } catch {
       await confirmModal({
-        title: "Delete failed",
-        message: "Could not delete that session file.",
-        confirmLabel: "OK",
-        cancelLabel: "Close",
+        title: t("sessionSidebar.deleteFailedTitle"),
+        message: t("sessionSidebar.deleteFailedMessage"),
+        confirmLabel: t("sessionSidebar.ok"),
+        cancelLabel: t("sessionSidebar.close"),
       });
     }
   }
@@ -650,7 +655,7 @@ export class SessionSidebar {
       item.classList.add("streaming");
     }
 
-    const title = session.name || session.firstMessage || "Empty session";
+    const title = session.name || session.firstMessage || t("sessionSidebar.emptySession");
     const time = this.formatTime(session.timestamp);
     const hasPreview =
       !!session.name && !!session.firstMessage && session.firstMessage !== session.name;
@@ -667,7 +672,9 @@ export class SessionSidebar {
       ? '<span class="session-fav-icon">★</span>'
       : "";
     const isArchived = this.isArchived(session.filePath);
-    const archiveBtnLabel = isArchived ? "Unarchive session" : "Archive session";
+    const archiveBtnLabel = isArchived
+      ? t("sessionSidebar.unarchiveSession")
+      : t("sessionSidebar.archiveSession");
     const archiveBtnIcon = `
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="3" y="4" width="18" height="4" rx="1.5"></rect>
@@ -677,10 +684,10 @@ export class SessionSidebar {
     `;
 
     const moreButtonHtml = showArchiveButton
-      ? '<button class="session-more-btn" tabindex="-1" title="More" aria-label="More actions">⋯</button>'
+      ? `<button class="session-more-btn" tabindex="-1" title="${this.escapeHtml(t("sessionSidebar.more"))}" aria-label="${this.escapeHtml(t("sessionSidebar.moreActions"))}">⋯</button>`
       : "";
     const archiveButtonHtml = showArchiveButton
-      ? `<button class="session-archive-btn" title="${archiveBtnLabel}" aria-label="${archiveBtnLabel}">${archiveBtnIcon}</button>`
+      ? `<button class="session-archive-btn" title="${this.escapeHtml(archiveBtnLabel)}" aria-label="${this.escapeHtml(archiveBtnLabel)}">${archiveBtnIcon}</button>`
       : "";
 
     item.innerHTML = `
@@ -753,7 +760,7 @@ export class SessionSidebar {
       const showMoreButton = document.createElement("button");
       showMoreButton.type = "button";
       showMoreButton.className = "project-sessions-toggle";
-      showMoreButton.textContent = "Show more";
+      showMoreButton.textContent = t("sessionSidebar.showMore");
       showMoreButton.addEventListener("click", (event) => {
         event.stopPropagation();
         this.setProjectVisibleSessionCount(project, visibleCount + this.projectSessionStep);
@@ -766,7 +773,7 @@ export class SessionSidebar {
       const showLessButton = document.createElement("button");
       showLessButton.type = "button";
       showLessButton.className = "project-sessions-toggle project-sessions-toggle-less";
-      showLessButton.textContent = "Show less";
+      showLessButton.textContent = t("sessionSidebar.showLess");
       showLessButton.addEventListener("click", (event) => {
         event.stopPropagation();
         this.setProjectVisibleSessionCount(
@@ -814,7 +821,7 @@ export class SessionSidebar {
 
       const header = document.createElement("div");
       header.className = "project-header favourites-header";
-      header.innerHTML = `<span class="fav-star">★</span> <span>Favourites</span> <span class="project-count">${favSessions.length}</span>`;
+      header.innerHTML = `<span class="fav-star">★</span> <span>${this.escapeHtml(t("sessionSidebar.favourites"))}</span> <span class="project-count">${favSessions.length}</span>`;
       favGroup.appendChild(header);
 
       const sessionsDiv = document.createElement("div");
@@ -849,7 +856,7 @@ export class SessionSidebar {
         <span class="chevron">▼</span>
         <span class="project-name" title="${project.path}">${shortPath}</span>
         <span class="project-count">${visibleSessions.length}</span>
-        <button class="project-new-chat-btn" title="New chat in ${this.escapeHtml(shortPath)}" aria-label="New chat in ${this.escapeHtml(shortPath)}">
+        <button class="project-new-chat-btn" title="${this.escapeHtml(t("sessionSidebar.newChatIn", { project: shortPath }))}" aria-label="${this.escapeHtml(t("sessionSidebar.newChatIn", { project: shortPath }))}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
       `;
@@ -915,9 +922,9 @@ export class SessionSidebar {
       header.className = `project-header archived-header${this.archivedCollapsed ? " collapsed" : ""}`;
       header.innerHTML = `
         <span class="chevron">▼</span>
-        <span>Archived</span>
+        <span>${this.escapeHtml(t("sessionSidebar.archived"))}</span>
         <span class="project-count">${archivedSessions.length}</span>
-        <button class="archived-delete-all-btn" title="Delete all archived sessions" aria-label="Delete all archived sessions">
+        <button class="archived-delete-all-btn" title="${this.escapeHtml(t("sessionSidebar.deleteAllArchivedSessions"))}" aria-label="${this.escapeHtml(t("sessionSidebar.deleteAllArchivedSessions"))}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline>
             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
@@ -960,13 +967,13 @@ export class SessionSidebar {
   renderEmptyState() {
     this.container.innerHTML = `
       <div class="session-empty-state">
-        <button type="button" class="session-empty-open-project" title="Open project" aria-label="Open project">
+        <button type="button" class="session-empty-open-project" title="${this.escapeHtml(t("sessionSidebar.openProject"))}" aria-label="${this.escapeHtml(t("sessionSidebar.openProject"))}">
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
             <line x1="12" y1="12" x2="12" y2="18"></line>
             <line x1="9" y1="15" x2="15" y2="15"></line>
           </svg>
-          <span>Open Project</span>
+          <span>${this.escapeHtml(t("sessionSidebar.openProject"))}</span>
         </button>
       </div>
     `;
@@ -992,10 +999,10 @@ export class SessionSidebar {
       const diffHours = Math.floor(diffMs / 3600000);
       const days = Math.floor(diffMs / 86400000);
 
-      if (diffMins < 1) return "Just now";
-      if (diffMins < 60) return `${diffMins}m ago`;
-      if (diffHours < 24) return `${diffHours}h ago`;
-      if (days === 1) return "Yesterday";
+      if (diffMins < 1) return t("sessionSidebar.justNow");
+      if (diffMins < 60) return t("sessionSidebar.minutesAgo", { count: diffMins });
+      if (diffHours < 24) return t("sessionSidebar.hoursAgo", { count: diffHours });
+      if (days === 1) return t("sessionSidebar.yesterday");
       if (days < 7) return date.toLocaleDateString([], { weekday: "long" });
       return date.toLocaleDateString([], { month: "short", day: "numeric" });
     } catch {

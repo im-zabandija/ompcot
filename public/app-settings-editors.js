@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 export function setupSettingsEditors({
   rpcCommand,
   closeSettings,
@@ -11,10 +13,10 @@ export function setupSettingsEditors({
 
   async function loadApiKeysPanel() {
     if (!apiKeysContainer) return;
-    apiKeysContainer.innerHTML = '<div class="settings-api-keys-loading">Loading providers…</div>';
+    apiKeysContainer.innerHTML = `<div class="settings-api-keys-loading">${t("settingsEditors.loadingProviders")}</div>`;
     const data = await rpcCommand({ type: "list_auth_status" });
     if (!data?.success || !Array.isArray(data.data?.providers)) {
-      renderApiKeysPanelError(data?.error || "Failed to load providers.");
+      renderApiKeysPanelError(data?.error || t("settingsEditors.failedLoadProviders"));
       return;
     }
     renderApiKeysPanel(data.data.providers);
@@ -29,7 +31,7 @@ export function setupSettingsEditors({
     const retry = document.createElement("button");
     retry.type = "button";
     retry.className = "config-editor-cancel";
-    retry.textContent = "Retry";
+    retry.textContent = t("settingsEditors.retry");
     retry.style.marginTop = "8px";
     retry.addEventListener("click", () => loadApiKeysPanel());
     wrap.appendChild(msg);
@@ -40,7 +42,7 @@ export function setupSettingsEditors({
   function renderApiKeysPanel(providers) {
     apiKeysContainer.innerHTML = "";
     if (providers.length === 0) {
-      apiKeysContainer.innerHTML = '<div class="settings-api-keys-empty">No providers known.</div>';
+      apiKeysContainer.innerHTML = `<div class="settings-api-keys-empty">${t("settingsEditors.noProvidersKnown")}</div>`;
       return;
     }
     for (const p of providers) {
@@ -68,14 +70,14 @@ export function setupSettingsEditors({
     actions.className = "api-key-row-actions";
     const setBtn = document.createElement("button");
     setBtn.type = "button";
-    setBtn.textContent = p.configured ? "Update" : "Set key";
+    setBtn.textContent = p.configured ? t("settingsEditors.update") : t("settingsEditors.setKey");
     setBtn.addEventListener("click", () => openApiKeyEditor(row, p));
     actions.appendChild(setBtn);
     if (p.configured && p.source === "stored") {
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
       removeBtn.className = "danger";
-      removeBtn.textContent = "Remove";
+      removeBtn.textContent = t("settingsEditors.remove");
       removeBtn.addEventListener("click", () => removeApiKey(p));
       actions.appendChild(removeBtn);
     }
@@ -86,18 +88,20 @@ export function setupSettingsEditors({
   }
 
   function describeAuthStatus(p) {
-    if (!p.configured) return "Not configured";
+    if (!p.configured) return t("settingsEditors.notConfigured");
     switch (p.source) {
       case "stored":
-        return "Configured (auth.json)";
+        return t("settingsEditors.configuredStored");
       case "environment":
-        return `From environment (${p.label || "env var"})`;
+        return t("settingsEditors.fromEnvironment", {
+          label: p.label || t("settingsEditors.envVarFallback"),
+        });
       case "runtime":
-        return "Runtime override";
+        return t("settingsEditors.runtimeOverride");
       case "fallback":
-        return "Custom provider";
+        return t("settingsEditors.customProvider");
       default:
-        return "Configured";
+        return t("settingsEditors.configured");
     }
   }
 
@@ -107,14 +111,14 @@ export function setupSettingsEditors({
 
     const title = document.createElement("div");
     title.className = "api-key-row-name";
-    title.textContent = `${p.displayName || p.provider} API key`;
+    title.textContent = t("settingsEditors.apiKeyTitle", { name: p.displayName || p.provider });
     editor.appendChild(title);
 
     const input = document.createElement("input");
     input.type = "password";
     input.autocomplete = "off";
     input.spellcheck = false;
-    input.placeholder = "Paste API key…";
+    input.placeholder = t("settingsEditors.pasteApiKey");
     editor.appendChild(input);
 
     const err = document.createElement("div");
@@ -127,11 +131,11 @@ export function setupSettingsEditors({
     const cancelBtn = document.createElement("button");
     cancelBtn.type = "button";
     cancelBtn.className = "config-editor-cancel";
-    cancelBtn.textContent = "Cancel";
+    cancelBtn.textContent = t("common.cancel");
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "btn-primary";
-    saveBtn.textContent = "Save";
+    saveBtn.textContent = t("settingsEditors.save");
     actions.appendChild(cancelBtn);
     actions.appendChild(saveBtn);
     editor.appendChild(actions);
@@ -147,20 +151,20 @@ export function setupSettingsEditors({
     const save = async () => {
       const key = input.value.trim();
       if (!key) {
-        err.textContent = "Key cannot be empty.";
+        err.textContent = t("settingsEditors.keyEmpty");
         err.style.display = "";
         return;
       }
       saveBtn.disabled = true;
       const resp = await rpcCommand(
         { type: "set_api_key", provider: p.provider, apiKey: key },
-        `Saving ${p.provider} key...`,
+        t("settingsEditors.savingKey", { provider: p.provider }),
       );
       if (resp?.success) {
         await onModelConfigurationChanged?.();
         loadApiKeysPanel();
       } else {
-        err.textContent = resp?.error || "Failed to save key.";
+        err.textContent = resp?.error || t("settingsEditors.failedSaveKey");
         err.style.display = "";
         saveBtn.disabled = false;
       }
@@ -179,11 +183,13 @@ export function setupSettingsEditors({
   }
 
   async function removeApiKey(p) {
-    const ok = confirm(`Remove stored API key for ${p.displayName || p.provider}?`);
+    const ok = confirm(
+      t("settingsEditors.removeKeyConfirm", { name: p.displayName || p.provider }),
+    );
     if (!ok) return;
     const resp = await rpcCommand(
       { type: "remove_api_key", provider: p.provider },
-      `Removing ${p.provider} key...`,
+      t("settingsEditors.removingKey", { provider: p.provider }),
     );
     if (resp?.success) {
       await onModelConfigurationChanged?.();
@@ -223,7 +229,7 @@ export function setupSettingsEditors({
           }
           configEditorPath.textContent = data.path || "";
         } else {
-          showConfigError(data.error || "Failed to load config");
+          showConfigError(data.error || t("settingsEditors.failedLoadConfig"));
         }
       })
       .catch((e) => showConfigError(e.message));
@@ -243,11 +249,11 @@ export function setupSettingsEditors({
     if (!inlineConfigTextarea) return;
     inlineConfigError?.classList.add("hidden");
     inlineConfigTextarea.value = "";
-    if (inlineConfigPath) inlineConfigPath.textContent = "Loading...";
+    if (inlineConfigPath) inlineConfigPath.textContent = t("settingsEditors.loading");
     try {
       const resp = await fetch("/api/agent-config");
       const data = await resp.json();
-      if (!data.success) throw new Error(data.error || "Failed to load config");
+      if (!data.success) throw new Error(data.error || t("settingsEditors.failedLoadConfig"));
       try {
         inlineConfigTextarea.value = JSON.stringify(JSON.parse(data.content), null, 2);
       } catch {
@@ -275,7 +281,10 @@ export function setupSettingsEditors({
     try {
       JSON.parse(content);
     } catch (e) {
-      showSettingsSaveError(inlineConfigError, `Invalid JSON: ${e.message}`);
+      showSettingsSaveError(
+        inlineConfigError,
+        t("settingsEditors.invalidJson", { message: e.message }),
+      );
       return;
     }
     setSettingsSaveButtonSaving(inlineConfigSave, true);
@@ -286,7 +295,7 @@ export function setupSettingsEditors({
         body: JSON.stringify({ content }),
       });
       const data = await resp.json();
-      if (!data.success) throw new Error(data.error || "Failed to save config");
+      if (!data.success) throw new Error(data.error || t("settingsEditors.failedSaveConfig"));
       showSettingsSaveSuccess(inlineConfigError);
     } catch (e) {
       showSettingsSaveError(inlineConfigError, e.message || String(e));
@@ -305,7 +314,7 @@ export function setupSettingsEditors({
     try {
       JSON.parse(content);
     } catch (e) {
-      showConfigError(`Invalid JSON: ${e.message}`);
+      showConfigError(t("settingsEditors.invalidJson", { message: e.message }));
       return;
     }
     configEditorSave.disabled = true;
@@ -319,7 +328,7 @@ export function setupSettingsEditors({
       if (data.success) {
         closeConfigEditor();
       } else {
-        showConfigError(data.error || "Failed to save config");
+        showConfigError(data.error || t("settingsEditors.failedSaveConfig"));
       }
     } catch (e) {
       showConfigError(e.message);
@@ -366,11 +375,11 @@ export function setupSettingsEditors({
     if (!inlineModelsTextarea) return;
     clearInlineModelsError();
     inlineModelsTextarea.value = "";
-    if (inlineModelsPath) inlineModelsPath.textContent = "Loading...";
+    if (inlineModelsPath) inlineModelsPath.textContent = t("settingsEditors.loading");
     try {
       const resp = await fetch("/api/models-config");
       const data = await resp.json();
-      if (!data.success) throw new Error(data.error || "Failed to load models.json");
+      if (!data.success) throw new Error(data.error || t("settingsEditors.failedLoadModels"));
       try {
         inlineModelsTextarea.value = JSON.stringify(JSON.parse(data.content), null, 2);
       } catch {
@@ -391,18 +400,18 @@ export function setupSettingsEditors({
     try {
       parsed = JSON.parse(content);
     } catch (e) {
-      showInlineModelsError(`Invalid JSON: ${e.message}`);
+      showInlineModelsError(t("settingsEditors.invalidJson", { message: e.message }));
       return;
     }
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      showInlineModelsError("models.json must be a JSON object.");
+      showInlineModelsError(t("settingsEditors.modelsMustBeObject"));
       return;
     }
     if (
       "providers" in parsed &&
       (typeof parsed.providers !== "object" || Array.isArray(parsed.providers))
     ) {
-      showInlineModelsError("'providers' must be an object.");
+      showInlineModelsError(t("settingsEditors.providersMustBeObject"));
       return;
     }
     setSettingsSaveButtonSaving(inlineModelsSave, true);
@@ -413,7 +422,7 @@ export function setupSettingsEditors({
         body: JSON.stringify({ content }),
       });
       const data = await resp.json();
-      if (!data.success) throw new Error(data.error || "Failed to save models.json");
+      if (!data.success) throw new Error(data.error || t("settingsEditors.failedSaveModels"));
       showSettingsSaveSuccess(inlineModelsError);
       await onModelConfigurationChanged?.();
     } catch (e) {
@@ -427,7 +436,7 @@ export function setupSettingsEditors({
     if (!inlineModelsTextarea) return;
     const current = inlineModelsTextarea.value.trim();
     if (current && current !== "{}" && current !== '{\n  "providers": {}\n}') {
-      if (!confirm("Replace current content with the Ollama example?")) return;
+      if (!confirm(t("settingsEditors.replaceExampleConfirm"))) return;
     }
     inlineModelsTextarea.value = MODELS_JSON_EXAMPLE;
     clearInlineModelsError();

@@ -1,5 +1,6 @@
 import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { t } from "./i18n.js";
 import { SessionSidebar } from "./session-sidebar.js";
 
 afterEach(() => {
@@ -25,7 +26,7 @@ describe("SessionSidebar deleteSession on the active session", () => {
     // No silent no-op: a dialog must be shown to the user.
     const dialog = document.querySelector(".cleanup-dialog");
     expect(dialog).not.toBeNull();
-    expect(dialog.textContent).toMatch(/currently in|active/i);
+    expect(dialog.textContent).toContain(t("sessionSidebar.cantDeleteActiveTitle"));
 
     dialog.querySelector(".cleanup-cancel").click();
     await deletePromise;
