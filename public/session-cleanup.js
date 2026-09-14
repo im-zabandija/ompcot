@@ -4,6 +4,7 @@
  * the pill only appears when there are orphaned projects to clean.
  */
 
+import { t } from "./i18n.js";
 // Collect the filePaths of every session belonging to the selected orphan
 // projects. missingProjects: [{ path, dirName, sessions: [{ filePath }] }].
 export function collectSelectedFilePaths(missingProjects, selectedDirNames) {
@@ -27,7 +28,7 @@ export function refreshCleanupPill({ pillEl, missingProjects, onOpen }) {
     pillEl.onclick = null;
     return;
   }
-  pillEl.textContent = `Limpiar (${count})`;
+  pillEl.textContent = t("sessionCleanup.cleanupButton", { count });
   pillEl.classList.remove("hidden");
   pillEl.onclick = onOpen;
 }
@@ -52,15 +53,15 @@ export async function openAbandonedCleanup({ missingProjects, onDeleted }) {
   dialog.className = "cleanup-dialog";
   dialog.setAttribute("role", "dialog");
   dialog.setAttribute("aria-modal", "true");
-  dialog.setAttribute("aria-label", "Limpiar sesiones abandonadas");
+  dialog.setAttribute("aria-label", t("sessionCleanup.ariaLabel"));
 
   const title = document.createElement("div");
   title.className = "cleanup-title";
-  title.textContent = "Sesiones abandonadas";
+  title.textContent = t("sessionCleanup.title");
 
   const subtitle = document.createElement("div");
   subtitle.className = "cleanup-subtitle";
-  subtitle.textContent = "El directorio de trabajo de estos proyectos ya no existe.";
+  subtitle.textContent = t("sessionCleanup.subtitle");
 
   const list = document.createElement("div");
   list.className = "cleanup-list";
@@ -70,7 +71,7 @@ export async function openAbandonedCleanup({ missingProjects, onDeleted }) {
   deleteBtn.className = "cleanup-delete";
 
   function updateDeleteLabel() {
-    deleteBtn.textContent = `Eliminar seleccionadas (${selected.size})`;
+    deleteBtn.textContent = t("sessionCleanup.deleteSelected", { count: selected.size });
     deleteBtn.disabled = selected.size === 0;
   }
 
@@ -95,7 +96,12 @@ export async function openAbandonedCleanup({ missingProjects, onDeleted }) {
     const n = project.sessions.length;
     const count = document.createElement("span");
     count.className = "cleanup-row-count";
-    count.textContent = `${n} sesión${n === 1 ? "" : "es"}`;
+    count.textContent = t(
+      n === 1 ? "sessionCleanup.sessionCountOne" : "sessionCleanup.sessionCountOther",
+      {
+        count: n,
+      },
+    );
 
     row.append(cb, name, count);
     list.appendChild(row);
@@ -107,7 +113,7 @@ export async function openAbandonedCleanup({ missingProjects, onDeleted }) {
   const cancelBtn = document.createElement("button");
   cancelBtn.type = "button";
   cancelBtn.className = "cleanup-cancel";
-  cancelBtn.textContent = "Cancelar";
+  cancelBtn.textContent = t("common.cancel");
 
   actions.append(cancelBtn, deleteBtn);
   dialog.append(title, subtitle, list, actions);

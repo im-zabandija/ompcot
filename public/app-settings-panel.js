@@ -2,6 +2,7 @@ import { createOmpUpdater } from "./app-omp-updater.js";
 import { setupSettingsEditors } from "./app-settings-editors.js";
 import { setupSettingsToggles } from "./app-settings-toggles.js";
 import { createAppUpdater } from "./app-updater.js";
+import { getLocale, setLocale } from "./i18n.js";
 import {
   clearSettingsSaveMessage,
   setSettingsSaveButtonSaving,
@@ -28,6 +29,7 @@ import {
   setVoiceLocale,
   themes,
 } from "./themes.js";
+import { enhanceSelect } from "./ui-select.js";
 
 /**
  * Settings panel — open/close/tab select, theme grid builder, the
@@ -200,6 +202,7 @@ export function setupSettingsPanel({
     const sidebarSlider = document.getElementById("setting-sidebar-width");
     const motionGroup = document.getElementById("setting-motion");
     const voiceLocale = document.getElementById("setting-voice-locale");
+    const localeSelect = document.getElementById("setting-locale");
 
     function markActive(group, value, attr) {
       for (const btn of group.querySelectorAll("button")) {
@@ -269,6 +272,13 @@ export function setupSettingsPanel({
     // Voice input locale — cross-port cookie override.
     voiceLocale.value = getVoiceLocale() || "";
     voiceLocale.addEventListener("change", () => setVoiceLocale(voiceLocale.value));
+
+    // Interface language — cookie override, reload applies it (see setLocale).
+    // enhanceSelect reads selectedIndex synchronously to paint the trigger
+    // label, so .value MUST be set before calling it (see ui-select.js).
+    localeSelect.value = getLocale();
+    enhanceSelect(localeSelect);
+    localeSelect.addEventListener("change", () => setLocale(localeSelect.value));
   }
   setupAppearanceControls();
 

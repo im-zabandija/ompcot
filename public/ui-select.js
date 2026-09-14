@@ -6,7 +6,10 @@
  * `enhanceSelect(selectEl)` is a drop-in replacement: it keeps the original
  * <select> in the DOM (hidden) as the single source of truth for `.value`
  * and dispatches a real `change` event on it, so any code that already
- * listens on that element keeps working unmodified.
+ * listens on that element keeps working unmodified. Callers MUST set
+ * `selectEl.value` to the desired initial option BEFORE calling
+ * `enhanceSelect` — it reads `selectedIndex` synchronously to paint the
+ * trigger label and does not observe later `.value` assignments.
  */
 
 let uid = 0;

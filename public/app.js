@@ -18,6 +18,7 @@ import { setupSwapOverlay } from "./app-swap-overlay.js";
 import { setupVoiceInput } from "./app-voice-input.js";
 import { setupWorkspaceHeader } from "./app-workspace-header.js";
 import { FileBrowser } from "./file-browser.js";
+import { applyI18n } from "./i18n.js";
 import { setupMessagesInsets } from "./layout-insets.js";
 import { MessageRenderer } from "./message-renderer.js";
 import { openAbandonedCleanup, refreshCleanupPill } from "./session-cleanup.js";
@@ -36,6 +37,7 @@ import {
 } from "./workspace-actions.js";
 
 installAuthenticatedFetch(window);
+applyI18n();
 
 const fetchInstances = async () => {
   try {

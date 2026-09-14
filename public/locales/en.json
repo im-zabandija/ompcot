@@ -1,0 +1,12 @@
+{
+  "sessionCleanup.title": "Abandoned sessions",
+  "sessionCleanup.ariaLabel": "Clean up abandoned sessions",
+  "sessionCleanup.subtitle": "The working directory for these projects no longer exists.",
+  "sessionCleanup.cleanupButton": "Clean up ({count})",
+  "sessionCleanup.deleteSelected": "Delete selected ({count})",
+  "sessionCleanup.sessionCountOne": "{count} session",
+  "sessionCleanup.sessionCountOther": "{count} sessions",
+  "common.cancel": "Cancel",
+  "settings.language.label": "Language",
+  "settings.language.sub": "Interface language"
+}

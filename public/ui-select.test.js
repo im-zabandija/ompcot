@@ -45,6 +45,18 @@ describe("enhanceSelect", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
+  test("value set before enhanceSelect is reflected in the trigger label (locale-select regression)", () => {
+    // Repro of the P0 fix: app-settings-panel.js sets localeSelect.value to
+    // the active locale (e.g. "en") BEFORE calling enhanceSelect. The
+    // trigger label must reflect that value, not the first <option>.
+    const select = renderSelect();
+    select.value = "b";
+    enhanceSelect(select);
+
+    const trigger = document.querySelector(".ui-select-trigger");
+    expect(trigger.textContent).toBe("Opción B");
+  });
+
   test("mouse click opens the popover, selecting an option updates value and fires change", () => {
     const select = renderSelect();
     let changeValue = null;
