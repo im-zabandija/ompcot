@@ -8,6 +8,24 @@ actualiza cuando se cierra una tanda de trabajo.
 
 ## Hecho
 
+- **Traducción completa ES/EN con selector de idioma** (2026-09-13). 412
+  claves, 22 archivos, español por defecto; selector en Settings →
+  Appearance. Cubierto por un test que descubre las claves usadas escaneando
+  el código y falla si falta, sobra o si los placeholders no coinciden entre
+  idiomas.
+- **Primitivas de sistema de diseño `.ui-select` / `.ui-dialog`** y Chart.js
+  vendorizado local con CSP en `cost.html` (2026-09-13). Construidas y
+  testeadas; la ADOPCIÓN en los controles existentes sigue pendiente (P4.15).
+- **Plan mode funcionando de verdad** (2026-09-13). El RPC `set_plan_mode`
+  fallaba siempre: comparaba nombres de tool contra los objetos de definición
+  que devuelve `getAllTools()`. Probado de punta a punta contra el binario
+  real.
+- Tanda de bugs (2026-09-13): bloques `content` nulos rompiendo el render del
+  historial, borrar la sesión activa fallando en silencio, flash de consola de
+  Windows al spawnear git, y el dropdown de thinking ofreciendo niveles que el
+  modelo activo no soporta.
+- Revisión completa del fork `picot` tras un mes sin mirar (2026-09-13): 435
+  commits nuevos triageados, candidatos anotados en `BACKLOG.md`.
 - Skills de workflow del repo (`fork-watch`, `ompcot-commit`, `ompcot-preflight`)
   en `.omp/skills/` (2026-08-12).
 - Copiar un mensaje del asistente preserva el markdown crudo (2026-08-12).
@@ -47,15 +65,26 @@ actualiza cuando se cierra una tanda de trabajo.
 
 ## Ahora (P2)
 
-- Traducción completa ES/EN de la app (UI + archivos internos) con selector
-  de idioma.
 - Pegar archivos no-imagen del portapapeles con Ctrl+V.
 
 ## Después (P3)
 
-- Vigilar `picot` (el original vivo), no `upstream` (congelado), por cambios
-  relevantes a traer — sólo su `public/`, que es nuestro mismo linaje vanilla
-  JS; su capa de extensión migró a Pi y ya no nos sirve.
+- Que el chequeo de `picot` corra SOLO. El script ya existe y funciona
+  (`.omp/skills/fork-watch/scripts/fork-check.sh`, ejercitado el 2026-09-13);
+  lo que falta es que no dependa de acordarse de correrlo a mano.
+- Adoptar las primitivas `.ui-*` en los controles existentes (P4.15, primera
+  mitad ya hecha): hoy el único consumidor de `enhanceSelect()` es el selector
+  de idioma, y `confirm-modal.js` sigue con sus clases propias.
+- Setup guiado de proveedor OpenAI/Anthropic-compatible personalizado
+  (candidato de picot `5ad6bf2`).
+- Preview de HTML sandboxeado en el panel de archivos (candidato de picot
+  `4f75c68`), que cruza con el preview de documentos Office/email.
+- Chat rápido sin crear proyecto — **pospuesto a pedido** (2026-09-13), y con
+  una señal negativa fuerte: picot construyó esto entero (~6187 líneas) y lo
+  borró; ver la nota en `BACKLOG.md` antes de encararlo.
+- Launcher dedicado para clientes móviles/remotos — **pospuesto a pedido**
+  (2026-09-13). Tiene una decisión de seguridad pendiente: qué nivel de
+  confianza le damos a un dispositivo pareado por QR.
 - Bandeja de atención unificada: una sola vista que junte approvals,
   preguntas y confirmaciones de todas las sesiones (visto en t4-code y
   MTEnt/omp-desktop).
@@ -63,7 +92,6 @@ actualiza cuando se cierra una tanda de trabajo.
   referencia concreta del mismo stack: Omnividente/omp-desktop (Tauri + Rust).
   Ver el ítem en `BACKLOG.md` por los dos renderers candidatos (xterm.js o
   ghostty-web).
-- Chat rápido sin crear proyecto, usando un directorio scratch automático.
 - Visor de Markdown/HTML para los planes generados en modo plan.
 
 ## Cuando toque (P4 y sin prioridad)
